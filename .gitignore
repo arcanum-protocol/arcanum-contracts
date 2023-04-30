@@ -1,0 +1,22 @@
+node_modules
+.env
+.solhintignore
+.solhint.json
+.npmignore
+.eslintrc.js
+coverage
+coverage.json
+typechain
+pnpm-lock.yaml
+package-lock.json
+
+#Hardhat files
+cache
+artifacts
+pnpm-lock.yaml
+abi
+typechain-types/
+
+*.lock
+package-lock.json
+.deps
