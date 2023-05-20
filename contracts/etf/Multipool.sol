@@ -37,7 +37,7 @@ contract Multipool is ERC20, Ownable {
     uint public baseMintFee = 1e16;
     uint public baseBurnFee = 1e16;
     uint public baseTradeFee = 5e15; // 0.005 + 0.005 = 0.01
-    uint public denominator = 1e18;
+    uint public immutable denominator = 1e18;
 
     mapping(address => uint) public transferFees;
     address public feeReceiver;
@@ -73,6 +73,27 @@ contract Multipool is ERC20, Ownable {
         return x > 0 ? x : -x;
     }
 
+    function calculateFee(int _balanceDelta, uint _baseFee) internal pure returns (uint) {
+            return (_baseFee * uint(pos(_balanceDelta))) /
+                denominator /
+                100;
+    }
+
+    function calculateCashback(int _balanceDelta, uint fee) internal pure returns (uint) {
+            return (fee * uint(pos(_balanceDelta))) /
+                denominator /
+                100;
+    }
+
+    function depegRate(Asset memory asset, uint quantity, uint usdAmount) 
+        private view returns (uint) 
+    {
+        return abs(
+            (quantity * asset.price) / usdAmount,
+            (asset.percent * denominator) / totalAssetPercents
+        );
+    }
+
     function calculateCompensationFee(
         Asset memory asset,
         uint newQuantity,
@@ -93,10 +114,7 @@ contract Multipool is ERC20, Ownable {
             return (0, 0, newTotalCurrentUsdAmount);
         }
 
-        uint oldDepegRate = abs(
-            (asset.quantity * asset.price) / _totalCurrentUsdAmount,
-            (asset.percent * denominator) / totalAssetPercents
-        );
+        uint oldDepegRate = depegRate(asset, asset.quantity, _totalCurrentUsdAmount);
 
         newTotalCurrentUsdAmount = _totalCurrentUsdAmount;
         newTotalCurrentUsdAmount -=
@@ -104,10 +122,7 @@ contract Multipool is ERC20, Ownable {
             denominator;
         newTotalCurrentUsdAmount += (newQuantity * asset.price) / denominator;
 
-        uint newDepegRate = abs(
-            (newQuantity * asset.price) / _totalCurrentUsdAmount,
-            (asset.percent * denominator) / totalAssetPercents
-        );
+        uint newDepegRate = depegRate(asset, newQuantity, _totalCurrentUsdAmount);
 
         return
             newDepegRate > oldDepegRate
@@ -130,15 +145,10 @@ contract Multipool is ERC20, Ownable {
         if (fee + _baseFee > 100 * 1e18) {
             fee = 100 * 1e18 - _baseFee;
         }
-        uint collectedCashback = (fee * uint(pos(_balanceDelta))) /
-            denominator /
-            100;
-        uint collectedFees = (_baseFee * uint(pos(_balanceDelta))) /
-            denominator /
-            100;
+        uint collectedCashback = calculateCashback(_balanceDelta, fee);
+        uint collectedFees = calculateFee(_balanceDelta, _baseFee);
 
-        asset.quantity = uint(
-            int(asset.quantity) +
+        asset.quantity += uint(
                 _balanceDelta -
                 int(collectedCashback) -
                 int(collectedFees)
@@ -204,14 +214,36 @@ contract Multipool is ERC20, Ownable {
             : (usdValue * _totalCurrentUsdAmount) / totalSupply();
     }
 
+    function _reversedMintLP(
+        Asset memory asset,
+        uint _share,
+        uint _baseFee,
+        uint _totalCurrentUsdAmount
+    ) private view returns (uint amount) {
+        require(asset.percent != 0, "cant' take this asset");
+        uint usdValue = totalSupply() == 0
+            ? _share
+            : (_share * totalSupply()) / totalCurrentUsdAmount;
+        uint expectedAssetAmount = usdValue / asset.price;
+        uint newBalance = uint(int(asset.quantity) + int(expectedAssetAmount));
+        (
+            uint fee,
+            uint cashback,
+            uint newTotalCurrentUsdAmount
+        ) = calculateCompensationFee(asset, newBalance, _totalCurrentUsdAmount);
+
+    }
+
     function _burnLp(
         Asset memory asset,
         uint _share,
         uint _baseFee,
         uint _totalCurrentUsdAmount
     ) private view returns (uint quantity, uint newTotalCurrentUsdAmount) {
-        uint quantityToRemove = (_share * totalSupply()) /
+        // BUG:? quantity to remove here is the USD amount, should be converted to the asset amount via mult by price  
+        uint usdAmount = (_share * totalSupply()) /
             totalCurrentUsdAmount;
+        uint quantityToRemove = usdAmount / asset.price;
         (
             ,
             uint toRemove,
@@ -242,18 +274,44 @@ contract Multipool is ERC20, Ownable {
         share = _share;
     }
 
+    function dryMintByShare(
+        uint _share,
+        address _asset
+    ) public view returns (uint amount) {
+        Asset memory asset = assets[_asset];
+
+    }
+
     function dryBurn(
         uint _share,
         address _asset
     ) public view returns (uint quantity) {
         Asset memory asset = assets[_asset];
-        (uint _quantity, ) = _burnLp(
+        (quantity, ) = _burnLp(
             asset,
             _share,
             baseBurnFee,
             totalCurrentUsdAmount
         );
-        quantity = _quantity;
+    }
+
+    function dryBurnByAmount(
+        uint _amount,
+        address _asset
+    ) public view returns (uint share) {
+        Asset memory asset = assets[_asset];
+        (
+            ,
+            uint toRemove,
+            uint _totalCurrentUsdAmount
+        ) = processAssetDeviaion(
+                asset,
+                -int(_amount),
+                baseBurnFee,
+                totalCurrentUsdAmount
+            );
+        uint usdAmount = toRemove * asset.price;
+        share = (usdAmount * _totalCurrentUsdAmount) / totalSupply();
     }
 
     function drySwap(
@@ -276,6 +334,15 @@ contract Multipool is ERC20, Ownable {
             _totalCurrentUsdAmount
         );
         quantity = _quantity;
+    }
+
+    function drySwapOut(
+        uint _amountOut,
+        address _assetIn,
+        address _assetOut
+    ) public view returns (uint quantity) {
+        Asset memory assetIn = assets[_assetIn];
+        Asset memory assetOut = assets[_assetOut];
     }
 
     /** ---------------- Methods ------------------ */
@@ -358,6 +425,7 @@ contract Multipool is ERC20, Ownable {
 
     /** ---------------- Owner ------------------ */
 
+    /** Price should be represented with 1e18  */
     function updatePrice(address _asset, uint _price) public onlyOwner {
         Asset memory asset = assets[_asset];
         totalCurrentUsdAmount -= (asset.quantity * asset.price) / denominator;

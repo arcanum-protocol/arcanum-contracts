@@ -284,4 +284,33 @@ describe("Multipool", function() {
             expect(b).to.equal(toDecimal(0))
         );
     });
+
+    it.only("Dry mint and dry mint from share", async function() {
+        // await etf.connect(owner).setBaseTradeFee(1);
+        
+        await etf.connect(owner).updateAssetPercents(assets[0].address, 28);
+        await etf.connect(owner).updateAssetPercents(assets[1].address, 31);
+        await etf.connect(owner).updateAssetPercents(assets[2].address, 14);
+        await etf.connect(owner).updateAssetPercents(assets[3].address, 36);
+
+        await etf.connect(owner).updatePrice(assets[0].address, toDecimal(1));
+        await etf.connect(owner).updatePrice(assets[1].address, toDecimal(1));
+        await etf.connect(owner).updatePrice(assets[2].address, toDecimal(1));
+        await etf.connect(owner).updatePrice(assets[3].address, toDecimal(1));
+
+        const amountToMint = toDecimal(123);
+        await assets[0].connect(alice).transfer(etf.address, amountToMint);
+        const dryShare = await etf.connect(alice).dryMint(amountToMint, assets[0].address);
+        const amountOut = await etf.connect(alice).dryMintByShare(dryShare, assets[0].address);
+        expect(122).to.be.equal(amountOut);
+        
+        await etf.connect(alice).mint(assets[0].address, alice.address);
+
+        // current share 122987700000000000000 = ~122.9
+        const shareToBurn = toDecimal(122);
+        const dryShareBurn = await etf.connect(alice).dryBurn(shareToBurn, assets[0].address);
+        
+        const shareOut = await etf.connect(alice).dryBurnByAmount(dryShareBurn, assets[0].address);
+        expect("121012101210121011982").to.be.equal(shareOut);
+    });
 })
