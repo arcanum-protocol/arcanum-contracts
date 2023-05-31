@@ -57,12 +57,9 @@ contract Multipool is ERC20, Ownable {
     /** ---------------- View ------------------ */
 
     function pegCurve(uint depegRate) public view returns (uint) {
-        return
-            depegRate >= restrictPercent
-                ? 100 * 1e18
-                : (curveDelay * depegRate * denominator) /
-                    (restrictPercent * denominator - depegRate) /
-                    restrictPercent;
+        return depegRate > restrictPercent ? 100e18 : (curveDelay * depegRate * denominator) /
+            (restrictPercent * denominator - depegRate) /
+                restrictPercent;
     }
 
     function abs(uint x, uint y) internal pure returns (uint) {
@@ -73,63 +70,38 @@ contract Multipool is ERC20, Ownable {
         return x > 0 ? x : -x;
     }
 
-    function calculateCompensationFee(
+    function processAssetDeviaion(
         Asset memory asset,
-        uint newQuantity,
-        uint _totalCurrentUsdAmount
+        int _balanceDelta,
+        uint _baseFee
     )
         internal
         view
-        returns (uint fee, uint cashback, uint newTotalCurrentUsdAmount)
+        returns (uint _assetAmount)
     {
-        if (totalCurrentUsdAmount == 0) {
-            newTotalCurrentUsdAmount = _totalCurrentUsdAmount;
-            newTotalCurrentUsdAmount -=
-                (asset.quantity * asset.price) /
-                denominator;
-            newTotalCurrentUsdAmount +=
-                (newQuantity * asset.price) /
-                denominator;
-            return (0, 0, newTotalCurrentUsdAmount);
-        }
-
+        uint newQuantity = uint(int(asset.quantity) + _balanceDelta);
         uint oldDepegRate = abs(
-            (asset.quantity * asset.price) / _totalCurrentUsdAmount,
+            (asset.quantity * asset.price) / totalCurrentUsdAmount,
             (asset.percent * denominator) / totalAssetPercents
         );
-
-        newTotalCurrentUsdAmount = _totalCurrentUsdAmount;
-        newTotalCurrentUsdAmount -=
-            (asset.quantity * asset.price) /
-            denominator;
-        newTotalCurrentUsdAmount += (newQuantity * asset.price) / denominator;
 
         uint newDepegRate = abs(
-            (newQuantity * asset.price) / _totalCurrentUsdAmount,
+            (newQuantity * asset.price) / totalCurrentUsdAmount,
             (asset.percent * denominator) / totalAssetPercents
         );
 
-        return
-            newDepegRate > oldDepegRate
-                ? (pegCurve(newDepegRate), uint(0), newTotalCurrentUsdAmount)
-                : (
-                    uint(0),
-                    (asset.collectedCashbacks * (oldDepegRate - newDepegRate)) /
-                        oldDepegRate,
-                    newTotalCurrentUsdAmount
-                );
-    }
+        uint fee;
+        uint cashback;
+        if (newDepegRate > oldDepegRate) {
+            fee = pegCurve(newDepegRate);
+        } else {
+            cashback = (asset.collectedCashbacks * (oldDepegRate - newDepegRate)) / oldDepegRate;
+        }
 
-    function applyAssetChanges(
-        Asset memory asset,
-        int _balanceDelta,
-        uint fee,
-        uint cashback,
-        uint _baseFee
-    ) internal view returns (uint usdAmount, uint assetAmount) {
         if (fee + _baseFee > 100 * 1e18) {
             fee = 100 * 1e18 - _baseFee;
         }
+
         uint collectedCashback = (fee * uint(pos(_balanceDelta))) /
             denominator /
             100;
@@ -146,62 +118,27 @@ contract Multipool is ERC20, Ownable {
         asset.collectedCashbacks += collectedCashback;
         asset.collectedFees += collectedFees;
 
-        assetAmount = uint(pos(_balanceDelta));
-        assetAmount -= collectedCashback;
-        assetAmount += cashback;
-        assetAmount -= collectedFees; 
-        usdAmount = (assetAmount * asset.price) / denominator;
-    }
-
-    function processAssetDeviaion(
-        Asset memory asset,
-        int _balanceDelta,
-        uint _baseFee,
-        uint _totalCurrentUsdAmount
-    )
-        internal
-        view
-        returns (uint usdAmount, uint assetAmount, uint returnTotalCurrentUsdAmount)
-    {
-        uint newBalance = uint(int(asset.quantity) + _balanceDelta);
-        (
-            uint fee,
-            uint cashback,
-            uint newTotalCurrentUsdAmount
-        ) = calculateCompensationFee(asset, newBalance, _totalCurrentUsdAmount);
-        (uint _usdAmount, uint _assetAmount) = applyAssetChanges(
-            asset,
-            _balanceDelta,
-            fee,
-            cashback,
-            _baseFee
-        );
-        usdAmount = _usdAmount;
-        assetAmount = _assetAmount;
-        returnTotalCurrentUsdAmount = newTotalCurrentUsdAmount;
+        _assetAmount = uint(pos(_balanceDelta));
+        _assetAmount -= collectedCashback;
+        _assetAmount += cashback;
+        _assetAmount -= collectedFees; 
     }
 
     function _mintLp(
         Asset memory asset,
         uint availableBalance,
-        uint _baseFee,
-        uint _totalCurrentUsdAmount
-    ) private view returns (uint share, uint newTotalCurrentUsdAmount) {
+        uint _baseFee    
+    ) private view returns (uint share) {
         require(asset.percent != 0, "cant' take this asset");
-        (
-            uint usdValue,
-            ,
-            uint _newTotalCurrentUsdAmount
-        ) = processAssetDeviaion(
-                asset,
-                int(availableBalance),
-                _baseFee,
-                _totalCurrentUsdAmount
-            );
-        newTotalCurrentUsdAmount = _newTotalCurrentUsdAmount;
+        uint amount = processAssetDeviaion(
+            asset,
+            int(availableBalance),
+            _baseFee
+        );
+        uint usdValue = amount * asset.price / denominator;
         share = totalSupply() == 0
             ? usdValue
-            : (usdValue * _totalCurrentUsdAmount) / totalSupply();
+            : (usdValue * totalCurrentUsdAmount) / totalSupply();
     }
 
     function _burnLp(
