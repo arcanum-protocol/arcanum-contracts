@@ -1,11 +1,19 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
+import {UniswapV2Pair} from "../../typechain-types/contracts/mocks/UniV2/UniswapV2Pair";
+import { MockERC20 } from '../../typechain-types/contracts/mocks/erc20.sol';
+
+export interface Pool {
+    pool: UniswapV2Pair,
+    token1: MockERC20,
+    token2: MockERC20,
+}
 
 export async function deployUniswapV2Pool(
     amount1: any,
     amount2: any,
     to: string,
-) {
+): Promise<Pool> {
     const poolFactory = await ethers.getContractFactory("UniswapV2Pair");
     const pair = await poolFactory.deploy();
 
@@ -21,9 +29,9 @@ export async function deployUniswapV2Pool(
     await pair.mint(to);
 
     return {
-        pool: pair.address,
-        token1: token1.address,
-        token2: token2.address,
+        pool: pair as UniswapV2Pair,
+        token1: token1 as MockERC20,
+        token2: token2 as MockERC20,
     };
 }
 

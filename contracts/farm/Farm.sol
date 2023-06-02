@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.0;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -35,51 +35,28 @@ contract LpFarm is Ownable {
         rewardToken = _rewardToken;
     }
 
-    function setDistribution(
-        uint _pid,
-        uint _amount,
-        uint _distributionTime
-    ) public onlyOwner {
-        updatePool(_pid);
-        rewardToken.transferFrom(msg.sender,address(this),_amount);
-        poolInfo[_pid].distributionAmountLeft += _amount;
-        poolInfo[_pid].distributeTill += _distributionTime;
+    function calculateReward(PoolInfo memory pool, uint blockNumber) internal pure returns (uint rewards) {
+            rewards = (blockNumber - pool.lastRewardBlock) * 1e12
+                * pool.distributionAmountLeft / (pool.distributeTill - pool.lastRewardBlock);
     }
 
-    function add(
-        IERC20 _lpToken
-    ) public onlyOwner {
-        poolInfo[poolNumber] = PoolInfo({
-            lpToken: _lpToken, 
-            lastRewardBlock: block.number, 
-            distributeTill: block.number,
-            distributionAmountLeft: 0,
-            totalLpSupply: 0,
-            arps: 0
-        });
-        poolNumber += 1;
+    function updatePool(uint _pid) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
+            uint newRewards = calculateReward(pool, block.number);
+            pool.arps += newRewards / pool.totalLpSupply;
+        }
+        pool.lastRewardBlock = block.number;
     }
 
     function pendingRewards(uint _pid, address _user) external view returns (uint amount) {
         PoolInfo memory pool = poolInfo[_pid];
         UserInfo memory user = userInfo[_pid][_user];
-        uint arps = pool.arps;
         if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
-            uint newRewards = (block.number - pool.lastRewardBlock) 
-                * pool.distributionAmountLeft / (pool.distributeTill - pool.lastRewardBlock);
-            arps += newRewards * 1e12 / pool.totalLpSupply;
+            uint newRewards = calculateReward(pool, block.number);
+            pool.arps += newRewards / pool.totalLpSupply;
         }
-        amount = user.amount * arps / 1e12 - user.rewardDebt;
-    }
-
-    function updatePool(uint256 _pid) public {
-        PoolInfo storage pool = poolInfo[_pid];
-        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
-            uint newRewards = (block.number - pool.lastRewardBlock) 
-                * pool.distributionAmountLeft / (pool.distributeTill - pool.lastRewardBlock);
-            pool.arps += newRewards * 1e12 / pool.totalLpSupply;
-        }
-        pool.lastRewardBlock = block.number;
+        amount = user.amount * pool.arps / 1e12 - user.rewardDebt;
     }
 
     function deposit(uint256 _pid, uint256 _amount) public {
@@ -118,5 +95,31 @@ contract LpFarm is Ownable {
         }
         user.rewardDebt = user.amount * pool.arps / 1e12;
         emit Withdraw(msg.sender, _pid, _amount);
+    }
+
+    function setDistribution(
+        uint _pid,
+        uint _amount,
+        uint _distributionTime
+    ) public onlyOwner {
+        PoolInfo storage pool = poolInfo[_pid];
+        updatePool(_pid);
+        rewardToken.transferFrom(msg.sender,address(this),_amount);
+        pool.distributionAmountLeft += _amount;
+        pool.distributeTill += _distributionTime;
+    }
+
+    function add(
+        IERC20 _lpToken
+    ) public onlyOwner {
+        poolInfo[poolNumber] = PoolInfo({
+            lpToken: _lpToken, 
+            lastRewardBlock: block.number, 
+            distributeTill: block.number,
+            distributionAmountLeft: 0,
+            totalLpSupply: 0,
+            arps: 0
+        });
+        poolNumber += 1;
     }
 }

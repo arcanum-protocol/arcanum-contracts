@@ -1,6 +1,5 @@
 import * as Parallel from 'async-parallel';
 import { expect } from 'chai';
-import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import '@nomicfoundation/hardhat-chai-matchers';
 
@@ -18,22 +17,6 @@ describe("Multipool", function() {
     let etf: any;
     // with 1% fees
     let assets: any[] = [];
-
-    async function batchGetBalance(address: string): Promise<BigNumber[]> {
-        const balances = await Parallel.map(assets, async asset => {
-            return asset.balanceOf(address);
-        });
-
-        return balances;
-    }
-
-    async function batchCheckBalance(address: string, expected: BigNumber) {
-        const balances = await batchGetBalance(address);
-
-        await Parallel.map(balances, async (balance) => {
-            expect(balance).to.be.equal(expected);
-        });
-    }
 
     before(async () => {
         [owner, alice, bob, carol, treasury] = await ethers.getSigners();
