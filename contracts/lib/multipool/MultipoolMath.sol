@@ -29,7 +29,7 @@ library MultipoolMath {
         SD59x18 utilisableQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal pure returns(SD59x18 suppliedQuantity) {
+    ) internal returns(SD59x18 suppliedQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
             return utilisableQuantity;
         }
@@ -38,15 +38,13 @@ library MultipoolMath {
         SD59x18 deviationOld = (asset.quantity * asset.price 
                 / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
 
-        if (deviationNew.abs() < deviationOld.abs()) {
-            SD59x18 cashback = asset.collectedCashbacks *  deviationOld - deviationNew / deviationOld;
+        if (deviationNew < deviationOld) {
+            SD59x18 cashback = asset.collectedCashbacks * (deviationOld - deviationNew) / deviationOld;
             asset.collectedCashbacks = asset.collectedCashbacks - cashback;
             context.userCashbackBalance = context.userCashbackBalance + cashback;
             suppliedQuantity = utilisableQuantity + utilisableQuantity * context.operationBaseFee;
         } else {
-
-            require(deviationNew < context.deviationPercentLimit, 
-                    "deviation can't be made bigger than limit with action");
+            require(deviationNew < context.deviationPercentLimit, "deviation overflows limit");
 
             SD59x18 collectedDeviationFee = context.curveCoef * deviationNew * utilisableQuantity 
             / context.deviationPercentLimit / (context.deviationPercentLimit - deviationNew);
@@ -70,15 +68,13 @@ library MultipoolMath {
         SD59x18 deviationOld = (asset.quantity * asset.price 
                 / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
 
-
         if (deviationNew.abs() < deviationOld.abs()) {
-            SD59x18 cashback = asset.collectedCashbacks * deviationOld - deviationNew / deviationOld;
+            SD59x18 cashback = asset.collectedCashbacks * (deviationOld - deviationNew) / deviationOld;
             asset.collectedCashbacks = asset.collectedCashbacks - cashback;
             context.userCashbackBalance = context.userCashbackBalance + cashback;
             suppliedQuantity = utilisableQuantity + utilisableQuantity * context.operationBaseFee;
         } else {
-            require(deviationNew < context.deviationPercentLimit, 
-                    "deviation can't be made bigger than limit with action");
+            require(deviationNew.abs() < context.deviationPercentLimit, "deviation overflows limit");
 
             SD59x18 collectedDeviationFee = context.curveCoef * deviationNew * utilisableQuantity 
             / context.deviationPercentLimit / (context.deviationPercentLimit - deviationNew);
@@ -112,10 +108,10 @@ library MultipoolMath {
         SD59x18 deviationOld = (asset.quantity * asset.price 
                 / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
 
-        if ((deviationWithFees - deviationOld).abs() >= (deviationNoFees - deviationOld).abs()) {
+        if (deviationNoFees < deviationOld) {
             utilisableQuantity = noFees;
             require (deviationNoFees <= deviationOld, "deviation no fees should be lower than old");
-            SD59x18 cashback = asset.collectedCashbacks *  deviationOld - deviationNoFees / deviationOld;
+            SD59x18 cashback = asset.collectedCashbacks * (deviationOld - deviationNoFees) / deviationOld;
            // // deviation old may be zero if previous action made it so, then no cashback is left anyway
            // // anyway, due to price dynamics, we will just send all cashback to user 
            // if (deviationOld != 0) {
@@ -127,9 +123,9 @@ library MultipoolMath {
 
             context.userCashbackBalance = context.userCashbackBalance + cashback;
         } else {
-            require(withFees != sd(0), "no curve solutions found");
             require(deviationWithFees < context.deviationPercentLimit, 
                     "deviation can't be made bigger than limit with action");
+            require(withFees != sd(0), "no curve solutions found");
 
             utilisableQuantity = withFees;
             // straightforward form but seems like it is not so good in accuracy,
@@ -163,18 +159,17 @@ library MultipoolMath {
         SD59x18 deviationOld = (asset.quantity * asset.price 
                 / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
 
-        if ((deviationWithFees - deviationOld).abs() >= (deviationNoFees - deviationOld).abs()) {
+        if (deviationNoFees < deviationOld) {
             utilisableQuantity = noFees;
             require (deviationNoFees <= deviationOld, "deviation no fees should be lower than old");
-            SD59x18 cashback = asset.collectedCashbacks *  deviationOld - deviationNoFees / deviationOld;
+            SD59x18 cashback = asset.collectedCashbacks * (deviationOld - deviationNoFees) / deviationOld;
             asset.collectedCashbacks = asset.collectedCashbacks - cashback;
 
             context.userCashbackBalance = context.userCashbackBalance + cashback;
         } else {
-            require(withFees != sd(0), "no curve solutions found");
-
             require(deviationWithFees < context.deviationPercentLimit, 
                     "deviation can't be made bigger than limit with action");
+            require(withFees != sd(0), "no curve solutions found");
             utilisableQuantity = withFees;
             //asset.collectedCashbacks = asset.collectedCashbacks + 
             //    context.curveCoef * deviationWithFees * utilisableQuantity 
@@ -250,7 +245,8 @@ library MultipoolMath {
                 cmp = - (asset.quantity * asset.price 
                     + context.totalCurrentUsdAmount * (m - sd(1e18))) / (m * asset.price);
             }}
-                
+
+
             if (d > sd(0)) {
                 d = d.sqrt();
                 SD59x18 x3 = (-b-d) / sd(2e18) / a;
