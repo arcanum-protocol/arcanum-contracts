@@ -1,6 +1,5 @@
 import * as Parallel from 'async-parallel';
 import { expect } from 'chai';
-import { assert } from 'console';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 
@@ -60,7 +59,7 @@ describe("Multipool", function() {
         );
     });
 
-    it.only("ETF mint should work", async function() {
+    it("ETF mint should work", async function() {
 
         await etf.connect(owner).updateAssetPercents(assets[0].address, toDecimal(50));
         await etf.connect(owner).updateAssetPercents(assets[1].address, toDecimal(50));
