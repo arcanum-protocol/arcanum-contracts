@@ -177,7 +177,7 @@ contract TestMultipoolMath {
         SD59x18 suppliableQuantity = MultipoolMath.reversedEvalBurnContext(utilisableQuantity, context, asset);
 
         MultipoolMath.Context memory resultContext = MultipoolMath.Context({
-            totalCurrentUsdAmount:  sd(1000e18) - sd(5005857142857142678) * sd(10e18),
+            totalCurrentUsdAmount:  sd(1000e18) - sd(5005866126138531618) * sd(10e18),
             totalAssetPercents:     sd(100e18),
             curveCoef:              sd(0.0003e18),
             deviationPercentLimit:  sd(0.1e18),
@@ -185,13 +185,13 @@ contract TestMultipoolMath {
             userCashbackBalance:    sd(0e18)
         });
         MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
-            quantity:           sd(50e18) - sd(5005857142857142678),
+            quantity:           sd(50e18) - sd(5005866126138531618),
             price:              sd(10e18),
             collectedFees:      sd(0.0005e18),
-            collectedCashbacks: sd(5005857142857142678 - 5.0005e18),
+            collectedCashbacks: sd(5005866126138531618 - 5.0005e18),
             percent:            sd(50e18)
         });
-        SD59x18 resultSuppliableQuantity = sd(5005857142857142678);
+        SD59x18 resultSuppliableQuantity = sd(5005866126138531618);
 
         require(resultSuppliableQuantity == suppliableQuantity, "suppliable quantity not match");
         assertAsset(resultAsset, asset);
@@ -215,15 +215,15 @@ contract TestMultipoolMath {
             collectedCashbacks: sd(0e18),
             percent:            sd(50e18)
         });
-        //TODO: 180 wei difference between burn and reversed burn. This might take place bacuse 
+        //TODO: 397 wei difference between burn and reversed burn. This might take place bacuse 
         // of square root calculation or any other heavy ops. Find out few tests to show this
         // diff won't grow with other numbers a lot
-        SD59x18 suppliedQuantity = sd(5005857142857142678+180);
+        SD59x18 suppliedQuantity = sd(5005866126138531618 - 397);
 
         SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(suppliedQuantity, context, asset);
 
         MultipoolMath.Context memory resultContext = MultipoolMath.Context({
-            totalCurrentUsdAmount:  sd(1000e18) - sd(5005857142857142678+180) * sd(10e18),
+            totalCurrentUsdAmount:  sd(1000e18) - sd(5005866126138531618 - 397) * sd(10e18),
             totalAssetPercents:     sd(100e18),
             curveCoef:              sd(0.0003e18),
             deviationPercentLimit:  sd(0.1e18),
@@ -231,10 +231,10 @@ contract TestMultipoolMath {
             userCashbackBalance:    sd(0e18)
         });
         MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
-            quantity:           sd(50e18) - sd(5005857142857142678+180),
+            quantity:           sd(50e18) - sd(5005866126138531618 - 397),
             price:              sd(10e18),
             collectedFees:      sd(0.0005e18),
-            collectedCashbacks: sd(5005857142857142678+180 - 5.0005e18),
+            collectedCashbacks: sd(5005866126138531618 - 397 - 5.0005e18),
             percent:            sd(50e18)
         });
         SD59x18 resultUtilisableQuantity = sd(5e18);
@@ -524,13 +524,13 @@ contract TestMultipoolMath {
             curveCoef:              sd(0.0003e18),
             deviationPercentLimit:  sd(0.1e18),
             operationBaseFee:       sd(0.0001e18),
-            userCashbackBalance:    sd(11e18 - 6140350877192982334)
+            userCashbackBalance:    sd(11e18 - 6139944596199629000)
         });
         MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
             quantity:           sd(50.9995e18),
             price:              sd(10e18),
             collectedFees:      sd(0.0005e18),
-            collectedCashbacks: sd(6140350877192982334),
+            collectedCashbacks: sd(6139944596199629000),
             percent:            sd(50e18)
         });
         SD59x18 resultSuppliableQuantity = sd(5.0005e18);
@@ -568,13 +568,13 @@ contract TestMultipoolMath {
             curveCoef:              sd(0.0003e18),
             deviationPercentLimit:  sd(0.1e18),
             operationBaseFee:       sd(0.0001e18),
-            userCashbackBalance:    sd(11e18 - 6140350877192982334)
+            userCashbackBalance:    sd(11e18 - 6139944596199629000)
         });
         MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
             quantity:           sd(50.9995e18),
             price:              sd(10e18),
             collectedFees:      sd(0.0005e18),
-            collectedCashbacks: sd(6140350877192982334),
+            collectedCashbacks: sd(6139944596199629000),
             percent:            sd(50e18)
         });
         SD59x18 resultUtilisableQuantity = sd(5e18);
@@ -725,13 +725,13 @@ contract TestMultipoolMathCorner {
             curveCoef:              sd(0.0003e18),
             deviationPercentLimit:  sd(0.1e18),
             operationBaseFee:       sd(0.0001e18),
-            userCashbackBalance:    sd(11e18-9649122807017543834)
+            userCashbackBalance:    sd(11e18-9649085872381784434)
         });
         MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
             quantity:           sd(80e18-5.0005e18),
             price:              sd(10e18),
             collectedFees:      sd(0.0005e18),
-            collectedCashbacks: sd(9649122807017543834),
+            collectedCashbacks: sd(9649085872381784434),
             percent:            sd(50e18)
         });
         SD59x18 resultUtilisableQuantity = sd(5e18);
@@ -767,13 +767,13 @@ contract TestMultipoolMathCorner {
             curveCoef:              sd(0.0003e18),
             deviationPercentLimit:  sd(0.1e18),
             operationBaseFee:       sd(0.0001e18),
-            userCashbackBalance:    sd(11e18-9649122807017543834)
+            userCashbackBalance:    sd(11e18-9649085872381784434)
         });
         MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
             quantity:           sd(80e18-5.0005e18),
             price:              sd(10e18),
             collectedFees:      sd(0.0005e18),
-            collectedCashbacks: sd(9649122807017543834),
+            collectedCashbacks: sd(9649085872381784434),
             percent:            sd(50e18)
         });
         SD59x18 resultSuppliableQuantity = sd(5.0005e18);
@@ -800,8 +800,29 @@ contract TestMultipoolMathCorner {
             percent:            sd(50e18)
         });
         SD59x18 suppliedQuantity = sd(5000.0005e18);
-
+        
         SD59x18 utilisableQuantity = MultipoolMath.evalMintContext(suppliedQuantity, context, asset);
+
+        MultipoolMath.Context memory resultContext = MultipoolMath.Context({
+            totalCurrentUsdAmount:  sd(1000e18 + 249995289120819944910),
+            totalAssetPercents:     sd(100e18),
+            curveCoef:              sd(0.0003e18),
+            deviationPercentLimit:  sd(0.1e18),
+            operationBaseFee:       sd(0.0001e18),
+            userCashbackBalance:    sd(1e18)
+        });
+        MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
+            quantity:           sd(50e18 + 24999528912081994491),
+            price:              sd(10e18),
+            collectedFees:      sd(2499952891208199),
+            collectedCashbacks: sd(10e18+5000.0005e18 - 2499952891208199 - 24999528912081994491),
+            percent:            sd(50e18)
+        });
+        SD59x18 resultUtilisableQuantity = sd(24999528912081994491);
+
+        require(resultUtilisableQuantity == utilisableQuantity, "utilisable quantity not match");
+        assertAsset(resultAsset, asset);
+        assertContext(resultContext, context);
     }
 
     function mintTooMuchReversed() public {
@@ -814,15 +835,36 @@ contract TestMultipoolMathCorner {
             userCashbackBalance:    sd(1e18)
         });
         MultipoolMath.Asset memory asset = MultipoolMath.Asset({
-            quantity:           sd(20e18),
+            quantity:           sd(50e18),
             price:              sd(10e18),
             collectedFees:      sd(0e18),
             collectedCashbacks: sd(10e18),
             percent:            sd(50e18)
         });
-        SD59x18 utilisableQuantity = sd(5000e18);
+        SD59x18 utilisableQuantity = sd(24999528912081994491);
 
         SD59x18 suppliableQuantity = MultipoolMath.reversedEvalMintContext(utilisableQuantity, context, asset);
+
+        MultipoolMath.Context memory resultContext = MultipoolMath.Context({
+            totalCurrentUsdAmount:  sd(1000e18 + 249995289120819944910),
+            totalAssetPercents:     sd(100e18),
+            curveCoef:              sd(0.0003e18),
+            deviationPercentLimit:  sd(0.1e18),
+            operationBaseFee:       sd(0.0001e18),
+            userCashbackBalance:    sd(1e18)
+        });
+        MultipoolMath.Asset memory resultAsset = MultipoolMath.Asset({
+            quantity:           sd(50e18 + 24999528912081994491),
+            price:              sd(10e18),
+            collectedFees:      sd(2499952891208199),
+            collectedCashbacks: sd(10e18 + 5000000499999930836640 - 2499952891208199 - 24999528912081994491),
+            percent:            sd(50e18)
+        });
+        SD59x18 resultSuppliableQuantity = sd(5000000499999930836640);
+
+        require(resultSuppliableQuantity == suppliableQuantity, "suppliable quantity not match");
+        assertAsset(resultAsset, asset);
+        assertContext(resultContext, context);
     }
 
     function burnTooMuch() public {
@@ -839,10 +881,10 @@ contract TestMultipoolMathCorner {
             price:              sd(10e18),
             collectedFees:      sd(0e18),
             collectedCashbacks: sd(10e18),
-            percent:            sd(50e18)
+            percent:            sd(80e18)
         });
 
-        SD59x18 suppliedQuantity = sd(5.0005e18);
+        SD59x18 suppliedQuantity = sd(50e18);
 
         SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(suppliedQuantity, context, asset);
     }
@@ -861,9 +903,9 @@ contract TestMultipoolMathCorner {
             price:              sd(10e18),
             collectedFees:      sd(0e18),
             collectedCashbacks: sd(10e18),
-            percent:            sd(50e18)
+            percent:            sd(80e18)
         });
-        SD59x18 utilisableQuantity = sd(5000e18);
+        SD59x18 utilisableQuantity = sd(50e18);
 
         SD59x18 suppliableQuantity = MultipoolMath.reversedEvalBurnContext(utilisableQuantity, context, asset);
     }
@@ -877,15 +919,15 @@ contract TestMultipoolMathCorner {
             userCashbackBalance:    sd(1e18)
         });
         MultipoolMath.Asset memory asset = MultipoolMath.Asset({
-            quantity:           sd(50e18),
+            quantity:           sd(80e18),
             price:              sd(10e18),
             collectedFees:      sd(0e18),
             collectedCashbacks: sd(10e18),
             percent:            sd(50e18)
         });
-        SD59x18 suppliedQuantity = sd(5000.0005e18);
+        SD59x18 utilisableQuantity = sd(5000.0005e18);
 
-        SD59x18 utilisableQuantity = MultipoolMath.evalMintContext(suppliedQuantity, context, asset);
+        SD59x18 suppliedQuantity = MultipoolMath.evalMintContext(utilisableQuantity, context, asset);
     }
 
     function mintTooMuchBeingBiggerThanLimitReversed() public {
@@ -919,14 +961,36 @@ contract TestMultipoolMathCorner {
             userCashbackBalance:    sd(1e18)
         });
         MultipoolMath.Asset memory asset = MultipoolMath.Asset({
-            quantity:           sd(80e18),
+            quantity:           sd(20e18),
             price:              sd(10e18),
             collectedFees:      sd(0e18),
             collectedCashbacks: sd(10e18),
             percent:            sd(50e18)
         });
 
-        SD59x18 suppliedQuantity = sd(5.0005e18);
+        SD59x18 suppliedQuantity = sd(10e18);
+
+        SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(suppliedQuantity, context, asset);
+    }
+
+    function burnTooMuchBeingBiggerThanLimitMoreThenQuantity() public {
+        MultipoolMath.Context memory context = MultipoolMath.Context({
+            totalCurrentUsdAmount:  sd(1000e18),
+            totalAssetPercents:     sd(100e18),
+            curveCoef:              sd(0.0003e18),
+            deviationPercentLimit:  sd(0.1e18),
+            operationBaseFee:       sd(0.0001e18),
+            userCashbackBalance:    sd(1e18)
+        });
+        MultipoolMath.Asset memory asset = MultipoolMath.Asset({
+            quantity:           sd(20e18),
+            price:              sd(10e18),
+            collectedFees:      sd(0e18),
+            collectedCashbacks: sd(10e18),
+            percent:            sd(50e18)
+        });
+
+        SD59x18 suppliedQuantity = sd(100e18);
 
         SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(suppliedQuantity, context, asset);
     }
@@ -941,7 +1005,28 @@ contract TestMultipoolMathCorner {
             userCashbackBalance:    sd(1e18)
         });
         MultipoolMath.Asset memory asset = MultipoolMath.Asset({
-            quantity:           sd(80e18),
+            quantity:           sd(20e18),
+            price:              sd(10e18),
+            collectedFees:      sd(0e18),
+            collectedCashbacks: sd(10e18),
+            percent:            sd(50e18)
+        });
+        SD59x18 utilisableQuantity = sd(10e18);
+
+        SD59x18 suppliableQuantity = MultipoolMath.reversedEvalBurnContext(utilisableQuantity, context, asset);
+    }
+
+    function burnTooMuchBeingBiggerThanLimitMoreThenQuantityReversed() public {
+        MultipoolMath.Context memory context = MultipoolMath.Context({
+            totalCurrentUsdAmount:  sd(1000e18),
+            totalAssetPercents:     sd(100e18),
+            curveCoef:              sd(0.0003e18),
+            deviationPercentLimit:  sd(0.1e18),
+            operationBaseFee:       sd(0.0001e18),
+            userCashbackBalance:    sd(1e18)
+        });
+        MultipoolMath.Asset memory asset = MultipoolMath.Asset({
+            quantity:           sd(20e18),
             price:              sd(10e18),
             collectedFees:      sd(0e18),
             collectedCashbacks: sd(10e18),

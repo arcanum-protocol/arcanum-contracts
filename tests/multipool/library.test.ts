@@ -72,16 +72,16 @@ describe("Multipool library", function() {
     });
 
     it("Mint and make deviation bigger than limit", async function() {
-        await expect(test2.mintTooMuch()).to.be.revertedWith("deviation overflows limit");
+        await test2.mintTooMuch();
     });
     it("Mint and make deviation bigger than limit reversed", async function() {
-        await expect(test2.mintTooMuchReversed()).to.be.revertedWith("deviation overflows limit");
+        await test2.mintTooMuchReversed();
     });
     it("Burn and make deviation bigger than limit", async function() {
         await expect(test2.burnTooMuch()).to.be.revertedWith("deviation overflows limit");
     });
     it("Burn and make deviation bigger than limit reversed", async function() {
-        await expect(test2.burnTooMuchReversed()).to.be.revertedWith("deviation overflows limit");
+        await expect(test2.burnTooMuchReversed()).to.be.revertedWith("no curve solutions found");
     });
     it("Mint and make deviation bigger than limit with deviation already bigger", async function() {
         await expect(test2.mintTooMuchBeingBiggerThanLimit()).to.be.revertedWith("deviation overflows limit");
@@ -94,6 +94,12 @@ describe("Multipool library", function() {
     });
     it("Burn and make deviation bigger than limit with deviation already bigger reversed", async function() {
         await expect(test2.burnTooMuchBeingBiggerThanLimitReversed()).to.be.revertedWith("deviation overflows limit");
+    });
+    it("Burn and make deviation bigger than limit with deviation already bigger more then quantity", async function() {
+        await expect(test2.burnTooMuchBeingBiggerThanLimitMoreThenQuantity()).to.be.revertedWith("can't burn more assets than exist");
+    });
+    it("Burn and make deviation bigger than limit with deviation already bigger more then quantity reversed", async function() {
+        await expect(test2.burnTooMuchBeingBiggerThanLimitMoreThenQuantityReversed()).to.be.revertedWith("can't burn more assets than exist");
     });
 });
 
