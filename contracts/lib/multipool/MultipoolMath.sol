@@ -29,7 +29,7 @@ library MultipoolMath {
         SD59x18 utilisableQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal returns(SD59x18 suppliedQuantity) {
+    ) internal pure returns(SD59x18 suppliedQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
             return utilisableQuantity;
         }
@@ -65,7 +65,7 @@ library MultipoolMath {
         SD59x18 utilisableQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal returns(SD59x18 suppliedQuantity) {
+    ) internal pure returns(SD59x18 suppliedQuantity) {
         require(utilisableQuantity <= asset.quantity, "can't burn more assets than exist");
 
         SD59x18 withFees = getSuppliableBurnQuantity(utilisableQuantity, context, asset);
@@ -109,7 +109,7 @@ library MultipoolMath {
         SD59x18 suppliedQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal returns(SD59x18 utilisableQuantity) {
+    ) internal pure returns(SD59x18 utilisableQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
             context.totalCurrentUsdAmount = suppliedQuantity * asset.price;
             asset.quantity = asset.quantity + suppliedQuantity; 
@@ -166,7 +166,7 @@ library MultipoolMath {
         SD59x18 suppliedQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal returns(SD59x18 utilisableQuantity) {
+    ) internal pure returns(SD59x18 utilisableQuantity) {
         require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
         SD59x18 deviationNew = ((asset.quantity - suppliedQuantity) * asset.price 
                 / (context.totalCurrentUsdAmount - suppliedQuantity * asset.price) - asset.percent / context.totalAssetPercents).abs();
@@ -202,7 +202,7 @@ library MultipoolMath {
         SD59x18 suppliedQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal returns(SD59x18 utilisableQuantity){
+    ) internal pure returns(SD59x18 utilisableQuantity){
         
         SD59x18 B = (sd(1e18) + context.operationBaseFee);
         SD59x18 m = sd(1e18) - asset.percent / context.totalAssetPercents;
@@ -284,7 +284,7 @@ library MultipoolMath {
         SD59x18 utilisableQuantity, 
         Context memory context,
         Asset memory asset
-    ) internal returns(SD59x18 suppliedQuantity){
+    ) internal pure returns(SD59x18 suppliedQuantity){
 
         SD59x18 B = (sd(1e18) + context.operationBaseFee);
         SD59x18 m = sd(1e18) - asset.percent / context.totalAssetPercents;

@@ -2,6 +2,7 @@ import * as Parallel from 'async-parallel';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
+import '@nomicfoundation/hardhat-chai-matchers';
 
 import { toDecimal } from '../utils/numbers';
 
@@ -59,7 +60,9 @@ describe("Multipool", function() {
         );
     });
 
-    it("ETF mint should work", async function() {
+    it("ETF mint and swap should work", async function() {
+
+        let result: any;
 
         await etf.connect(owner).updateAssetPercents(assets[0].address, toDecimal(50));
         await etf.connect(owner).updateAssetPercents(assets[1].address, toDecimal(50));
@@ -82,7 +85,9 @@ describe("Multipool", function() {
 
         await assets[1].connect(alice).transfer(etf.address, toDecimal(1));
 
-        await etf.connect(alice).swap(assets[1].address, assets[0].address, 0, alice.address);
+        result = await etf.connect(alice).swap(assets[1].address, assets[0].address, 0, alice.address);
+
+        await expect(result).to.changeTokenBalances(assets[0], [etf.address, alice.address], ['-1000000000000000000', '1000000000000000000']);
 
     });
 })
