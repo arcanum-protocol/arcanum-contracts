@@ -3,9 +3,15 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import { SD59x18, sd } from "@prb/math/src/SD59x18.sol";
+import "../lib/multipool/MultipoolMath.sol";
+
 import "hardhat/console.sol";
 
 contract Multipool is ERC20, Ownable {
+
+    using MultipoolMath for *;
+
     constructor(
         string memory _name,
         string memory _symbol
@@ -19,24 +25,18 @@ contract Multipool is ERC20, Ownable {
 
     /** ---------------- Variables ------------------ */
 
-    struct Asset {
-        uint quantity;
-        uint price;
-        uint collectedFees;
-        uint collectedCashbacks;
-        uint percent;
-    }
+    mapping(address => MultipoolMath.Asset) public assets;
+    //TODO: feature
+    //mapping(address => mapping(address => uint)) public userCollectedCashbacks;
+    SD59x18 public totalCurrentUsdAmount;
+    SD59x18 public totalAssetPercents;
 
-    mapping(address => Asset) public assets;
-    uint public totalCurrentUsdAmount;
-    uint public totalAssetPercents;
+    SD59x18 public curveCoef;
+    SD59x18 public deviationPercentLimit;
 
-    uint public curveDelay;
-    uint public restrictPercent;
-
-    uint public baseMintFee = 1e16;
-    uint public baseBurnFee = 1e16;
-    uint public baseTradeFee = 5e15; // 0.005 + 0.005 = 0.01
+    SD59x18 public baseMintFee; // = 1e16;
+    SD59x18 public baseBurnFee; // = 1e16;
+    SD59x18 public baseTradeFee; // = 5e15; // 0.005 + 0.005 = 0.01
     uint public denominator = 1e18;
 
     mapping(address => uint) public transferFees;
@@ -54,315 +54,281 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    /** ---------------- View ------------------ */
+    /** ---------------- DRY Helpers ------------------ */
 
-    function pegCurve(uint depegRate) public view returns (uint) {
-        return
-            depegRate >= restrictPercent
-                ? 100 * 1e18
-                : (curveDelay * depegRate * denominator) /
-                    (restrictPercent * denominator - depegRate) /
-                    restrictPercent;
-    }
-
-    function abs(uint x, uint y) internal pure returns (uint) {
-        return x > y ? x - y : y - x;
-    }
-
-    function pos(int x) internal pure returns (int) {
-        return x > 0 ? x : -x;
-    }
-
-    function calculateCompensationFee(
-        Asset memory asset,
-        uint newQuantity,
-        uint _totalCurrentUsdAmount
-    )
-        internal
-        view
-        returns (uint fee, uint cashback, uint newTotalCurrentUsdAmount)
-    {
-        if (totalCurrentUsdAmount == 0) {
-            newTotalCurrentUsdAmount = _totalCurrentUsdAmount;
-            newTotalCurrentUsdAmount -=
-                (asset.quantity * asset.price) /
-                denominator;
-            newTotalCurrentUsdAmount +=
-                (newQuantity * asset.price) /
-                denominator;
-            return (0, 0, newTotalCurrentUsdAmount);
-        }
-
-        uint oldDepegRate = abs(
-            (asset.quantity * asset.price) / _totalCurrentUsdAmount,
-            (asset.percent * denominator) / totalAssetPercents
-        );
-
-        newTotalCurrentUsdAmount = _totalCurrentUsdAmount;
-        newTotalCurrentUsdAmount -=
-            (asset.quantity * asset.price) /
-            denominator;
-        newTotalCurrentUsdAmount += (newQuantity * asset.price) / denominator;
-
-        uint newDepegRate = abs(
-            (newQuantity * asset.price) / _totalCurrentUsdAmount,
-            (asset.percent * denominator) / totalAssetPercents
-        );
-
-        return
-            newDepegRate > oldDepegRate
-                ? (pegCurve(newDepegRate), uint(0), newTotalCurrentUsdAmount)
-                : (
-                    uint(0),
-                    (asset.collectedCashbacks * (oldDepegRate - newDepegRate)) /
-                        oldDepegRate,
-                    newTotalCurrentUsdAmount
-                );
-    }
-
-    function applyAssetChanges(
-        Asset memory asset,
-        int _balanceDelta,
-        uint fee,
-        uint cashback,
-        uint _baseFee
-    ) internal view returns (uint usdAmount, uint assetAmount) {
-        if (fee + _baseFee > 100 * 1e18) {
-            fee = 100 * 1e18 - _baseFee;
-        }
-        uint collectedCashback = (fee * uint(pos(_balanceDelta))) /
-            denominator /
-            100;
-        uint collectedFees = (_baseFee * uint(pos(_balanceDelta))) /
-            denominator /
-            100;
-
-        asset.quantity = uint(
-            int(asset.quantity) +
-                _balanceDelta -
-                int(collectedCashback) -
-                int(collectedFees)
-        );
-        asset.collectedCashbacks += collectedCashback;
-        asset.collectedFees += collectedFees;
-
-        assetAmount = uint(pos(_balanceDelta));
-        assetAmount -= collectedCashback;
-        assetAmount += cashback;
-        assetAmount -= collectedFees; 
-        usdAmount = (assetAmount * asset.price) / denominator;
-    }
-
-    function processAssetDeviaion(
-        Asset memory asset,
-        int _balanceDelta,
-        uint _baseFee,
-        uint _totalCurrentUsdAmount
-    )
-        internal
-        view
-        returns (uint usdAmount, uint assetAmount, uint returnTotalCurrentUsdAmount)
-    {
-        uint newBalance = uint(int(asset.quantity) + _balanceDelta);
-        (
-            uint fee,
-            uint cashback,
-            uint newTotalCurrentUsdAmount
-        ) = calculateCompensationFee(asset, newBalance, _totalCurrentUsdAmount);
-        (uint _usdAmount, uint _assetAmount) = applyAssetChanges(
-            asset,
-            _balanceDelta,
-            fee,
-            cashback,
-            _baseFee
-        );
-        usdAmount = _usdAmount;
-        assetAmount = _assetAmount;
-        returnTotalCurrentUsdAmount = newTotalCurrentUsdAmount;
-    }
-
-    function _mintLp(
-        Asset memory asset,
-        uint availableBalance,
-        uint _baseFee,
-        uint _totalCurrentUsdAmount
-    ) private view returns (uint share, uint newTotalCurrentUsdAmount) {
-        require(asset.percent != 0, "cant' take this asset");
-        (
-            uint usdValue,
-            ,
-            uint _newTotalCurrentUsdAmount
-        ) = processAssetDeviaion(
-                asset,
-                int(availableBalance),
-                _baseFee,
-                _totalCurrentUsdAmount
-            );
-        newTotalCurrentUsdAmount = _newTotalCurrentUsdAmount;
-        share = totalSupply() == 0
-            ? usdValue
-            : (usdValue * _totalCurrentUsdAmount) / totalSupply();
-    }
-
-    function _burnLp(
-        Asset memory asset,
-        uint _share,
-        uint _baseFee,
-        uint _totalCurrentUsdAmount
-    ) private view returns (uint quantity, uint newTotalCurrentUsdAmount) {
-        uint quantityToRemove = (_share * totalSupply()) /
-            totalCurrentUsdAmount;
-        (
-            ,
-            uint toRemove,
-            uint _newTotalCurrentUsdAmount
-        ) = processAssetDeviaion(
-                asset,
-                -int(quantityToRemove),
-                _baseFee,
-                _totalCurrentUsdAmount
-            );
-        newTotalCurrentUsdAmount = _newTotalCurrentUsdAmount;
-        quantity = toRemove;
+    function getContext(SD59x18  baseFee) public view returns (MultipoolMath.Context memory context) {
+        context = MultipoolMath.Context({
+            totalCurrentUsdAmount:  totalCurrentUsdAmount,
+            totalAssetPercents:     totalAssetPercents,
+            curveCoef:              curveCoef,
+            deviationPercentLimit:  deviationPercentLimit,
+            operationBaseFee:       baseMintFee,
+            userCashbackBalance:    sd(0e18)
+        });
     }
 
     /** ---------------- DRY Methods ------------------ */
 
     function dryMint(
-        uint _amount,
-        address _asset
-    ) public view returns (uint share) {
-        Asset memory asset = assets[_asset];
-        (uint _share, ) = _mintLp(
-            asset,
-            _amount,
-            baseMintFee,
-            totalCurrentUsdAmount
-        );
-        share = _share;
+        address _asset, 
+        uint _quantity, 
+        uint _share
+    ) public view returns (uint amountIn, uint share, uint cashback) {
+        MultipoolMath.Asset memory asset = assets[_asset];
+        MultipoolMath.Context memory context = getContext(baseMintFee);
+        SD59x18 suppliableBalance = sd(int(_quantity));
+        uint refund;
+        if (_share == 0) {
+            SD59x18 utilisableQuantity = MultipoolMath.evalMintContext(suppliableBalance, context, asset);
+
+            if (totalCurrentUsdAmount > sd(0)) {
+                _share = uint(SD59x18.unwrap(utilisableQuantity * asset.price 
+                    * sd(int(totalSupply())) / totalCurrentUsdAmount));
+            } else {
+                _share = uint(SD59x18.unwrap(utilisableQuantity));
+            }
+
+            amountIn = uint(suppliableBalance.unwrap());
+            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
+            share = _share;
+        } else {
+            SD59x18 requiredShareBalance = sd(int(_share)) * totalCurrentUsdAmount
+                / sd(int(totalSupply())) / asset.price;
+            SD59x18 requiredSuppliableQuantity = 
+                MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset);
+
+            require(requiredShareBalance <= suppliableBalance, "required to burn more share than provided");
+            
+            amountIn = uint(requiredSuppliableQuantity.unwrap());
+            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
+            share = _share;
+        }
     }
 
     function dryBurn(
         uint _share,
-        address _asset
-    ) public view returns (uint quantity) {
-        Asset memory asset = assets[_asset];
-        (uint _quantity, ) = _burnLp(
-            asset,
-            _share,
-            baseBurnFee,
-            totalCurrentUsdAmount
-        );
-        quantity = _quantity;
-    }
+        address _asset,
+        uint _quantity    
+    ) public view returns (uint share, uint amountOut, uint cashback) {
+        MultipoolMath.Asset memory asset = assets[_asset];
+        MultipoolMath.Context memory context = getContext(baseBurnFee);
 
-    function drySwap(
-        uint _amountIn,
-        address _assetIn,
-        address _assetOut
-    ) public view returns (uint quantity) {
-        Asset memory assetIn = assets[_assetIn];
-        Asset memory assetOut = assets[_assetOut];
-        (uint _share, uint _totalCurrentUsdAmount) = _mintLp(
-            assetIn,
-            _amountIn,
-            baseTradeFee,
-            totalCurrentUsdAmount
-        );
-        (uint _quantity, ) = _burnLp(
-            assetOut,
-            _share,
-            baseTradeFee,
-            _totalCurrentUsdAmount
-        );
-        quantity = _quantity;
-    }
+        uint refund;
+        SD59x18 burnQuantity = sd(int(_share)) * totalCurrentUsdAmount 
+            / sd(int(totalSupply())) / asset.price;
+        if (_quantity == 0) {
+            SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(burnQuantity, context, asset);
+
+            share = _share;
+            amountOut = uint(SD59x18.unwrap(utilisableQuantity));
+            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
+        } else {
+            SD59x18 requiredSuppliableQuantity = MultipoolMath.reversedEvalBurnContext(sd(int(_quantity)), context, asset);
+            uint requiredSuppliableShare = uint(SD59x18.unwrap(requiredSuppliableQuantity 
+                * asset.price * sd(int(totalSupply())) / totalCurrentUsdAmount));
+            if (_share != 0) {
+                require(requiredSuppliableShare <= _share, "required to burn more share than provided");
+            }
+
+            share = requiredSuppliableShare;
+            amountOut = _quantity;
+            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
+        }
+   }
+
+   function drySwap(
+       address _assetIn,
+       address _assetOut,
+       uint _quantityIn,
+       uint _quantityOut
+   ) public returns (
+    uint amountIn, 
+    uint amountOut, 
+    uint cashbackIn, 
+    uint cashbackOut
+   ) {
+        MultipoolMath.Asset memory assetIn = assets[_assetIn];
+        MultipoolMath.Asset memory assetOut = assets[_assetOut];
+        MultipoolMath.Context memory context = getContext(baseTradeFee);
+
+        SD59x18 suppliableBalance = sd(int(_quantityIn));
+        if (_quantityOut == 0) {
+            SD59x18 mintQuantityOut = MultipoolMath.evalMintContext(suppliableBalance, context, assetIn);
+
+            SD59x18 burnQuantityIn = mintQuantityOut * assetOut.price / assetIn.price;
+
+            cashbackIn = uint(SD59x18.unwrap(context.userCashbackBalance));
+            context.userCashbackBalance = sd(0);
+
+            SD59x18 burnQuantityOut = MultipoolMath.evalBurnContext(burnQuantityIn, context, assetOut);
+
+            amountOut = uint(SD59x18.unwrap(burnQuantityOut));
+            amountIn = _quantityIn;
+            cashbackOut = uint(SD59x18.unwrap(context.userCashbackBalance));
+        } else {
+            SD59x18 requiredSuppliableQuantity = 
+                MultipoolMath.reversedEvalBurnContext(sd(int(_quantityOut)), context, assetOut);
+            SD59x18 mintQuantityOut = requiredSuppliableQuantity * assetIn.price / assetOut.price ;
+
+            cashbackOut = uint(SD59x18.unwrap(context.userCashbackBalance));
+            context.userCashbackBalance = sd(0);
+
+            SD59x18 mintQuantityIn = 
+                MultipoolMath.reversedEvalMintContext(mintQuantityOut, context, assetIn);
+
+            require(mintQuantityIn <= suppliableBalance, 
+                    "required to burn more share than provided");
+
+            amountOut = _quantityOut;
+            amountIn = uint(mintQuantityIn.unwrap());
+            cashbackIn = uint(SD59x18.unwrap(context.userCashbackBalance));
+        }
+   }
 
     /** ---------------- Methods ------------------ */
 
-    function mint(address _asset, address _to) public returns (uint share) {
-        Asset memory asset = assets[_asset];
-        uint availableBalance = IERC20(_asset).balanceOf(address(this)) -
+    function mint(address _asset, uint _share, address _to) public returns (uint) {
+        MultipoolMath.Asset memory asset = assets[_asset];
+        MultipoolMath.Context memory context = getContext(baseMintFee);
+
+        SD59x18 suppliableBalance = sd(int(IERC20(_asset).balanceOf(address(this)))) -
             asset.quantity -
             asset.collectedFees -
             asset.collectedCashbacks;
-        (uint _share, uint _totalCurrentUsdAmount) = _mintLp(
-            asset,
-            availableBalance,
-            baseMintFee,
-            totalCurrentUsdAmount
-        );
-        share = _share;
-        totalCurrentUsdAmount = _totalCurrentUsdAmount;
-        _mint(_to, share);
-        emit AssetQuantityChange(_asset, asset.quantity);
+        uint refund;
+        if (_share == 0) {
+            SD59x18 utilisableQuantity = MultipoolMath.evalMintContext(suppliableBalance, context, asset);
+
+            if (totalCurrentUsdAmount > sd(0)) {
+                _share = uint(SD59x18.unwrap(utilisableQuantity * asset.price 
+                    * sd(int(totalSupply())) / totalCurrentUsdAmount));
+            } else {
+                _share = uint(SD59x18.unwrap(utilisableQuantity));
+            }
+
+
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
+        } else {
+            SD59x18 requiredShareBalance = sd(int(_share)) * totalCurrentUsdAmount
+                / sd(int(totalSupply())) / asset.price;
+            SD59x18 requiredSuppliableQuantity = 
+                MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset);
+
+            require(requiredShareBalance <= suppliableBalance, "required to burn more share than provided");
+
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
+        }
+        _mint(_to, _share);
+        //emit AssetQuantityChange(_asset, asset.quantity);
         assets[_asset] = asset;
+        IERC20(_asset).transfer(_to, refund);
+        return _share;
     }
 
     function burn(
         uint _share,
         address _asset,
+        uint _quantity,
         address _to
-    ) public returns (uint quantity) {
-        Asset memory asset = assets[_asset];
-        (uint _quantity, uint _totalCurrentUsdAmount) = _burnLp(
-            asset,
-            _share,
-            baseBurnFee,
-            totalCurrentUsdAmount
-        );
-        quantity = _quantity;
-        totalCurrentUsdAmount = _totalCurrentUsdAmount;
-        emit AssetQuantityChange(_asset, asset.quantity);
-        _burn(msg.sender, _share);
-        IERC20(_asset).transfer(_to, quantity);
-        assets[_asset] = asset;
-    }
+    ) public returns (uint) {
+        MultipoolMath.Asset memory asset = assets[_asset];
+        MultipoolMath.Context memory context = getContext(baseBurnFee);
 
-    function swap(
-        address _assetIn,
-        address _assetOut,
-        address _to
-    ) public returns (uint quantity) {
-        Asset memory assetIn = assets[_assetIn];
-        Asset memory assetOut = assets[_assetOut];
-        uint availableBalance = IERC20(_assetIn).balanceOf(address(this)) -
+        uint refund;
+        SD59x18 burnQuantity = sd(int(_share)) * totalCurrentUsdAmount 
+            / sd(int(totalSupply())) / asset.price;
+        if (_quantity == 0) {
+            SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(burnQuantity, context, asset);
+
+            _quantity = uint(SD59x18.unwrap(utilisableQuantity));
+
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
+        } else {
+            SD59x18 requiredSuppliableQuantity = MultipoolMath.reversedEvalBurnContext(sd(int(_quantity)), context, asset);
+            uint requiredSuppliableShare = uint(SD59x18.unwrap(requiredSuppliableQuantity 
+                * asset.price * sd(int(totalSupply())) / totalCurrentUsdAmount));
+            if (_share != 0) {
+                require(requiredSuppliableShare <= _share, "required to burn more share than provided");
+            }
+            _share = requiredSuppliableShare;
+
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
+        }
+       //emit AssetQuantityChange(_asset, asset.quantity);
+       _burn(msg.sender, _share);
+       assets[_asset] = asset;
+       IERC20(_asset).transfer(_to, _quantity + refund);
+       return _quantity;
+   }
+
+   function swap(
+       address _assetIn,
+       address _assetOut,
+       uint _quantityOut,
+       address _to
+   ) public returns (uint) {
+        MultipoolMath.Asset memory assetIn = assets[_assetIn];
+        MultipoolMath.Asset memory assetOut = assets[_assetOut];
+        MultipoolMath.Context memory context = getContext(baseTradeFee);
+
+        SD59x18 suppliableBalance = sd(int(IERC20(_assetIn).balanceOf(address(this)))) -
             assetIn.quantity -
             assetIn.collectedFees -
             assetIn.collectedCashbacks;
+        uint refundAssetIn;
+        uint refundAssetOut;
+        if (_quantityOut == 0) {
+            SD59x18 mintQuantityOut = MultipoolMath.evalMintContext(suppliableBalance, context, assetIn);
 
-        (uint _share, uint _totalCurrentUsdAmount) = _mintLp(
-            assetIn,
-            availableBalance,
-            baseTradeFee,
-            totalCurrentUsdAmount
-        );
-        (uint _quantity, uint _newTotalCurrentUsdAmount) = _burnLp(
-            assetOut,
-            _share,
-            baseTradeFee,
-            _totalCurrentUsdAmount
-        );
-        quantity = _quantity;
+            SD59x18 burnQuantityIn = mintQuantityOut * assetOut.price / assetIn.price;
 
-        totalCurrentUsdAmount = _newTotalCurrentUsdAmount;
+            refundAssetIn = uint(SD59x18.unwrap(context.userCashbackBalance));
+            context.userCashbackBalance = sd(0);
 
-        emit AssetQuantityChange(_assetIn, assetIn.quantity);
-        emit AssetQuantityChange(_assetOut, assetOut.quantity);
+            SD59x18 burnQuantityOut = MultipoolMath.evalBurnContext(burnQuantityIn, context, assetOut);
+            _quantityOut = uint(SD59x18.unwrap(burnQuantityOut));
 
-        assets[_assetIn] = assetIn;
-        assets[_assetOut] = assetOut;
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            refundAssetOut = uint(SD59x18.unwrap(context.userCashbackBalance));
+        } else {
+            SD59x18 requiredSuppliableQuantity = 
+                MultipoolMath.reversedEvalBurnContext(sd(int(_quantityOut)), context, assetOut);
+            SD59x18 mintQuantityOut = requiredSuppliableQuantity * assetIn.price / assetOut.price ;
 
-        IERC20(_assetOut).transfer(_to, quantity);
-    }
+            refundAssetOut = uint(SD59x18.unwrap(context.userCashbackBalance));
+            context.userCashbackBalance = sd(0);
+
+            SD59x18 mintQuantityIn = 
+                MultipoolMath.reversedEvalMintContext(mintQuantityOut, context, assetIn);
+
+            require(mintQuantityIn <= suppliableBalance, 
+                    "required to burn more share than provided");
+
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            refundAssetIn = uint(SD59x18.unwrap(context.userCashbackBalance));
+        }
+
+       assets[_assetIn] = assetIn;
+       assets[_assetOut] = assetOut;
+       if (_quantityOut + refundAssetOut > 0) {
+            IERC20(_assetOut).transfer(_to, _quantityOut + refundAssetOut);
+       }
+       if (refundAssetIn > 0) {
+            IERC20(_assetIn).transfer(_to, refundAssetIn);
+       }
+   }
 
     /** ---------------- Owner ------------------ */
 
     function updatePrice(address _asset, uint _price) public onlyOwner {
-        Asset memory asset = assets[_asset];
-        totalCurrentUsdAmount -= (asset.quantity * asset.price) / denominator;
-        totalCurrentUsdAmount += (asset.quantity * _price) / denominator;
-        asset.price = _price;
+        MultipoolMath.Asset memory asset = assets[_asset];
+        SD59x18 price = sd(int(_price));
+        totalCurrentUsdAmount = totalCurrentUsdAmount - asset.quantity * asset.price + asset.quantity * price;
+        asset.price = price;
         assets[_asset] = asset;
         emit AssetPriceChange(_asset, _price);
     }
@@ -371,23 +337,31 @@ contract Multipool is ERC20, Ownable {
         address _asset,
         uint _percent
     ) public onlyOwner {
-        Asset memory asset = assets[_asset];
-        totalAssetPercents -= asset.percent;
-        totalAssetPercents += _percent;
-        asset.percent = _percent;
+        MultipoolMath.Asset memory asset = assets[_asset];
+        SD59x18 percent = sd(int(_percent));
+        totalAssetPercents = totalAssetPercents - asset.percent + percent;
+        asset.percent = percent;
         assets[_asset] = asset;
         emit AssetPercentsChange(_asset, _percent);
     }
 
-    function setRestrictPercent(uint _restrictPercent) external onlyOwner {
-        restrictPercent = _restrictPercent;
+    function setDeviationPercentLimit(uint _deviationPercentLimit) external onlyOwner {
+        deviationPercentLimit = sd(int(_deviationPercentLimit));
     }
 
-    function setCurveDelay(uint _curveDelay) external onlyOwner {
-        curveDelay = _curveDelay;
+    function setCurveCoef(uint _curveCoef) external onlyOwner {
+        curveCoef = sd(int(_curveCoef));
     }
 
     function setBaseTradeFee(uint _baseTradeFee) external onlyOwner {
-        baseTradeFee = _baseTradeFee;
+        baseTradeFee = sd(int(_baseTradeFee));
+    }
+
+    function setBaseMintFee(uint _baseMintFee) external onlyOwner {
+        baseMintFee = sd(int(_baseMintFee));
+    }
+
+    function setBaseBurnFee(uint _baseBurnFee) external onlyOwner {
+        baseBurnFee = sd(int(_baseBurnFee));
     }
 }
