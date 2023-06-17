@@ -58,17 +58,19 @@ describe("Multipool", function() {
 
         await assets[0].connect(alice).transfer(etf.address, toDecimal(10));
 
-        await etf.connect(alice).mint(assets[0].address, 0, alice.address);
+        await etf.connect(alice).mint(assets[0].address, toDecimal(10), alice.address);
 
-        await assets[1].connect(alice).transfer(etf.address, toDecimal(1));
+        await assets[1].connect(alice).transfer(etf.address, toDecimal(1001, 15));
 
-        await etf.connect(alice).mint(assets[1].address, 0, alice.address);
+        await etf.connect(alice).mint(assets[1].address, toDecimal(1), alice.address);
 
-        await etf.connect(alice).burn(toDecimal(1), assets[0].address, 0, alice.address);
+        await etf.connect(alice).transfer(etf.address, toDecimal(1));
 
-        await assets[1].connect(alice).transfer(etf.address, toDecimal(1));
+        await etf.connect(alice).burn(assets[0].address, toDecimal(1), alice.address);
 
-        result = await etf.connect(alice).swap(assets[1].address, assets[0].address, 0, alice.address);
+        await assets[1].connect(alice).transfer(etf.address, toDecimal(1001, 15));
+
+        result = await etf.connect(alice).swap(assets[1].address, assets[0].address, toDecimal(10001, 14), alice.address);
 
         await expect(result).to.changeTokenBalances(assets[0], [etf.address, alice.address], ['-1000000000000000000', '1000000000000000000']);
 

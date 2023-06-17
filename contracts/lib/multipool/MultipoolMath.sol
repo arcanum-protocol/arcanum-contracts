@@ -31,6 +31,8 @@ library MultipoolMath {
         Asset memory asset
     ) internal pure returns(SD59x18 suppliedQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
+            context.totalCurrentUsdAmount = utilisableQuantity * asset.price;
+            asset.quantity = asset.quantity + utilisableQuantity; 
             return utilisableQuantity;
         }
         SD59x18 deviationNew = ((asset.quantity + utilisableQuantity) * asset.price 
