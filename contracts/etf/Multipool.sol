@@ -26,17 +26,15 @@ contract Multipool is ERC20, Ownable {
     /** ---------------- Variables ------------------ */
 
     mapping(address => MultipoolMath.Asset) public assets;
-    //TODO: feature
-    //mapping(address => mapping(address => uint)) public userCollectedCashbacks;
     SD59x18 public totalCurrentUsdAmount;
     SD59x18 public totalAssetPercents;
 
     SD59x18 public curveCoef;
     SD59x18 public deviationPercentLimit;
 
-    SD59x18 public baseMintFee; // = 1e16;
-    SD59x18 public baseBurnFee; // = 1e16;
-    SD59x18 public baseTradeFee; // = 5e15; // 0.005 + 0.005 = 0.01
+    SD59x18 public baseMintFee = sd(0.0001e18);
+    SD59x18 public baseBurnFee = sd(0.0001e18); 
+    SD59x18 public baseTradeFee = sd(0.00005e18); 
     uint public denominator = 1e18;
 
     mapping(address => uint) public transferFees;
@@ -54,7 +52,21 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    /** ---------------- DRY Helpers ------------------ */
+    function getAssets(address _asset) public view returns (MultipoolMath.Asset memory asset) {
+        asset = assets[_asset];
+    }
+
+    function getMintContext() public view returns (MultipoolMath.Context memory context) {
+        context = getContext(baseMintFee);
+    }
+
+    function getBurnContext() public view returns (MultipoolMath.Context memory context) {
+        context = getContext(baseBurnFee);
+    }
+
+    function getTradeContext() public view returns (MultipoolMath.Context memory context) {
+        context = getContext(baseTradeFee);
+    }
 
     function getContext(SD59x18  baseFee) public view returns (MultipoolMath.Context memory context) {
         context = MultipoolMath.Context({
@@ -67,126 +79,7 @@ contract Multipool is ERC20, Ownable {
         });
     }
 
-    /** ---------------- DRY Methods ------------------ */
-
-    function dryMint(
-        address _asset, 
-        uint _quantity, 
-        uint _share
-    ) public view returns (uint amountIn, uint share, uint cashback) {
-        MultipoolMath.Asset memory asset = assets[_asset];
-        MultipoolMath.Context memory context = getContext(baseMintFee);
-        SD59x18 suppliableBalance = sd(int(_quantity));
-        uint refund;
-        if (_share == 0) {
-            SD59x18 utilisableQuantity = MultipoolMath.evalMintContext(suppliableBalance, context, asset);
-
-            if (totalCurrentUsdAmount > sd(0)) {
-                _share = uint(SD59x18.unwrap(utilisableQuantity * asset.price 
-                    * sd(int(totalSupply())) / totalCurrentUsdAmount));
-            } else {
-                _share = uint(SD59x18.unwrap(utilisableQuantity));
-            }
-
-            amountIn = uint(suppliableBalance.unwrap());
-            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
-            share = _share;
-        } else {
-            SD59x18 requiredShareBalance = sd(int(_share)) * totalCurrentUsdAmount
-                / sd(int(totalSupply())) / asset.price;
-            SD59x18 requiredSuppliableQuantity = 
-                MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset);
-
-            require(requiredShareBalance <= suppliableBalance, "required to burn more share than provided");
-            
-            amountIn = uint(requiredSuppliableQuantity.unwrap());
-            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
-            share = _share;
-        }
-    }
-
-    function dryBurn(
-        uint _share,
-        address _asset,
-        uint _quantity    
-    ) public view returns (uint share, uint amountOut, uint cashback) {
-        MultipoolMath.Asset memory asset = assets[_asset];
-        MultipoolMath.Context memory context = getContext(baseBurnFee);
-
-        uint refund;
-        SD59x18 burnQuantity = sd(int(_share)) * totalCurrentUsdAmount 
-            / sd(int(totalSupply())) / asset.price;
-        if (_quantity == 0) {
-            SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(burnQuantity, context, asset);
-
-            share = _share;
-            amountOut = uint(SD59x18.unwrap(utilisableQuantity));
-            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
-        } else {
-            SD59x18 requiredSuppliableQuantity = MultipoolMath.reversedEvalBurnContext(sd(int(_quantity)), context, asset);
-            uint requiredSuppliableShare = uint(SD59x18.unwrap(requiredSuppliableQuantity 
-                * asset.price * sd(int(totalSupply())) / totalCurrentUsdAmount));
-            if (_share != 0) {
-                require(requiredSuppliableShare <= _share, "required to burn more share than provided");
-            }
-
-            share = requiredSuppliableShare;
-            amountOut = _quantity;
-            cashback = uint(SD59x18.unwrap(context.userCashbackBalance));
-        }
-   }
-
-   function drySwap(
-       address _assetIn,
-       address _assetOut,
-       uint _quantityIn,
-       uint _quantityOut
-   ) public returns (
-    uint amountIn, 
-    uint amountOut, 
-    uint cashbackIn, 
-    uint cashbackOut
-   ) {
-        MultipoolMath.Asset memory assetIn = assets[_assetIn];
-        MultipoolMath.Asset memory assetOut = assets[_assetOut];
-        MultipoolMath.Context memory context = getContext(baseTradeFee);
-
-        SD59x18 suppliableBalance = sd(int(_quantityIn));
-        if (_quantityOut == 0) {
-            SD59x18 mintQuantityOut = MultipoolMath.evalMintContext(suppliableBalance, context, assetIn);
-
-            SD59x18 burnQuantityIn = mintQuantityOut * assetOut.price / assetIn.price;
-
-            cashbackIn = uint(SD59x18.unwrap(context.userCashbackBalance));
-            context.userCashbackBalance = sd(0);
-
-            SD59x18 burnQuantityOut = MultipoolMath.evalBurnContext(burnQuantityIn, context, assetOut);
-
-            amountOut = uint(SD59x18.unwrap(burnQuantityOut));
-            amountIn = _quantityIn;
-            cashbackOut = uint(SD59x18.unwrap(context.userCashbackBalance));
-        } else {
-            SD59x18 requiredSuppliableQuantity = 
-                MultipoolMath.reversedEvalBurnContext(sd(int(_quantityOut)), context, assetOut);
-            SD59x18 mintQuantityOut = requiredSuppliableQuantity * assetIn.price / assetOut.price ;
-
-            cashbackOut = uint(SD59x18.unwrap(context.userCashbackBalance));
-            context.userCashbackBalance = sd(0);
-
-            SD59x18 mintQuantityIn = 
-                MultipoolMath.reversedEvalMintContext(mintQuantityOut, context, assetIn);
-
-            require(mintQuantityIn <= suppliableBalance, 
-                    "required to burn more share than provided");
-
-            amountOut = _quantityOut;
-            amountIn = uint(mintQuantityIn.unwrap());
-            cashbackIn = uint(SD59x18.unwrap(context.userCashbackBalance));
-        }
-   }
-
-    /** ---------------- Methods ------------------ */
-
+    //TODO: return unused supplied amount with refund
     function mint(address _asset, uint _share, address _to) public returns (uint) {
         MultipoolMath.Asset memory asset = assets[_asset];
         MultipoolMath.Context memory context = getContext(baseMintFee);
@@ -195,131 +88,117 @@ contract Multipool is ERC20, Ownable {
             asset.quantity -
             asset.collectedFees -
             asset.collectedCashbacks;
-        uint refund;
-        if (_share == 0) {
-            SD59x18 utilisableQuantity = MultipoolMath.evalMintContext(suppliableBalance, context, asset);
 
-            if (totalCurrentUsdAmount > sd(0)) {
-                _share = uint(SD59x18.unwrap(utilisableQuantity * asset.price 
-                    * sd(int(totalSupply())) / totalCurrentUsdAmount));
-            } else {
-                _share = uint(SD59x18.unwrap(utilisableQuantity));
-            }
-
-
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
-        } else {
-            SD59x18 requiredShareBalance = sd(int(_share)) * totalCurrentUsdAmount
+        SD59x18 requiredShareBalance;
+        if (totalSupply() != 0) {
+            requiredShareBalance = sd(int(_share)) * totalCurrentUsdAmount
                 / sd(int(totalSupply())) / asset.price;
-            SD59x18 requiredSuppliableQuantity = 
-                MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset);
-
-            require(requiredShareBalance <= suppliableBalance, "required to burn more share than provided");
-
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
+        } else {
+            requiredShareBalance = suppliableBalance;
         }
+
+        uint requiredSuppliableQuantity = 
+            uint(MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset).unwrap());
+
+        console.log("req ", requiredSuppliableQuantity);
+        console.log("sup ", uint(suppliableBalance.unwrap()));
+        require(requiredSuppliableQuantity <= uint(suppliableBalance.unwrap()), "provided amount exeeded");
+
+        totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+        uint refund = uint(SD59x18.unwrap(context.userCashbackBalance));
+
         _mint(_to, _share);
-        //emit AssetQuantityChange(_asset, asset.quantity);
         assets[_asset] = asset;
         IERC20(_asset).transfer(_to, refund);
-        return _share;
+
+        emit AssetQuantityChange(_asset, uint(asset.quantity.unwrap()));
+        return requiredSuppliableQuantity;
     }
 
     function burn(
-        uint _share,
         address _asset,
-        uint _quantity,
+        uint _share,
         address _to
     ) public returns (uint) {
         MultipoolMath.Asset memory asset = assets[_asset];
         MultipoolMath.Context memory context = getContext(baseBurnFee);
 
-        uint refund;
         SD59x18 burnQuantity = sd(int(_share)) * totalCurrentUsdAmount 
             / sd(int(totalSupply())) / asset.price;
-        if (_quantity == 0) {
-            SD59x18 utilisableQuantity = MultipoolMath.evalBurnContext(burnQuantity, context, asset);
+        uint quantityOut = uint(MultipoolMath.evalBurnContext(burnQuantity, context, asset).unwrap());
 
-            _quantity = uint(SD59x18.unwrap(utilisableQuantity));
+        totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+        uint refund = uint(SD59x18.unwrap(context.userCashbackBalance));
 
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
-        } else {
-            SD59x18 requiredSuppliableQuantity = MultipoolMath.reversedEvalBurnContext(sd(int(_quantity)), context, asset);
-            uint requiredSuppliableShare = uint(SD59x18.unwrap(requiredSuppliableQuantity 
-                * asset.price * sd(int(totalSupply())) / totalCurrentUsdAmount));
-            if (_share != 0) {
-                require(requiredSuppliableShare <= _share, "required to burn more share than provided");
-            }
-            _share = requiredSuppliableShare;
-
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-            refund = uint(SD59x18.unwrap(context.userCashbackBalance));
-        }
-       //emit AssetQuantityChange(_asset, asset.quantity);
-       _burn(msg.sender, _share);
+       _burn(address(this), _share);
        assets[_asset] = asset;
-       IERC20(_asset).transfer(_to, _quantity + refund);
-       return _quantity;
+       IERC20(_asset).transfer(_to, quantityOut + refund);
+
+       emit AssetQuantityChange(_asset, uint(asset.quantity.unwrap()));
+       return quantityOut;
+   }
+
+   function getTransferredAmount(
+       MultipoolMath.Asset memory assetIn, 
+       address _assetIn
+   ) public view returns (uint amount) {
+        amount = IERC20(_assetIn).balanceOf(address(this)) -
+            uint(assetIn.quantity.unwrap()) -
+            uint(assetIn.collectedFees.unwrap()) -
+            uint(assetIn.collectedCashbacks.unwrap());
    }
 
    function swap(
        address _assetIn,
        address _assetOut,
-       uint _quantityOut,
+       uint _shareInTheMiddle,
        address _to
    ) public returns (uint) {
         MultipoolMath.Asset memory assetIn = assets[_assetIn];
         MultipoolMath.Asset memory assetOut = assets[_assetOut];
         MultipoolMath.Context memory context = getContext(baseTradeFee);
 
-        SD59x18 suppliableBalance = sd(int(IERC20(_assetIn).balanceOf(address(this)))) -
-            assetIn.quantity -
-            assetIn.collectedFees -
-            assetIn.collectedCashbacks;
+
+        uint transferredAmount = getTransferredAmount(assetIn, _assetIn);
         uint refundAssetIn;
         uint refundAssetOut;
-        if (_quantityOut == 0) {
-            SD59x18 mintQuantityOut = MultipoolMath.evalMintContext(suppliableBalance, context, assetIn);
+        uint burnQuantityOut;
 
-            SD59x18 burnQuantityIn = mintQuantityOut * assetOut.price / assetIn.price;
-
-            refundAssetIn = uint(SD59x18.unwrap(context.userCashbackBalance));
-            context.userCashbackBalance = sd(0);
-
-            SD59x18 burnQuantityOut = MultipoolMath.evalBurnContext(burnQuantityIn, context, assetOut);
-            _quantityOut = uint(SD59x18.unwrap(burnQuantityOut));
-
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-            refundAssetOut = uint(SD59x18.unwrap(context.userCashbackBalance));
-        } else {
-            SD59x18 requiredSuppliableQuantity = 
-                MultipoolMath.reversedEvalBurnContext(sd(int(_quantityOut)), context, assetOut);
-            SD59x18 mintQuantityOut = requiredSuppliableQuantity * assetIn.price / assetOut.price ;
-
-            refundAssetOut = uint(SD59x18.unwrap(context.userCashbackBalance));
-            context.userCashbackBalance = sd(0);
-
+        {{
+            SD59x18 assetInFromShares = sd(int(_shareInTheMiddle)) * totalCurrentUsdAmount
+                / sd(int(totalSupply())) / assetIn.price;
             SD59x18 mintQuantityIn = 
-                MultipoolMath.reversedEvalMintContext(mintQuantityOut, context, assetIn);
+                MultipoolMath.reversedEvalMintContext(assetInFromShares, context, assetIn);
 
-            require(mintQuantityIn <= suppliableBalance, 
-                    "required to burn more share than provided");
+            require(mintQuantityIn <= sd(int(transferredAmount)), 
+                    "MULTIPOOL: swap amount in exeeded");
 
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
             refundAssetIn = uint(SD59x18.unwrap(context.userCashbackBalance));
-        }
+            context.userCashbackBalance = sd(0);
+        }}
+
+        {{
+            SD59x18 assetOutFromShares = sd(int(_shareInTheMiddle)) * totalCurrentUsdAmount
+                / sd(int(totalSupply())) / assetIn.price;
+
+            burnQuantityOut = 
+                uint(MultipoolMath.evalBurnContext(assetOutFromShares , context, assetOut).unwrap());
+
+            refundAssetOut = uint(SD59x18.unwrap(context.userCashbackBalance));
+            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+        }}
 
        assets[_assetIn] = assetIn;
        assets[_assetOut] = assetOut;
-       if (_quantityOut + refundAssetOut > 0) {
-            IERC20(_assetOut).transfer(_to, _quantityOut + refundAssetOut);
+       if (burnQuantityOut + refundAssetOut > 0) {
+            IERC20(_assetOut).transfer(_to, burnQuantityOut + refundAssetOut);
        }
        if (refundAssetIn > 0) {
             IERC20(_assetIn).transfer(_to, refundAssetIn);
        }
+       emit AssetQuantityChange(_assetIn, uint(assetIn.quantity.unwrap()));
+       emit AssetQuantityChange(_assetOut, uint(assetOut.quantity.unwrap()));
+       return burnQuantityOut;
    }
 
     /** ---------------- Owner ------------------ */

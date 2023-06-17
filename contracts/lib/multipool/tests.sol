@@ -29,6 +29,7 @@ contract TestMultipoolMath {
         require(a.percent == b.percent, "percent not equal");
     }
 
+    //TODO: reversed mint with zero balance
     function mintWithZeroBalance() public {
         MultipoolMath.Context memory context = MultipoolMath.Context({
             totalCurrentUsdAmount:  sd(0e18),
