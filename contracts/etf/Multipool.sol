@@ -113,17 +113,17 @@ contract Multipool is ERC20, Ownable {
             amountOut = transferredAmount;
         }
 
-        _amountIn = context.mintRev(asset, amountOut).unwrap();
+        _amountIn = context.mintRev(asset, amountOut);
         require(_amountIn <= transferredAmount, "MULTIPOOL: mint amount in exeeded");
 
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         // add unused quantity to refund
         UD60x18 refund = context.userCashbackBalance + (transferredAmount - _amountIn);
 
-        _mint(_to, _share);
+        _mint(_to, _share.unwrap());
         assets[_asset] = asset;
-        if (refund > 0) {
-            IERC20(_asset).transfer(_to, refund);
+        if (refund > ud(0)) {
+            IERC20(_asset).transfer(_to, refund.unwrap());
         }
 
         emit AssetQuantityChange(_asset, asset.quantity);
@@ -143,9 +143,9 @@ contract Multipool is ERC20, Ownable {
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         UD60x18 refund = context.userCashbackBalance;
 
-       _burn(address(this), _share);
+       _burn(address(this), _share.unwrap());
        assets[_asset] = asset;
-       IERC20(_asset).transfer(_to, _amountOut + refund);
+       IERC20(_asset).transfer(_to, (_amountOut + refund).unwrap());
        // return unused amount
        _transfer(address(this), msg.sender, balanceOf(address(this)));
        emit AssetQuantityChange(_asset, asset.quantity);
@@ -178,7 +178,7 @@ contract Multipool is ERC20, Ownable {
 
         {{
             UD60x18 amountIn = shareToAmount(_share, context, assetOut);
-            _amountOut = uint(context.burn(assetOut, amountIn).unwrap());
+            _amountOut = context.burn(assetOut, amountIn);
 
             refundAssetOut = context.userCashbackBalance;
             totalCurrentUsdAmount = context.totalCurrentUsdAmount;
@@ -188,11 +188,11 @@ contract Multipool is ERC20, Ownable {
        assets[_assetIn] = assetIn;
        assets[_assetOut] = assetOut;
 
-       if (_amountOut + refundAssetOut > 0) {
-            IERC20(_assetOut).transfer(_to, _amountOut + refundAssetOut);
+       if (_amountOut + refundAssetOut > ud(0)) {
+            IERC20(_assetOut).transfer(_to, (_amountOut + refundAssetOut).unwrap());
        }
-       if (refundAssetIn > 0) {
-            IERC20(_assetIn).transfer(_to, refundAssetIn);
+       if (refundAssetIn > ud(0)) {
+            IERC20(_assetIn).transfer(_to, refundAssetIn.unwrap());
        }
        emit AssetQuantityChange(_assetIn, assetIn.quantity);
        emit AssetQuantityChange(_assetOut, assetOut.quantity);

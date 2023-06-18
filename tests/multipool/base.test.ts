@@ -70,9 +70,9 @@ describe("Multipool", function() {
 
         await assets[1].connect(alice).transfer(etf.address, toDecimal(1001, 15));
 
-        result = await etf.connect(alice).swap(assets[1].address, assets[0].address, toDecimal(10005, 15), alice.address);
+        result = await etf.connect(alice).swap(assets[1].address, assets[0].address, toDecimal(10001, 14), alice.address);
 
-        await expect(result).to.changeTokenBalances(assets[0], [etf.address, alice.address], ['-1000000000000000000', '1000000000000000000']);
+        await expect(result).to.changeTokenBalances(assets[0], [etf.address, alice.address], ['-1100010000000000000', '1100010000000000000']);
 
     });
 })

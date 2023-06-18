@@ -25,24 +25,91 @@ struct MpContext {
 }
 
 library MpMath {
+    
+    struct MpAssetSigned {
+        SD59x18 quantity;
+        SD59x18 price;
+        SD59x18 collectedFees;
+        SD59x18 collectedCashbacks;
+        SD59x18 percent;
+    }
+
+    struct MpContextSigned {
+        SD59x18 totalCurrentUsdAmount;
+        SD59x18 totalAssetPercents;
+        SD59x18 curveCoef;
+        SD59x18 deviationPercentLimit;
+        SD59x18 operationBaseFee;
+        SD59x18 userCashbackBalance;
+    }
+
+    function sign(MpContext memory c) internal pure returns(MpContextSigned memory) {
+        return MpContextSigned({
+            totalCurrentUsdAmount: sign(c.totalCurrentUsdAmount),
+            totalAssetPercents: sign(c.totalAssetPercents),
+            curveCoef: sign(c.curveCoef),
+            deviationPercentLimit: sign(c.deviationPercentLimit),
+            operationBaseFee: sign(c.operationBaseFee),
+            userCashbackBalance: sign(c.userCashbackBalance)
+        });
+    }
+
+    function sign(MpAsset memory asset) internal pure returns(MpAssetSigned memory) {
+        return MpAssetSigned({
+            quantity: sign(asset.quantity),
+            price: sign(asset.price),
+            collectedFees: sign(asset.collectedFees),
+            collectedCashbacks: sign(asset.collectedCashbacks),
+            percent: sign(asset.percent)
+        });
+    }
+
+    function sign(UD60x18 a) internal pure returns(SD59x18 b) {
+        b = sd(int(a.unwrap()));
+    }
+
+    function unsign(SD59x18 a) internal pure returns(UD60x18 b) {
+        b = ud(uint(a.unwrap()));
+    }
+
+    function calculateDeviationMint(
+        MpContext memory context,
+        MpAsset memory asset,
+        UD60x18 utilisableQuantity
+    ) internal pure returns(UD60x18 deviation) {
+        SD59x18 share = sign((asset.quantity + utilisableQuantity) * asset.price 
+                / (context.totalCurrentUsdAmount + utilisableQuantity * asset.price));
+        SD59x18 idealShare = sign(asset.percent / context.totalAssetPercents);
+        deviation = unsign((share - idealShare).abs());
+    }
+
+    function calculateDeviationBurn(
+        MpContext memory context,
+        MpAsset memory asset,
+        UD60x18 suppliedQuantity
+    ) internal pure returns(UD60x18 deviation) {
+        SD59x18 share = sign((asset.quantity - suppliedQuantity) * asset.price 
+                / (context.totalCurrentUsdAmount - suppliedQuantity * asset.price));
+        SD59x18 idealShare = sign(asset.percent / context.totalAssetPercents);
+        deviation = unsign((share - idealShare).abs());
+    }
+
     function mintRev(
         MpContext memory context,
         MpAsset memory asset,
         UD60x18 utilisableQuantity
     ) internal pure returns(UD60x18 suppliedQuantity) {
-        if (context.totalCurrentUsdAmount == sd(0)) {
+        if (context.totalCurrentUsdAmount == ud(0)) {
             context.totalCurrentUsdAmount = utilisableQuantity * asset.price;
             asset.quantity = asset.quantity + utilisableQuantity; 
             return utilisableQuantity;
         }
-        UD60x18 deviationNew = ((asset.quantity + utilisableQuantity) * asset.price 
-                / (context.totalCurrentUsdAmount + utilisableQuantity * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        UD60x18 deviationOld = (asset.quantity * asset.price 
-                / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
+        UD60x18 deviationNew = calculateDeviationMint(context, asset, utilisableQuantity);
+        UD60x18 deviationOld = calculateDeviationMint(context, asset, ud(0));
 
         if (deviationNew <= deviationOld) {
-            SD59x18 cashback;
-            if (deviationOld != sd(0)) {
+            UD60x18 cashback;
+            if (deviationOld != ud(0)) {
                 cashback = asset.collectedCashbacks * (deviationOld - deviationNew) / deviationOld;
             }
             asset.collectedCashbacks = asset.collectedCashbacks - cashback;
@@ -51,7 +118,7 @@ library MpMath {
         } else {
             require(deviationNew < context.deviationPercentLimit, "deviation overflows limit");
 
-            SD59x18 collectedDeviationFee = context.curveCoef * deviationNew * utilisableQuantity 
+            UD60x18 collectedDeviationFee = context.curveCoef * deviationNew * utilisableQuantity 
             / context.deviationPercentLimit / (context.deviationPercentLimit - deviationNew);
             asset.collectedCashbacks = asset.collectedCashbacks + collectedDeviationFee;
             suppliedQuantity = utilisableQuantity + 
@@ -66,26 +133,23 @@ library MpMath {
     function burnRev(
         MpContext memory context,
         MpAsset memory asset,
-        SD59x18 utilisableQuantity 
-    ) internal pure returns(SD59x18 suppliedQuantity) {
+        UD60x18 utilisableQuantity 
+    ) internal pure returns(UD60x18 suppliedQuantity) {
         require(utilisableQuantity <= asset.quantity, "can't burn more assets than exist");
 
-        UD60x18 withFees = getSuppliableBurnQuantity(utilisableQuantity, context, asset);
-        UD60x18 noFees = utilisableQuantity * (sd(1e18) + context.operationBaseFee);
+        UD60x18 withFees = unsign(getSuppliableBurnQuantity(sign(utilisableQuantity), sign(context), sign(asset)));
+        UD60x18 noFees = utilisableQuantity * (ud(1e18) + context.operationBaseFee);
 
-        UD60x18 deviationWithFees = ((asset.quantity - withFees) * asset.price 
-                / (context.totalCurrentUsdAmount - withFees * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        UD60x18 deviationNoFees = ((asset.quantity - noFees) * asset.price 
-                / (context.totalCurrentUsdAmount - noFees * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        UD60x18 deviationOld = (asset.quantity * asset.price 
-                / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
+        UD60x18 deviationWithFees = calculateDeviationBurn(context, asset, withFees);
+        UD60x18 deviationNoFees = calculateDeviationBurn(context, asset, noFees);
+        UD60x18 deviationOld = calculateDeviationBurn(context, asset, ud(0));
 
         if (deviationNoFees <= deviationOld) {
             suppliedQuantity = noFees;
             require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
 
-            SD59x18 cashback;
-            if (deviationOld != sd(0)) {
+            UD60x18 cashback;
+            if (deviationOld != ud(0)) {
                 cashback = asset.collectedCashbacks * (deviationOld - deviationNoFees) / deviationOld;
             }
 
@@ -96,11 +160,11 @@ library MpMath {
             require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
             require(deviationWithFees < context.deviationPercentLimit, 
                     "deviation overflows limit");
-            require(withFees != sd(0), "no curve solutions found");
+            require(withFees != ud(0), "no curve solutions found");
 
-            SD59x18 _operationBaseFee = context.operationBaseFee;
+            UD60x18 _operationBaseFee = context.operationBaseFee;
             asset.collectedCashbacks = asset.collectedCashbacks + 
-                (suppliedQuantity - utilisableQuantity * (sd(1e18) + _operationBaseFee));
+                (suppliedQuantity - utilisableQuantity * (ud(1e18) + _operationBaseFee));
         }
 
         asset.quantity = asset.quantity - suppliedQuantity; 
@@ -111,29 +175,26 @@ library MpMath {
     function mint(
         MpContext memory context,
         MpAsset memory asset,
-        SD59x18 suppliedQuantity 
-    ) internal pure returns(SD59x18 utilisableQuantity) {
-        if (context.totalCurrentUsdAmount == sd(0)) {
+        UD60x18 suppliedQuantity 
+    ) internal pure returns(UD60x18 utilisableQuantity) {
+        if (context.totalCurrentUsdAmount == ud(0)) {
             context.totalCurrentUsdAmount = suppliedQuantity * asset.price;
             asset.quantity = asset.quantity + suppliedQuantity; 
             return suppliedQuantity;
         }
-        SD59x18 withFees = getUtilisableMintQuantity(suppliedQuantity, context, asset);
-        SD59x18 noFees = suppliedQuantity / (sd(1e18) + context.operationBaseFee);
+        UD60x18 withFees = unsign(getUtilisableMintQuantity(sign(suppliedQuantity), sign(context), sign(asset)));
+        UD60x18 noFees = suppliedQuantity / (ud(1e18) + context.operationBaseFee);
 
-        SD59x18 deviationWithFees = ((asset.quantity + withFees) * asset.price 
-                / (context.totalCurrentUsdAmount + withFees * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        SD59x18 deviationNoFees = ((asset.quantity + noFees) * asset.price 
-                / (context.totalCurrentUsdAmount + noFees * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        SD59x18 deviationOld = (asset.quantity * asset.price 
-                / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
+        UD60x18 deviationWithFees = calculateDeviationMint(context, asset, withFees);
+        UD60x18 deviationNoFees = calculateDeviationMint(context, asset, noFees);
+        UD60x18 deviationOld = calculateDeviationMint(context, asset, ud(0));
 
         if (deviationNoFees <= deviationOld) {
             utilisableQuantity = noFees;
             require (deviationNoFees <= deviationOld, "deviation no fees should be lower than old");
 
-            SD59x18 cashback;
-            if (deviationOld != sd(0)) {
+            UD60x18 cashback;
+            if (deviationOld != ud(0)) {
                 cashback = asset.collectedCashbacks * (deviationOld - deviationNoFees) / deviationOld;
             }
 
@@ -143,7 +204,7 @@ library MpMath {
         } else {
             require(deviationWithFees < context.deviationPercentLimit, 
                     "deviation overflows limit");
-            require(withFees != sd(0), "no curve solutions found");
+            require(withFees != ud(0), "no curve solutions found");
 
             utilisableQuantity = withFees;
             // straightforward form but seems like it is not so good in accuracy,
@@ -156,9 +217,9 @@ library MpMath {
            // require(cashbacks + utilisableQuantity 
            //         * (sd(1e18) + context.operationBaseFee) == suppliedQuantity, "deviation overflows limit");
            // asset.collectedCashbacks = asset.collectedCashbacks + cashbacks;
-            SD59x18 _operationBaseFee = context.operationBaseFee;
+            UD60x18 _operationBaseFee = context.operationBaseFee;
             asset.collectedCashbacks = asset.collectedCashbacks + 
-                (suppliedQuantity - utilisableQuantity * (sd(1e18) + _operationBaseFee));
+                (suppliedQuantity - utilisableQuantity * (ud(1e18) + _operationBaseFee));
         }
 
         asset.quantity = asset.quantity + utilisableQuantity; 
@@ -169,32 +230,31 @@ library MpMath {
     function burn(
         MpContext memory context,
         MpAsset memory asset,
-        SD59x18 suppliedQuantity
-    ) internal pure returns(SD59x18 utilisableQuantity) {
+        UD60x18 suppliedQuantity
+    ) internal pure returns(UD60x18 utilisableQuantity) {
         require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
-        SD59x18 deviationNew = ((asset.quantity - suppliedQuantity) * asset.price 
-                / (context.totalCurrentUsdAmount - suppliedQuantity * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        SD59x18 deviationOld = (asset.quantity * asset.price 
-                / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
+
+        UD60x18 deviationNew = calculateDeviationBurn(context, asset, suppliedQuantity);
+        UD60x18 deviationOld = calculateDeviationBurn(context, asset, ud(0));
 
         if (deviationNew <= deviationOld) {
-            SD59x18 cashback;
-            if (deviationOld != sd(0)) {
+            UD60x18 cashback;
+            if (deviationOld != ud(0)) {
                 cashback = asset.collectedCashbacks * (deviationOld - deviationNew) / deviationOld;
             }
             asset.collectedCashbacks = asset.collectedCashbacks - cashback;
             context.userCashbackBalance = context.userCashbackBalance + cashback;
-            utilisableQuantity = suppliedQuantity / (sd(1e18) + context.operationBaseFee);
+            utilisableQuantity = suppliedQuantity / (ud(1e18) + context.operationBaseFee);
         } else {
-            require(deviationNew.abs() < context.deviationPercentLimit, "deviation overflows limit");
+            require(deviationNew < context.deviationPercentLimit, "deviation overflows limit");
 
-            SD59x18 feeRatio = context.curveCoef * deviationNew 
+            UD60x18 feeRatio = context.curveCoef * deviationNew 
                 / context.deviationPercentLimit / (context.deviationPercentLimit - deviationNew);
 
-            utilisableQuantity = suppliedQuantity / (sd(1e18) + feeRatio + context.operationBaseFee);
+            utilisableQuantity = suppliedQuantity / (ud(1e18) + feeRatio + context.operationBaseFee);
 
             asset.collectedCashbacks = asset.collectedCashbacks 
-                + (suppliedQuantity - utilisableQuantity * (sd(1e18) + context.operationBaseFee));
+                + (suppliedQuantity - utilisableQuantity * (ud(1e18) + context.operationBaseFee));
         }
 
         asset.quantity = asset.quantity - suppliedQuantity; 
@@ -204,8 +264,8 @@ library MpMath {
 
     function getUtilisableMintQuantity(
         SD59x18 suppliedQuantity,
-        MpContext memory context,
-        MpAsset memory asset
+        MpContextSigned memory context,
+        MpAssetSigned memory asset
     ) internal pure returns(SD59x18 utilisableQuantity){
         
         SD59x18 B = (sd(1e18) + context.operationBaseFee);
@@ -286,8 +346,8 @@ library MpMath {
 
     function getSuppliableBurnQuantity(
         SD59x18 utilisableQuantity, 
-        MpContext memory context,
-        MpAsset memory asset
+        MpContextSigned memory context,
+        MpAssetSigned memory asset
     ) internal pure returns(SD59x18 suppliedQuantity){
 
         SD59x18 B = (sd(1e18) + context.operationBaseFee);
