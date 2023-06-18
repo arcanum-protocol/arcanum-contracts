@@ -4,13 +4,11 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import { SD59x18, sd } from "@prb/math/src/SD59x18.sol";
-import "../lib/multipool/MultipoolMath.sol";
+import { MpAsset, MpContext } from "../lib/multipool/MultipoolMath.sol";
 
 import "hardhat/console.sol";
 
 contract Multipool is ERC20, Ownable {
-
-    using MultipoolMath for *;
 
     constructor(
         string memory _name,
@@ -25,7 +23,7 @@ contract Multipool is ERC20, Ownable {
 
     /** ---------------- Variables ------------------ */
 
-    mapping(address => MultipoolMath.Asset) public assets;
+    mapping(address => MpAsset) public assets;
     SD59x18 public totalCurrentUsdAmount;
     SD59x18 public totalAssetPercents;
 
@@ -52,24 +50,24 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    function getAssets(address _asset) public view returns (MultipoolMath.Asset memory asset) {
+    function getAssets(address _asset) public view returns (MpAsset memory asset) {
         asset = assets[_asset];
     }
 
-    function getMintContext() public view returns (MultipoolMath.Context memory context) {
+    function getMintContext() public view returns (MpContext memory context) {
         context = getContext(baseMintFee);
     }
 
-    function getBurnContext() public view returns (MultipoolMath.Context memory context) {
+    function getBurnContext() public view returns (MpContext memory context) {
         context = getContext(baseBurnFee);
     }
 
-    function getTradeContext() public view returns (MultipoolMath.Context memory context) {
+    function getTradeContext() public view returns (MpContext memory context) {
         context = getContext(baseTradeFee);
     }
 
-    function getContext(SD59x18  baseFee) public view returns (MultipoolMath.Context memory context) {
-        context = MultipoolMath.Context({
+    function getContext(SD59x18  baseFee) public view returns (MpContext memory context) {
+        context = MpContext({
             totalCurrentUsdAmount:  totalCurrentUsdAmount,
             totalAssetPercents:     totalAssetPercents,
             curveCoef:              curveCoef,
@@ -79,41 +77,58 @@ contract Multipool is ERC20, Ownable {
         });
     }
 
-    //TODO: return unused supplied amount with refund
+    function getTransferredAmount(
+       MpAsset memory assetIn, 
+       address _assetIn
+    ) public view returns (uint amount) {
+        amount = IERC20(_assetIn).balanceOf(address(this)) -
+            uint(assetIn.quantity.unwrap()) -
+            uint(assetIn.collectedFees.unwrap()) -
+            uint(assetIn.collectedCashbacks.unwrap());
+    }
+
+    function shareToAmount(
+        SD59x18 _share, 
+        MpContext memory context, 
+        MpAsset memory asset
+    ) public view returns (SD59x18 _amount) {
+        _amount = _share * context.totalCurrentUsdAmount 
+            / sd(int(totalSupply())) / asset.price;
+    }
+
     function mint(
         address _asset, 
         uint _share, 
         address _to
     ) public returns (uint) {
-        MultipoolMath.Asset memory asset = assets[_asset];
-        MultipoolMath.Context memory context = getContext(baseMintFee);
+        MpAsset memory asset = assets[_asset];
+        MpContext memory context = getContext(baseMintFee);
 
-        SD59x18 suppliableBalance = sd(int(IERC20(_asset).balanceOf(address(this)))) -
-            asset.quantity -
-            asset.collectedFees -
-            asset.collectedCashbacks;
+        uint transferredAmount = getTransferredAmount(asset, _asset);
 
         SD59x18 requiredShareBalance;
         if (totalSupply() != 0) {
-            requiredShareBalance = sd(int(_share)) * totalCurrentUsdAmount
-                / sd(int(totalSupply())) / asset.price;
+            requiredShareBalance = shareToAmount(sd(int(_share)), context, asset);
         } else {
-            requiredShareBalance = suppliableBalance;
+            requiredShareBalance = sd(int(transferredAmount));
         }
 
-        uint requiredSuppliableQuantity = 
-            uint(MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset).unwrap());
+        uint requiredSuppliableQuantity = uint(context.mintRev(asset, requiredShareBalance).unwrap());
+            //uint(MultipoolMath.reversedEvalMintContext(requiredShareBalance, context, asset).unwrap());
 
-        console.log("req ", requiredSuppliableQuantity);
-        console.log("sup ", uint(suppliableBalance.unwrap()));
-        require(requiredSuppliableQuantity <= uint(suppliableBalance.unwrap()), "provided amount exeeded");
+        require(requiredSuppliableQuantity <= transferredAmount, "provided amount exeeded");
 
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         uint refund = uint(SD59x18.unwrap(context.userCashbackBalance));
 
+        // add unused quantity to refund
+        refund += (transferredAmount - requiredSuppliableQuantity);
+
         _mint(_to, _share);
         assets[_asset] = asset;
-        IERC20(_asset).transfer(_to, refund);
+        if (refund > 0) {
+            IERC20(_asset).transfer(_to, refund);
+        }
 
         emit AssetQuantityChange(_asset, uint(asset.quantity.unwrap()));
         return requiredSuppliableQuantity;
@@ -124,12 +139,11 @@ contract Multipool is ERC20, Ownable {
         uint _share,
         address _to
     ) public returns (uint) {
-        MultipoolMath.Asset memory asset = assets[_asset];
-        MultipoolMath.Context memory context = getContext(baseBurnFee);
+        MpAsset memory asset = assets[_asset];
+        MpContext memory context = getContext(baseBurnFee);
 
-        SD59x18 burnQuantity = sd(int(_share)) * totalCurrentUsdAmount 
-            / sd(int(totalSupply())) / asset.price;
-        uint quantityOut = uint(MultipoolMath.evalBurnContext(burnQuantity, context, asset).unwrap());
+        SD59x18 burnQuantity = shareToAmount(sd(int(_share)), context, asset);
+        uint quantityOut = uint(context.burn(asset, burnQuantity).unwrap());
 
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         uint refund = uint(SD59x18.unwrap(context.userCashbackBalance));
@@ -137,78 +151,66 @@ contract Multipool is ERC20, Ownable {
        _burn(address(this), _share);
        assets[_asset] = asset;
        IERC20(_asset).transfer(_to, quantityOut + refund);
+       // return unused amount
+       _transfer(address(this), msg.sender, balanceOf(address(this)));
 
        emit AssetQuantityChange(_asset, uint(asset.quantity.unwrap()));
        return quantityOut;
    }
 
-   function getTransferredAmount(
-       MultipoolMath.Asset memory assetIn, 
-       address _assetIn
-   ) public view returns (uint amount) {
-        amount = IERC20(_assetIn).balanceOf(address(this)) -
-            uint(assetIn.quantity.unwrap()) -
-            uint(assetIn.collectedFees.unwrap()) -
-            uint(assetIn.collectedCashbacks.unwrap());
-   }
 
    function swap(
        address _assetIn,
        address _assetOut,
-       uint _shareInTheMiddle,
+       uint _share,
        address _to
-   ) public returns (uint) {
-        MultipoolMath.Asset memory assetIn = assets[_assetIn];
-        MultipoolMath.Asset memory assetOut = assets[_assetOut];
-        MultipoolMath.Context memory context = getContext(baseTradeFee);
+   ) public returns (uint _amountIn, uint _amountOut) {
+        MpAsset memory assetIn = assets[_assetIn];
+        MpAsset memory assetOut = assets[_assetOut];
+        MpContext memory context = getContext(baseTradeFee);
 
 
         uint transferredAmount = getTransferredAmount(assetIn, _assetIn);
         uint refundAssetIn;
         uint refundAssetOut;
-        uint burnQuantityOut;
 
         {{
-            SD59x18 assetInFromShares = sd(int(_shareInTheMiddle)) * totalCurrentUsdAmount
-                / sd(int(totalSupply())) / assetIn.price;
-            SD59x18 mintQuantityIn = 
-                MultipoolMath.reversedEvalMintContext(assetInFromShares, context, assetIn);
+            SD59x18 assetInFromShares = shareToAmount(sd(int(_share)), context, assetIn);
+            _amountIn = uint(context.mintRev(assetIn, assetInFromShares).unwrap());
 
-            require(mintQuantityIn <= sd(int(transferredAmount)), 
-                    "MULTIPOOL: swap amount in exeeded");
+            require(_amountIn <= transferredAmount, "MULTIPOOL: swap amount in exeeded");
 
             refundAssetIn = uint(SD59x18.unwrap(context.userCashbackBalance));
+            refundAssetIn += (transferredAmount - _amountIn);
             context.userCashbackBalance = sd(0);
         }}
 
         {{
-            SD59x18 assetOutFromShares = sd(int(_shareInTheMiddle)) * totalCurrentUsdAmount
-                / sd(int(totalSupply())) / assetIn.price;
-
-            burnQuantityOut = 
-                uint(MultipoolMath.evalBurnContext(assetOutFromShares , context, assetOut).unwrap());
+            SD59x18 assetOutFromShares = shareToAmount(sd(int(_share)), context, assetOut);
+            _amountOut = uint(context.burn(assetOut, assetOutFromShares).unwrap());
 
             refundAssetOut = uint(SD59x18.unwrap(context.userCashbackBalance));
             totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         }}
 
+
        assets[_assetIn] = assetIn;
        assets[_assetOut] = assetOut;
-       if (burnQuantityOut + refundAssetOut > 0) {
-            IERC20(_assetOut).transfer(_to, burnQuantityOut + refundAssetOut);
+
+       if (_amountOut + refundAssetOut > 0) {
+            IERC20(_assetOut).transfer(_to, _amountOut + refundAssetOut);
        }
        if (refundAssetIn > 0) {
             IERC20(_assetIn).transfer(_to, refundAssetIn);
        }
        emit AssetQuantityChange(_assetIn, uint(assetIn.quantity.unwrap()));
        emit AssetQuantityChange(_assetOut, uint(assetOut.quantity.unwrap()));
-       return burnQuantityOut;
    }
 
     /** ---------------- Owner ------------------ */
 
     function updatePrice(address _asset, uint _price) public onlyOwner {
-        MultipoolMath.Asset memory asset = assets[_asset];
+        MpAsset memory asset = assets[_asset];
         SD59x18 price = sd(int(_price));
         totalCurrentUsdAmount = totalCurrentUsdAmount - asset.quantity * asset.price + asset.quantity * price;
         asset.price = price;
@@ -220,7 +222,7 @@ contract Multipool is ERC20, Ownable {
         address _asset,
         uint _percent
     ) public onlyOwner {
-        MultipoolMath.Asset memory asset = assets[_asset];
+        MpAsset memory asset = assets[_asset];
         SD59x18 percent = sd(int(_percent));
         totalAssetPercents = totalAssetPercents - asset.percent + percent;
         asset.percent = percent;

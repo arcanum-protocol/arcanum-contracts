@@ -20,6 +20,9 @@ describe("Multipool library", function() {
     it("Mint with zero balance", async function() {
         await test1.mintWithZeroBalance();
     });
+    it("Mint with zero balance reversed", async function() {
+        await test1.mintWithZeroBalanceReversed();
+    });
     it("Mint with deviation fee", async function() {
         await test1.mintWithDeviationFee();
     });
