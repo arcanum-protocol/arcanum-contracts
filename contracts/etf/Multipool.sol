@@ -80,7 +80,11 @@ contract Multipool is ERC20, Ownable {
     }
 
     //TODO: return unused supplied amount with refund
-    function mint(address _asset, uint _share, address _to) public returns (uint) {
+    function mint(
+        address _asset, 
+        uint _share, 
+        address _to
+    ) public returns (uint) {
         MultipoolMath.Asset memory asset = assets[_asset];
         MultipoolMath.Context memory context = getContext(baseMintFee);
 
