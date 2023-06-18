@@ -20,13 +20,13 @@ contract MultipoolRouter {
     function mintWithSharesOut(
        address _pool,
        address _asset,
-       uint _sharesOut,
-       uint _amountInMax,
+       UD60x18 _sharesOut,
+       UD60x18 _amountInMax,
        address _to,
        uint deadline
     ) public ensure(deadline) {
         // Transfer all amount in in case the last part will return via multipool
-        IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax);
+        IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax.unwrap());
         // No need to check sleepage because contract will fail if there is no
         // enough funst been transfered
         Multipool(_pool).mint(_asset, _sharesOut, _to);
@@ -36,13 +36,13 @@ contract MultipoolRouter {
     function burnWithSharesIn(
        address _pool,
        address _asset,
-       uint _sharesIn,
-       uint _amountOutMin,
+       UD60x18 _sharesIn,
+       UD60x18 _amountOutMin,
        address _to,
        uint deadline
     ) public ensure(deadline) {
-        IERC20(_pool).transferFrom(msg.sender, _pool, _sharesIn);
-        uint amountOut = Multipool(_pool).burn(_asset, _sharesIn, _to);
+        IERC20(_pool).transferFrom(msg.sender, _pool, _sharesIn.unwrap());
+        UD60x18 amountOut = Multipool(_pool).burn(_asset, _sharesIn, _to);
 
         require(amountOut >= _amountOutMin, "Multipool Router: sleepage exeeded");
    }
@@ -51,17 +51,17 @@ contract MultipoolRouter {
        address _pool,
        address _assetIn,
        address _assetOut,
-       uint _amountInMax,
-       uint _amountOutMin,
-       uint _shares,
+       UD60x18 _amountInMax,
+       UD60x18 _amountOutMin,
+       UD60x18 _shares,
        address _to,
        uint deadline
    ) public ensure(deadline) {
         // Transfer all amount in in case the last part will return via multipool
-        IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax);
+        IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax.unwrap());
         // No need to check sleepage because contract will fail if there is no
         // enough funst been transfered
-        (uint amountIn, uint amountOut) = Multipool(_pool).swap(_assetIn, _assetOut, _shares, _to);
+        (UD60x18 amountIn, UD60x18 amountOut) = Multipool(_pool).swap(_assetIn, _assetOut, _shares, _to);
         require(amountOut >= _amountOutMin, "Multipool Router: sleepage exeeded");
         require(amountIn <= _amountInMax, "Multipool Router: sleepage exeeded");
    }
@@ -70,22 +70,22 @@ contract MultipoolRouter {
     function burnWithAmountOut(
        address _pool,
        address _asset,
-       uint _amountOut,
-       uint _sharesInMax,
+       UD60x18 _amountOut,
+       UD60x18 _sharesInMax,
        address _to,
        uint deadline
     ) public ensure(deadline) {
         MpAsset memory asset = Multipool(_pool).getAssets(_asset);
         MpContext memory context = Multipool(_pool).getBurnContext();
-        uint totalSupply = Multipool(_pool).totalSupply();
+        UD60x18 totalSupply = ud(Multipool(_pool).totalSupply());
         UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-        UD60x18 requiredAmountIn = context.burnRev(asset, sd(int(_amountOut)));
-        uint requiredSharesIn = uint((requiredAmountIn * asset.price 
-            * sd(int(totalSupply)) / oldTotalCurrentUsdAmount).unwrap());
+        UD60x18 requiredAmountIn = context.burnRev(asset, _amountOut);
+        UD60x18 requiredSharesIn = requiredAmountIn * asset.price 
+            * totalSupply / oldTotalCurrentUsdAmount;
         require(requiredSharesIn <= _sharesInMax, "Multipool Router: sleepage exeeded");
         
-        IERC20(_pool).transferFrom(msg.sender, _pool, requiredSharesIn);
+        IERC20(_pool).transferFrom(msg.sender, _pool, requiredSharesIn.unwrap());
         Multipool(_pool).burn(_asset, requiredSharesIn, _to);
    }
 
@@ -93,24 +93,24 @@ contract MultipoolRouter {
     function mintWithAmountIn(
        address _pool,
        address _asset,
-       uint _amountIn,
-       uint _sharesOutMin,
+       UD60x18 _amountIn,
+       UD60x18 _sharesOutMin,
        address _to,
        uint deadline
     ) public ensure(deadline) {
         MpAsset memory asset = Multipool(_pool).getAssets(_asset);
         MpContext memory context = Multipool(_pool).getMintContext();
-        uint totalSupply = Multipool(_pool).totalSupply();
+        UD60x18 totalSupply = ud(Multipool(_pool).totalSupply());
         UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-        UD60x18 amountOut = context.mint(asset, sd(int(_amountIn)));
+        UD60x18 amountOut = context.mint(asset, _amountIn);
 
         UD60x18 sharesOut = amountOut * asset.price 
-            * sd(int(totalSupply)) / oldTotalCurrentUsdAmount;
-        require(uint(sharesOut.unwrap()) >= _sharesOutMin, "Multipool Router: sleepage exeeded");
+            * totalSupply / oldTotalCurrentUsdAmount;
+        require(sharesOut >= _sharesOutMin, "Multipool Router: sleepage exeeded");
         
-        IERC20(_pool).transferFrom(msg.sender, _pool, _amountIn);
-        Multipool(_pool).mint(_asset, uint(sharesOut.unwrap()), _to);
+        IERC20(_pool).transferFrom(msg.sender, _pool, _amountIn.unwrap());
+        Multipool(_pool).mint(_asset, sharesOut, _to);
    }
 
     //NON ready feature
@@ -118,26 +118,26 @@ contract MultipoolRouter {
        address _pool,
        address _assetIn,
        address _assetOut,
-       uint _amountIn,
-       uint _amountOutMin,
+       UD60x18 _amountIn,
+       UD60x18 _amountOutMin,
        address _to,
        uint deadline
     ) public ensure(deadline) {
-        uint shares;
+        UD60x18 shares;
         {{
             MpAsset memory assetIn = Multipool(_pool).getAssets(_assetIn);
             MpContext memory context = Multipool(_pool).getMintContext();
-            uint totalSupply = Multipool(_pool).totalSupply();
+            UD60x18 totalSupply = ud(Multipool(_pool).totalSupply());
             UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-            UD60x18 mintAmountOut = context.mint(assetIn, sd(int(_amountIn)));
+            UD60x18 mintAmountOut = context.mint(assetIn, _amountIn);
 
-            shares = uint((mintAmountOut * assetIn.price 
-                * sd(int(totalSupply)) / oldTotalCurrentUsdAmount).unwrap());
+            shares = mintAmountOut * assetIn.price 
+                * totalSupply / oldTotalCurrentUsdAmount;
         }}
 
-        IERC20(_pool).transferFrom(msg.sender, _pool, _amountIn);
-        (uint amountIn, uint amountOut) = Multipool(_pool).swap(_assetIn, _assetOut, shares, _to);
+        IERC20(_pool).transferFrom(msg.sender, _pool, _amountIn.unwrap());
+        (UD60x18 amountIn, UD60x18 amountOut) = Multipool(_pool).swap(_assetIn, _assetOut, shares, _to);
 
         require(amountOut >= _amountOutMin, "Multipool Router: sleepage exeeded");
         require(amountIn <= _amountIn, "Multipool Router: sleepage exeeded");
@@ -148,25 +148,25 @@ contract MultipoolRouter {
        address _pool,
        address _assetIn,
        address _assetOut,
-       uint _amountOut,
-       uint _amountInMax,
+       UD60x18 _amountOut,
+       UD60x18 _amountInMax,
        address _to,
        uint deadline
     ) public ensure(deadline) {
-        uint shares;
+        UD60x18 shares;
         {{
             MpAsset memory assetOut = Multipool(_pool).getAssets(_assetOut);
             MpContext memory context = Multipool(_pool).getBurnContext();
-            uint totalSupply = Multipool(_pool).totalSupply();
+            UD60x18 totalSupply = ud(Multipool(_pool).totalSupply());
             UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-            UD60x18 burnAmountIn = context.burnRev(assetOut, sd(int(_amountOut)));
-            shares = uint((burnAmountIn * assetOut.price 
-                * sd(int(totalSupply)) / oldTotalCurrentUsdAmount).unwrap());
+            UD60x18 burnAmountIn = context.burnRev(assetOut, _amountOut);
+            shares = burnAmountIn * assetOut.price 
+                * totalSupply / oldTotalCurrentUsdAmount;
         }}
         
-        IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax);
-        (uint amountIn, uint amountOut) = Multipool(_pool).swap(_assetIn, _assetOut, shares, _to);
+        IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax.unwrap());
+        (UD60x18 amountIn, UD60x18 amountOut) = Multipool(_pool).swap(_assetIn, _assetOut, shares, _to);
 
         require(amountOut >= _amountOut, "Multipool Router: sleepage exeeded");
    }
