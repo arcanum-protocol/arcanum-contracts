@@ -4,39 +4,40 @@ pragma solidity >=0.8.19;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import { SD59x18, sd } from "@prb/math/src/SD59x18.sol";
+import { UD60x18, ud } from "@prb/math/src/UD60x18.sol";
 import "hardhat/console.sol";
 
 struct MpAsset {
-    SD59x18 quantity;
-    SD59x18 price;
-    SD59x18 collectedFees;
-    SD59x18 collectedCashbacks;
-    SD59x18 percent;
+    UD60x18 quantity;
+    UD60x18 price;
+    UD60x18 collectedFees;
+    UD60x18 collectedCashbacks;
+    UD60x18 percent;
 }
 
 struct MpContext {
-    SD59x18 totalCurrentUsdAmount;
-    SD59x18 totalAssetPercents;
-    SD59x18 curveCoef;
-    SD59x18 deviationPercentLimit;
-    SD59x18 operationBaseFee;
-    SD59x18 userCashbackBalance;
+    UD60x18 totalCurrentUsdAmount;
+    UD60x18 totalAssetPercents;
+    UD60x18 curveCoef;
+    UD60x18 deviationPercentLimit;
+    UD60x18 operationBaseFee;
+    UD60x18 userCashbackBalance;
 }
 
 library MpMath {
     function mintRev(
         MpContext memory context,
         MpAsset memory asset,
-        SD59x18 utilisableQuantity
-    ) internal pure returns(SD59x18 suppliedQuantity) {
+        UD60x18 utilisableQuantity
+    ) internal pure returns(UD60x18 suppliedQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
             context.totalCurrentUsdAmount = utilisableQuantity * asset.price;
             asset.quantity = asset.quantity + utilisableQuantity; 
             return utilisableQuantity;
         }
-        SD59x18 deviationNew = ((asset.quantity + utilisableQuantity) * asset.price 
+        UD60x18 deviationNew = ((asset.quantity + utilisableQuantity) * asset.price 
                 / (context.totalCurrentUsdAmount + utilisableQuantity * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        SD59x18 deviationOld = (asset.quantity * asset.price 
+        UD60x18 deviationOld = (asset.quantity * asset.price 
                 / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
 
         if (deviationNew <= deviationOld) {
@@ -69,14 +70,14 @@ library MpMath {
     ) internal pure returns(SD59x18 suppliedQuantity) {
         require(utilisableQuantity <= asset.quantity, "can't burn more assets than exist");
 
-        SD59x18 withFees = getSuppliableBurnQuantity(utilisableQuantity, context, asset);
-        SD59x18 noFees = utilisableQuantity * (sd(1e18) + context.operationBaseFee);
+        UD60x18 withFees = getSuppliableBurnQuantity(utilisableQuantity, context, asset);
+        UD60x18 noFees = utilisableQuantity * (sd(1e18) + context.operationBaseFee);
 
-        SD59x18 deviationWithFees = ((asset.quantity - withFees) * asset.price 
+        UD60x18 deviationWithFees = ((asset.quantity - withFees) * asset.price 
                 / (context.totalCurrentUsdAmount - withFees * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        SD59x18 deviationNoFees = ((asset.quantity - noFees) * asset.price 
+        UD60x18 deviationNoFees = ((asset.quantity - noFees) * asset.price 
                 / (context.totalCurrentUsdAmount - noFees * asset.price) - asset.percent / context.totalAssetPercents).abs();
-        SD59x18 deviationOld = (asset.quantity * asset.price 
+        UD60x18 deviationOld = (asset.quantity * asset.price 
                 / context.totalCurrentUsdAmount - asset.percent / context.totalAssetPercents).abs();
 
         if (deviationNoFees <= deviationOld) {

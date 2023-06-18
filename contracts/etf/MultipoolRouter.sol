@@ -6,6 +6,8 @@ import "../interfaces/IUniswapV2Pair.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
+import { UD60x18, ud } from "@prb/math/src/UD60x18.sol";
+
 contract MultipoolRouter {
 
     modifier ensure(uint deadline) {
@@ -76,9 +78,9 @@ contract MultipoolRouter {
         MpAsset memory asset = Multipool(_pool).getAssets(_asset);
         MpContext memory context = Multipool(_pool).getBurnContext();
         uint totalSupply = Multipool(_pool).totalSupply();
-        SD59x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
+        UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-        SD59x18 requiredAmountIn = context.burnRev(asset, sd(int(_amountOut)));
+        UD60x18 requiredAmountIn = context.burnRev(asset, sd(int(_amountOut)));
         uint requiredSharesIn = uint((requiredAmountIn * asset.price 
             * sd(int(totalSupply)) / oldTotalCurrentUsdAmount).unwrap());
         require(requiredSharesIn <= _sharesInMax, "Multipool Router: sleepage exeeded");
@@ -99,11 +101,11 @@ contract MultipoolRouter {
         MpAsset memory asset = Multipool(_pool).getAssets(_asset);
         MpContext memory context = Multipool(_pool).getMintContext();
         uint totalSupply = Multipool(_pool).totalSupply();
-        SD59x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
+        UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-        SD59x18 amountOut = context.mint(asset, sd(int(_amountIn)));
+        UD60x18 amountOut = context.mint(asset, sd(int(_amountIn)));
 
-        SD59x18 sharesOut = amountOut * asset.price 
+        UD60x18 sharesOut = amountOut * asset.price 
             * sd(int(totalSupply)) / oldTotalCurrentUsdAmount;
         require(uint(sharesOut.unwrap()) >= _sharesOutMin, "Multipool Router: sleepage exeeded");
         
@@ -126,9 +128,9 @@ contract MultipoolRouter {
             MpAsset memory assetIn = Multipool(_pool).getAssets(_assetIn);
             MpContext memory context = Multipool(_pool).getMintContext();
             uint totalSupply = Multipool(_pool).totalSupply();
-            SD59x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-            SD59x18 mintAmountOut = context.mint(assetIn, sd(int(_amountIn)));
+            UD60x18 mintAmountOut = context.mint(assetIn, sd(int(_amountIn)));
 
             shares = uint((mintAmountOut * assetIn.price 
                 * sd(int(totalSupply)) / oldTotalCurrentUsdAmount).unwrap());
@@ -156,9 +158,9 @@ contract MultipoolRouter {
             MpAsset memory assetOut = Multipool(_pool).getAssets(_assetOut);
             MpContext memory context = Multipool(_pool).getBurnContext();
             uint totalSupply = Multipool(_pool).totalSupply();
-            SD59x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-            SD59x18 burnAmountIn = context.burnRev(assetOut, sd(int(_amountOut)));
+            UD60x18 burnAmountIn = context.burnRev(assetOut, sd(int(_amountOut)));
             shares = uint((burnAmountIn * assetOut.price 
                 * sd(int(totalSupply)) / oldTotalCurrentUsdAmount).unwrap());
         }}
