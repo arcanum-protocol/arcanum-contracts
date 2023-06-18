@@ -221,8 +221,9 @@ contract MultipoolRouter {
        uint _amountInMax,
        uint _amountOutMin,
        uint _shares,
-       address _to
-   ) public returns (uint) {
+       address _to,
+       uint deadline
+   ) public ensure(deadline) {
         // Transfer all amount in in case the last part will return via multipool
         IERC20(_pool).transferFrom(msg.sender, _pool, _amountInMax);
         // No need to check sleepage because contract will fail if there is no
