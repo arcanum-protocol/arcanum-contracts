@@ -3,32 +3,31 @@ pragma solidity >=0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import { SD59x18, sd, MAX_SD59x18 } from "@prb/math/src/SD59x18.sol";
+import { SD59x18, sd } from "@prb/math/src/SD59x18.sol";
 import "hardhat/console.sol";
 
-library MultipoolMath {
+struct MpAsset {
+    SD59x18 quantity;
+    SD59x18 price;
+    SD59x18 collectedFees;
+    SD59x18 collectedCashbacks;
+    SD59x18 percent;
+}
 
-    struct Asset {
-        SD59x18 quantity;
-        SD59x18 price;
-        SD59x18 collectedFees;
-        SD59x18 collectedCashbacks;
-        SD59x18 percent;
-    }
+struct MpContext {
+    SD59x18 totalCurrentUsdAmount;
+    SD59x18 totalAssetPercents;
+    SD59x18 curveCoef;
+    SD59x18 deviationPercentLimit;
+    SD59x18 operationBaseFee;
+    SD59x18 userCashbackBalance;
+}
 
-    struct Context {
-        SD59x18 totalCurrentUsdAmount;
-        SD59x18 totalAssetPercents;
-        SD59x18 curveCoef;
-        SD59x18 deviationPercentLimit;
-        SD59x18 operationBaseFee;
-        SD59x18 userCashbackBalance;
-    }
-
-    function reversedEvalMintContext(
-        SD59x18 utilisableQuantity, 
-        Context memory context,
-        Asset memory asset
+library MpMath {
+    function mintRev(
+        MpContext memory context,
+        MpAsset memory asset,
+        SD59x18 utilisableQuantity
     ) internal pure returns(SD59x18 suppliedQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
             context.totalCurrentUsdAmount = utilisableQuantity * asset.price;
@@ -63,10 +62,10 @@ library MultipoolMath {
         asset.collectedFees = asset.collectedFees + utilisableQuantity * context.operationBaseFee;
     }
 
-    function reversedEvalBurnContext(
-        SD59x18 utilisableQuantity, 
-        Context memory context,
-        Asset memory asset
+    function burnRev(
+        MpContext memory context,
+        MpAsset memory asset,
+        SD59x18 utilisableQuantity 
     ) internal pure returns(SD59x18 suppliedQuantity) {
         require(utilisableQuantity <= asset.quantity, "can't burn more assets than exist");
 
@@ -98,8 +97,9 @@ library MultipoolMath {
                     "deviation overflows limit");
             require(withFees != sd(0), "no curve solutions found");
 
+            SD59x18 _operationBaseFee = context.operationBaseFee;
             asset.collectedCashbacks = asset.collectedCashbacks + 
-                (suppliedQuantity - utilisableQuantity * (sd(1e18) + context.operationBaseFee));
+                (suppliedQuantity - utilisableQuantity * (sd(1e18) + _operationBaseFee));
         }
 
         asset.quantity = asset.quantity - suppliedQuantity; 
@@ -107,10 +107,10 @@ library MultipoolMath {
         asset.collectedFees = asset.collectedFees + utilisableQuantity * context.operationBaseFee;
     }
 
-    function evalMintContext(
-        SD59x18 suppliedQuantity, 
-        Context memory context,
-        Asset memory asset
+    function mint(
+        MpContext memory context,
+        MpAsset memory asset,
+        SD59x18 suppliedQuantity 
     ) internal pure returns(SD59x18 utilisableQuantity) {
         if (context.totalCurrentUsdAmount == sd(0)) {
             context.totalCurrentUsdAmount = suppliedQuantity * asset.price;
@@ -155,8 +155,9 @@ library MultipoolMath {
            // require(cashbacks + utilisableQuantity 
            //         * (sd(1e18) + context.operationBaseFee) == suppliedQuantity, "deviation overflows limit");
            // asset.collectedCashbacks = asset.collectedCashbacks + cashbacks;
+            SD59x18 _operationBaseFee = context.operationBaseFee;
             asset.collectedCashbacks = asset.collectedCashbacks + 
-                (suppliedQuantity - utilisableQuantity * (sd(1e18) + context.operationBaseFee));
+                (suppliedQuantity - utilisableQuantity * (sd(1e18) + _operationBaseFee));
         }
 
         asset.quantity = asset.quantity + utilisableQuantity; 
@@ -164,10 +165,10 @@ library MultipoolMath {
         asset.collectedFees = asset.collectedFees + utilisableQuantity * context.operationBaseFee;
     }
 
-    function evalBurnContext(
-        SD59x18 suppliedQuantity, 
-        Context memory context,
-        Asset memory asset
+    function burn(
+        MpContext memory context,
+        MpAsset memory asset,
+        SD59x18 suppliedQuantity
     ) internal pure returns(SD59x18 utilisableQuantity) {
         require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
         SD59x18 deviationNew = ((asset.quantity - suppliedQuantity) * asset.price 
@@ -201,9 +202,9 @@ library MultipoolMath {
     }
 
     function getUtilisableMintQuantity(
-        SD59x18 suppliedQuantity, 
-        Context memory context,
-        Asset memory asset
+        SD59x18 suppliedQuantity,
+        MpContext memory context,
+        MpAsset memory asset
     ) internal pure returns(SD59x18 utilisableQuantity){
         
         SD59x18 B = (sd(1e18) + context.operationBaseFee);
@@ -284,8 +285,8 @@ library MultipoolMath {
 
     function getSuppliableBurnQuantity(
         SD59x18 utilisableQuantity, 
-        Context memory context,
-        Asset memory asset
+        MpContext memory context,
+        MpAsset memory asset
     ) internal pure returns(SD59x18 suppliedQuantity){
 
         SD59x18 B = (sd(1e18) + context.operationBaseFee);
@@ -369,3 +370,10 @@ library MultipoolMath {
         }}
     }
 }
+
+using {
+    MpMath.mintRev, 
+    MpMath.burnRev, 
+    MpMath.mint, 
+    MpMath.burn
+} for MpContext global;
