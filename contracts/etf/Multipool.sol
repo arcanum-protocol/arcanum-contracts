@@ -38,6 +38,7 @@ contract Multipool is ERC20, Ownable {
     mapping(address => uint) public transferFees;
     address public feeReceiver;
 
+    // TODO! Unimplemented or unused map `transferFees`
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -72,7 +73,7 @@ contract Multipool is ERC20, Ownable {
             totalAssetPercents:     totalAssetPercents,
             curveCoef:              curveCoef,
             deviationPercentLimit:  deviationPercentLimit,
-            operationBaseFee:       baseMintFee,
+            operationBaseFee:       baseFee,
             userCashbackBalance:    ud(0e18)
         });
     }
