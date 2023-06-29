@@ -12,7 +12,7 @@ import { BigNumber, ethers as deflautEthers } from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { subtask, task } from "hardhat/config";
 import fs from "fs";
-import axios from 'axios';
+import axios from "axios";
 
 dotenv.config();
 
@@ -29,11 +29,16 @@ interface TokenMarketData {
     marketCap: BigNumber;
 }
 
-async function getTokenMarketCap(tokenId: string, vsCurrency: string = 'usd'): Promise<TokenMarketData> {
+async function getTokenMarketCap(
+    tokenId: string,
+    vsCurrency: string = "usd",
+): Promise<TokenMarketData> {
     try {
         const apiUrl = `https://api.coingecko.com/api/v3/coins/${tokenId}`;
 
-        const response = await axios.get(apiUrl, { params: { vs_currency: vsCurrency } });
+        const response = await axios.get(apiUrl, {
+            params: { vs_currency: vsCurrency },
+        });
 
         const name = response.data.name;
         const symbol = response.data.symbol;
@@ -42,7 +47,7 @@ async function getTokenMarketCap(tokenId: string, vsCurrency: string = 'usd'): P
         return { name, symbol, marketCap };
     } catch (error) {
         console.error(error);
-        throw new Error('Error fetching token market cap');
+        throw new Error("Error fetching token market cap");
     }
 }
 
@@ -55,7 +60,7 @@ async function awaitBytecode(address: string, hre: HardhatRuntimeEnvironment) {
     console.log("Awaiting bytecode for ", clicolor.green(address));
     if (hre.hardhatArguments.network == "hardhat") return;
     const provider = new deflautEthers.providers.JsonRpcProvider(
-        hre.network.config.url
+        hre.network.config.url,
     );
     let code = "0x";
     while (code === "0x") {
@@ -71,9 +76,9 @@ async function awaitBytecode(address: string, hre: HardhatRuntimeEnvironment) {
 }
 
 // deploy simple token
-subtask("deploy-simple-token", "Deploy simple token  with standart parameters")
-    .addParam("name", "Token name", "RND111")
-    .addParam("symbol", "Token symbol", "rnd111")
+task("deploy-erc20-token", "Deploy simple token  with standart parameters")
+    .addParam("name", "Token name")
+    .addParam("symbol", "Token symbol")
     .addParam("supply", "Token supply", "1000000000000000000000000")
     .addFlag("verify", "Verify contract on Etherscan")
     .setAction(async (argsTask, hre) => {
@@ -81,7 +86,7 @@ subtask("deploy-simple-token", "Deploy simple token  with standart parameters")
 
         console.log(
             "Deploying " + clicolor.bgGreen("simple-token") + " with the account:",
-            clicolor.underline(deployer.address)
+            clicolor.underline(deployer.address),
         );
 
         const ERC20 = await hre.ethers.getContractFactory("MockERC20");
@@ -91,15 +96,16 @@ subtask("deploy-simple-token", "Deploy simple token  with standart parameters")
             TOKEN = await ERC20.connect(deployer).deploy(
                 argsTask.name,
                 argsTask.symbol,
-                argsTask.supply
+                argsTask.supply,
             );
         } catch (e: any) {
-            if (e.code == "INSUFFICIENT_FUNDS")
+            if (e.code == "INSUFFICIENT_FUNDS") {
                 console.log(
                     "Account " +
                     clicolor.red(deployer.address) +
-                    " has insufficient funds to deploy contracts"
+                    " has insufficient funds to deploy contracts",
                 );
+            }
             process.exit(1);
         }
 
@@ -139,7 +145,7 @@ subtask("deploy-univ2-pair", "Deploy UniV2 pair")
 
         console.log(
             "Deploying " + clicolor.bgGreen("univ2-pair") + " with the account:",
-            clicolor.underline(deployer.address)
+            clicolor.underline(deployer.address),
         );
 
         const PairFactory = await hre.ethers.getContractFactory("UniswapV2Pair");
@@ -152,12 +158,12 @@ subtask("deploy-univ2-pair", "Deploy UniV2 pair")
         // add liquidity
         const token0 = await hre.ethers.getContractAt(
             "MockERC20",
-            argsTask.token0
+            argsTask.token0,
         );
 
         const token1 = await hre.ethers.getContractAt(
             "MockERC20",
-            argsTask.token1
+            argsTask.token1,
         );
 
         const amount0 = "1000000000000000000000000";
@@ -190,16 +196,62 @@ subtask("deploy-univ2-pair", "Deploy UniV2 pair")
         return pair.address;
     });
 
-subtask("deploy-etf", "Deploy ETF with standart parameters")
-    .addParam("name", "ETF name", "ETF111")
-    .addParam("symbol", "ETF symbol", "etf111")
+task("deploy-etf-router", "Deploy ETF router")
     .addFlag("verify", "Verify contract on Etherscan")
     .setAction(async (argsTask, hre) => {
         const [deployer] = await hre.ethers.getSigners();
 
         console.log(
             "Deploying " + clicolor.bgGreen("etf") + " with the account:",
-            clicolor.underline(deployer.address)
+            clicolor.underline(deployer.address),
+        );
+
+        const ETF = await hre.ethers.getContractFactory("MultipoolRouter");
+        let ETFContract: any;
+
+        try {
+            ETFContract = await ETF.connect(deployer).deploy();
+        } catch (e: any) {
+            if (e.code == "INSUFFICIENT_FUNDS") {
+                console.log(
+                    "Account " +
+                    clicolor.red(deployer.address) +
+                    " has insufficient funds to deploy contracts",
+                );
+            }
+            process.exit(1);
+        }
+
+        console.log("ETF deployed to:", clicolor.bgGreen(ETFContract.address));
+
+        if (argsTask.verify) {
+            await awaitBytecode(ETFContract.address, hre);
+            try {
+                await hre.run("verify:verify", {
+                    address: ETFContract.address,
+                    network: hre.hardhatArguments.network,
+                    constructorArguments: [],
+                });
+            } catch (e: any) {
+                if (e.message.includes("Already Verified")) {
+                    console.info(clicolor.yellow("Already Verified"));
+                } else {
+                    console.error("ETF:", e);
+                }
+            }
+        }
+    });
+
+task("deploy-etf", "Deploy ETF with standart parameters")
+    .addParam("name", "ETF name")
+    .addParam("symbol", "ETF symbol")
+    .addFlag("verify", "Verify contract on Etherscan")
+    .setAction(async (argsTask, hre) => {
+        const [deployer] = await hre.ethers.getSigners();
+
+        console.log(
+            "Deploying " + clicolor.bgGreen("etf") + " with the account:",
+            clicolor.underline(deployer.address),
         );
 
         const ETF = await hre.ethers.getContractFactory("Multipool");
@@ -208,15 +260,16 @@ subtask("deploy-etf", "Deploy ETF with standart parameters")
         try {
             ETFContract = await ETF.connect(deployer).deploy(
                 argsTask.name,
-                argsTask.symbol
+                argsTask.symbol,
             );
         } catch (e: any) {
-            if (e.code == "INSUFFICIENT_FUNDS")
+            if (e.code == "INSUFFICIENT_FUNDS") {
                 console.log(
                     "Account " +
                     clicolor.red(deployer.address) +
-                    " has insufficient funds to deploy contracts"
+                    " has insufficient funds to deploy contracts",
                 );
+            }
             process.exit(1);
         }
 
@@ -231,7 +284,6 @@ subtask("deploy-etf", "Deploy ETF with standart parameters")
                     constructorArguments: [
                         argsTask.name,
                         argsTask.symbol,
-                        argsTask.supply,
                     ],
                 });
             } catch (e: any) {
@@ -243,55 +295,64 @@ subtask("deploy-etf", "Deploy ETF with standart parameters")
             }
         }
 
-        // read line by line from file
-        let file = fs.readFileSync("tokens.txt", "utf8");
-        let raw_tokens = file.split("\r\n");
+        // // read line by line from file
+        // let file = fs.readFileSync("tokens.txt", "utf8");
+        // let raw_tokens = file.split("\r\n");
 
-        let tokens: string[] = [];
+        // let tokens: string[] = [];
 
-        // execute subtask and make 4 tokens
-        for (let i = 0; i < 4; i++) {
-            let token_address = await hre.run("deploy-simple-token", {
-                name: raw_tokens[i],
-                symbol: raw_tokens[i],
-                verify: argsTask.verify,
-            });
-            await delay(2000);
-            tokens.push(token_address);
-        }
+        // // execute subtask and make 4 tokens
+        // for (let i = 0; i < 4; i++) {
+        //     let token_address = await hre.run("deploy-simple-token", {
+        //         name: raw_tokens[i],
+        //         symbol: raw_tokens[i],
+        //         verify: argsTask.verify,
+        //     });
+        //     await delay(2000);
+        //     tokens.push(token_address);
+        // }
 
-        let tokensWithPercents: ETFToken[] = [];
-        let totalPercent: BigNumber = BigNumber.from(0);
+        // let tokensWithPercents: ETFToken[] = [];
+        // let totalPercent: BigNumber = BigNumber.from(0);
 
-        // get mcap of each token, from coingecko
-        for (let i = 0; i < 4; i++) {
-            let mcap = await getTokenMarketCap(raw_tokens[i]);
-            totalPercent = totalPercent.add(BigNumber.from(mcap.marketCap));
+        // // get mcap of each token, from coingecko
+        // for (let i = 0; i < 4; i++) {
+        //     let mcap = await getTokenMarketCap(raw_tokens[i]);
+        //     totalPercent = totalPercent.add(BigNumber.from(mcap.marketCap));
 
-            tokensWithPercents.push({
-                id: raw_tokens[i],
-                address: tokens[i],
-                mcap: mcap.marketCap,
-                persent: BigNumber.from(0),
-            });
-        }
+        //     tokensWithPercents.push({
+        //         id: raw_tokens[i],
+        //         address: tokens[i],
+        //         mcap: mcap.marketCap,
+        //         persent: BigNumber.from(0),
+        //     });
+        // }
 
-        // calculate percents
-        for (let i = 0; i < 4; i++) {
-            const mcap: BigNumber = tokensWithPercents[i].mcap;
+        // // calculate percents
+        // for (let i = 0; i < 4; i++) {
+        //     const mcap: BigNumber = tokensWithPercents[i].mcap;
 
-            tokensWithPercents[i].persent = BigNumber.from(mcap).mul(100).div(totalPercent);
-        }
+        //     tokensWithPercents[i].persent = BigNumber.from(mcap).mul(100).div(
+        //         totalPercent,
+        //     );
+        // }
 
-        // add tokens to ETF
-        for (let i = 0; i < 4; i++) {
-            await ETFContract.updateAssetPercents(tokensWithPercents[i].address, tokensWithPercents[i].persent);
-            await delay(2000);
+        // // add tokens to ETF
+        // for (let i = 0; i < 4; i++) {
+        //     await ETFContract.updateAssetPercents(
+        //         tokensWithPercents[i].address,
+        //         tokensWithPercents[i].persent,
+        //     );
+        //     await delay(2000);
 
-            console.log("Token " + clicolor.bgGreen(tokensWithPercents[i].address) + " added to ETF with percent " + clicolor.bgGreen(tokensWithPercents[i].persent.toString()));
-        }
+        //     console.log(
+        //         "Token " + clicolor.bgGreen(tokensWithPercents[i].address) +
+        //         " added to ETF with percent " +
+        //         clicolor.bgGreen(tokensWithPercents[i].persent.toString()),
+        //     );
+        // }
 
-        return ETFContract.address;
+        // return ETFContract.address;
     });
 
 task("deploy-all", "Deploy all contracts")
@@ -302,5 +363,40 @@ task("deploy-all", "Deploy all contracts")
         //const ZNAK = await hre.run("deploy-znak", { verify: taskArgs.verify });
         mainLine();
         await delay(2000);
-        await hre.run("deploy-etf", { name: "TESTETF", symbol: "tstetf", verify: taskArgs.verify });
+        await hre.run("deploy-etf", {
+            name: "TESTETF",
+            symbol: "tstetf",
+            verify: taskArgs.verify,
+        });
+    });
+
+task("mint", "Deploy all contracts")
+    .addParam("address", "token address")
+    .addParam<BigNumber>("amount", "mint amount")
+    .setAction(async (taskArgs: any, hre: any) => {
+        mainLine();
+        const token = await hre.ethers.getContractAt(
+            "MockERC20",
+            taskArgs.address,
+        );
+        await hre.run("verify:verify", {
+            address: token.address,
+            network: hre.hardhatArguments.network,
+            constructorArguments: [
+                "bitcoin",
+                "btc",
+                "1000000000000000000000000",
+            ],
+        });
+
+        // const [me] = await hre.ethers.getSigners();
+
+        // const token = await hre.ethers.getContractAt(
+        //     "MockERC20",
+        //     taskArgs.address,
+        // );
+
+        // console.log("Account balance:", (await me.getBalance()).toString());
+        // let res = await token.connect(me).mint(me.address, taskArgs.amount);
+        // console.log(JSON.stringify(res));
     });

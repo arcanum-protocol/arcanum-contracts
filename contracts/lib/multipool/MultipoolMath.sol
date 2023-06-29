@@ -380,13 +380,17 @@ library MpMath {
                 SD59x18 x2 = (-b+d) / sd(2e18) / a;
 
                 {{
-                    if ( (m + q / (t - x1 * p)).abs() < dl && x1 < cmp) {
-                        suppliedQuantity = suppliedQuantity > x1 || suppliedQuantity == sd(0) ? x1 : suppliedQuantity;
+                    if (t - x1 * p != sd(0)) {
+                        if ((m + q / (t - x1 * p)).abs() < dl && x1 < cmp) {
+                            suppliedQuantity = suppliedQuantity > x1 || suppliedQuantity == sd(0) ? x1 : suppliedQuantity;
+                        }
                     }
                 }}
                 {{
-                    if ( (m + q / (t - x2 * p)).abs() < dl && x2 < cmp) {
-                        suppliedQuantity = suppliedQuantity > x2 || suppliedQuantity == sd(0) ? x2 : suppliedQuantity;
+                    if (t - x2 * p != sd(0)) {
+                        if ((m + q / (t - x2 * p)).abs() < dl && x2 < cmp) {
+                            suppliedQuantity = suppliedQuantity > x2 || suppliedQuantity == sd(0) ? x2 : suppliedQuantity;
+                        }
                     }
                 }}
             }
@@ -418,13 +422,17 @@ library MpMath {
                 SD59x18 x4 = (-b+d) / sd(2e18) / a;
 
                 {{
-                    if ( (m + q / (t - x3 * p)).abs() < dl && x3 > cmp) {
-                        suppliedQuantity = suppliedQuantity > x3 || suppliedQuantity == sd(0) ? x3 : suppliedQuantity;
+                    if (t - x3 * p != sd(0)) {
+                        if ( (m + q / (t - x3 * p)).abs() < dl && x3 > cmp) {
+                            suppliedQuantity = suppliedQuantity > x3 || suppliedQuantity == sd(0) ? x3 : suppliedQuantity;
+                        }
                     }
                 }}
                 {{
-                    if ( (m + q / (t - x4 * p)).abs() < dl && x4 > cmp) {
-                        suppliedQuantity = suppliedQuantity > x4 || suppliedQuantity == sd(0) ? x4 : suppliedQuantity;
+                    if (t - x4 * p != sd(0)) {
+                        if ( (m + q / (t - x4 * p)).abs() < dl && x4 > cmp) {
+                            suppliedQuantity = suppliedQuantity > x4 || suppliedQuantity == sd(0) ? x4 : suppliedQuantity;
+                        }
                     }
                 }}
             }

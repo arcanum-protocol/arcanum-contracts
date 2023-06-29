@@ -30,29 +30,34 @@ const config: HardhatUserConfig = {
         ropsten: {
             url: process.env.ROPSTEN_URL || "",
             gasPrice: 10000000,
-            accounts:
-                process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
         },
         goerli: {
             url: process.env.GOERLI_URL || "",
             gasPrice: 1,
-            accounts:
-                process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
         },
         sepolia: {
             url: process.env.SEPOLIA_URL || "",
-            accounts:
-                process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
         },
         mumbai: {
             url: process.env.MUMBAI_URL || "",
-            accounts:
-                process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
         },
         ganache: {
             url: "http://127.0.0.1:8545",
-            accounts:
-                process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
         },
     },
     gasReporter: {
@@ -61,19 +66,17 @@ const config: HardhatUserConfig = {
     },
     etherscan: {
         apiKey: {
-            ropsten:
-                process.env.MUMBAI_SCAN_API_KEY !== undefined
-                    ? process.env.MUMBAI_SCAN_API_KEY
-                    : "",
-            polygonMumbai:
-                process.env.MUMBAI_SCAN_API_KEY !== undefined
-                    ? process.env.MUMBAI_SCAN_API_KEY
-                    : "",
+            ropsten: process.env.MUMBAI_SCAN_API_KEY !== undefined
+                ? process.env.MUMBAI_SCAN_API_KEY
+                : "",
+            polygonMumbai: process.env.MUMBAI_SCAN_API_KEY !== undefined
+                ? process.env.MUMBAI_SCAN_API_KEY
+                : "",
         },
     },
     paths: {
-        tests: "tests"
-    }
+        tests: "tests",
+    },
 };
 
 export default config;

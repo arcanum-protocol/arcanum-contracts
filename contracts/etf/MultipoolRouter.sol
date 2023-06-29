@@ -261,9 +261,11 @@ contract MultipoolRouter {
 
     function estimateSwapSharesByAmountOut(
         address _pool,
+        address _assetIn,
         address _assetOut,
         UD60x18 _amountOut
     ) public view returns(UD60x18 shares, UD60x18 amountIn) {
+            MpAsset memory assetIn = Multipool(_pool).getAssets(_assetIn);
             MpAsset memory assetOut = Multipool(_pool).getAssets(_assetOut);
             MpContext memory context = Multipool(_pool).getTradeContext();
             UD60x18 totalSupply = ud(Multipool(_pool).totalSupply());
@@ -275,9 +277,9 @@ contract MultipoolRouter {
                 * totalSupply / oldTotalCurrentUsdAmount;
 
             UD60x18 mintAmountIn = shares * context.totalCurrentUsdAmount
-                / assetOut.price / (totalSupply + shares);
+                / assetIn.price / (totalSupply - shares);
             
-            amountIn = context.mintRev(assetOut, mintAmountIn);
+            amountIn = context.mintRev(assetIn, mintAmountIn);
     }
 
 }
