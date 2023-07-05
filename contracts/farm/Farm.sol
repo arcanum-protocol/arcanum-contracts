@@ -6,12 +6,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LpFarm is Ownable {
     struct UserInfo {
-        uint amount; 
+        uint amount;
         uint rewardDebt;
     }
 
     struct PoolInfo {
-        IERC20 lpToken; 
+        IERC20 lpToken;
         uint lastRewardBlock;
         uint distributeTill;
         uint distributionAmountLeft;
@@ -29,34 +29,47 @@ contract LpFarm is Ownable {
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
 
-    constructor(
-        IERC20 _rewardToken
-    ) {
+    constructor(IERC20 _rewardToken) {
         rewardToken = _rewardToken;
     }
 
-    function calculateReward(PoolInfo memory pool, uint blockNumber) internal pure returns (uint rewards) {
-            rewards = (blockNumber - pool.lastRewardBlock) * 1e12
-                * pool.distributionAmountLeft / (pool.distributeTill - pool.lastRewardBlock);
+    function calculateReward(
+        PoolInfo memory pool,
+        uint blockNumber
+    ) internal pure returns (uint rewards) {
+        rewards =
+            ((blockNumber - pool.lastRewardBlock) *
+                1e12 *
+                pool.distributionAmountLeft) /
+            (pool.distributeTill - pool.lastRewardBlock);
     }
 
     function updatePool(uint _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
-        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
+        if (
+            pool.distributeTill > pool.lastRewardBlock &&
+            pool.totalLpSupply != 0
+        ) {
             uint newRewards = calculateReward(pool, block.number);
             pool.arps += newRewards / pool.totalLpSupply;
         }
         pool.lastRewardBlock = block.number;
     }
 
-    function pendingRewards(uint _pid, address _user) external view returns (uint amount) {
+    function pendingRewards(
+        uint _pid,
+        address _user
+    ) external view returns (uint amount) {
         PoolInfo memory pool = poolInfo[_pid];
         UserInfo memory user = userInfo[_pid][_user];
-        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
+        if (
+            pool.distributeTill > pool.lastRewardBlock &&
+            pool.totalLpSupply != 0
+        ) {
             uint newRewards = calculateReward(pool, block.number);
             pool.arps += newRewards / pool.totalLpSupply;
         }
-        amount = user.amount * pool.arps / 1e12 - user.rewardDebt;
+        amount = (user.amount * pool.arps) / 1e12 - user.rewardDebt;
     }
 
     function deposit(uint256 _pid, uint256 _amount) public {
@@ -64,17 +77,21 @@ contract LpFarm is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint pending = user.amount * pool.arps / 1e12 - user.rewardDebt;
+            uint pending = (user.amount * pool.arps) / 1e12 - user.rewardDebt;
             if (pending > 0) {
                 rewardToken.transfer(msg.sender, pending);
             }
         }
         if (_amount > 0) {
-            pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
+            pool.lpToken.transferFrom(
+                address(msg.sender),
+                address(this),
+                _amount
+            );
             user.amount += _amount;
             pool.totalLpSupply += _amount;
         }
-        user.rewardDebt = user.amount * pool.arps / 1e12;
+        user.rewardDebt = (user.amount * pool.arps) / 1e12;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -84,7 +101,7 @@ contract LpFarm is Ownable {
         require(user.amount >= _amount, "withdraw: not good");
 
         updatePool(_pid);
-        uint pending = user.amount * pool.arps / 1e12 - user.rewardDebt;
+        uint pending = (user.amount * pool.arps) / 1e12 - user.rewardDebt;
         if (pending > 0) {
             rewardToken.transfer(msg.sender, pending);
         }
@@ -93,7 +110,7 @@ contract LpFarm is Ownable {
             pool.totalLpSupply -= _amount;
             pool.lpToken.transfer(address(msg.sender), _amount);
         }
-        user.rewardDebt = user.amount * pool.arps / 1e12;
+        user.rewardDebt = (user.amount * pool.arps) / 1e12;
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -104,17 +121,15 @@ contract LpFarm is Ownable {
     ) public onlyOwner {
         PoolInfo storage pool = poolInfo[_pid];
         updatePool(_pid);
-        rewardToken.transferFrom(msg.sender,address(this),_amount);
+        rewardToken.transferFrom(msg.sender, address(this), _amount);
         pool.distributionAmountLeft += _amount;
         pool.distributeTill += _distributionTime;
     }
 
-    function add(
-        IERC20 _lpToken
-    ) public onlyOwner {
+    function add(IERC20 _lpToken) public onlyOwner {
         poolInfo[poolNumber] = PoolInfo({
-            lpToken: _lpToken, 
-            lastRewardBlock: block.number, 
+            lpToken: _lpToken,
+            lastRewardBlock: block.number,
             distributeTill: block.number,
             distributionAmountLeft: 0,
             totalLpSupply: 0,

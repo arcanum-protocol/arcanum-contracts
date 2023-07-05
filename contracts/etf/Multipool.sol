@@ -23,9 +23,7 @@ struct MpContext {
     uint userCashbackBalance;
 }
 
-
 contract Multipool is ERC20, Ownable {
-
     constructor(
         string memory _name,
         string memory _symbol
@@ -47,14 +45,16 @@ contract Multipool is ERC20, Ownable {
     uint public deviationPercentLimit = 0.1e18;
 
     uint public baseMintFee = 0.0001e18;
-    uint public baseBurnFee = 0.0001e18; 
+    uint public baseBurnFee = 0.0001e18;
     uint public baseTradeFee = 0.00005e18;
     uint public constant DENOMINATOR = 1e18;
 
     mapping(address => uint) public transferFees;
     address public feeReceiver;
 
-    function getAssets(address _asset) public view returns (MpAsset memory asset) {
+    function getAssets(
+        address _asset
+    ) public view returns (MpAsset memory asset) {
         asset = assets[_asset];
     }
 
@@ -70,126 +70,190 @@ contract Multipool is ERC20, Ownable {
         context = getContext(baseTradeFee);
     }
 
-    function getContext(uint  baseFee) public view returns (MpContext memory context) {
+    function getContext(
+        uint baseFee
+    ) public view returns (MpContext memory context) {
         context = MpContext({
-            totalCurrentUsdAmount:  totalCurrentUsdAmount,
-            totalAssetPercents:     totalAssetPercents,
-            curveCoef:              curveCoef,
-            deviationPercentLimit:  deviationPercentLimit,
-            operationBaseFee:       baseFee,
-            userCashbackBalance:    0e18
+            totalCurrentUsdAmount: totalCurrentUsdAmount,
+            totalAssetPercents: totalAssetPercents,
+            curveCoef: curveCoef,
+            deviationPercentLimit: deviationPercentLimit,
+            operationBaseFee: baseFee,
+            userCashbackBalance: 0e18
         });
     }
 
     function getTransferredAmount(
-       MpAsset memory assetIn, 
-       address _assetIn
+        MpAsset memory assetIn,
+        address _assetIn
     ) public view returns (uint amount) {
-        amount = IERC20(_assetIn).balanceOf(address(this)) -
+        amount =
+            IERC20(_assetIn).balanceOf(address(this)) -
             assetIn.quantity -
             assetIn.collectedFees -
             assetIn.collectedCashbacks;
     }
 
     function shareToAmount(
-        uint _share, 
-        MpContext memory context, 
+        uint _share,
+        MpContext memory context,
         MpAsset memory asset
     ) public view returns (uint _amount) {
-        _amount = _share * context.totalCurrentUsdAmount * DENOMINATOR
-            / totalSupply() / asset.price;
+        _amount =
+            (_share * context.totalCurrentUsdAmount * DENOMINATOR) /
+            totalSupply() /
+            asset.price;
     }
-    
+
     function evalMint(
         MpContext memory context,
         MpAsset memory asset,
         uint utilisableQuantity
-    ) internal view returns(uint suppliedQuantity) {
+    ) internal pure returns (uint suppliedQuantity) {
         if (context.totalCurrentUsdAmount == 0) {
-            context.totalCurrentUsdAmount = utilisableQuantity * asset.price / DENOMINATOR;
-            asset.quantity += utilisableQuantity; 
+            context.totalCurrentUsdAmount =
+                (utilisableQuantity * asset.price) /
+                DENOMINATOR;
+            asset.quantity += utilisableQuantity;
             return utilisableQuantity;
         }
 
-        uint shareOld = asset.quantity * asset.price * DENOMINATOR / context.totalCurrentUsdAmount;
-        uint shareNew = (asset.quantity + utilisableQuantity) * asset.price
-                / (context.totalCurrentUsdAmount + utilisableQuantity * asset.price / DENOMINATOR);
-        uint idealShare = asset.percent * DENOMINATOR / context.totalAssetPercents;
-        uint deviationNew = shareNew > idealShare ? shareNew - idealShare : idealShare - shareNew;
-        uint deviationOld = shareOld > idealShare ? shareOld - idealShare : idealShare - shareOld;
+        uint shareOld = (asset.quantity * asset.price * DENOMINATOR) /
+            context.totalCurrentUsdAmount;
+        uint shareNew = ((asset.quantity + utilisableQuantity) * asset.price) /
+            (context.totalCurrentUsdAmount +
+                (utilisableQuantity * asset.price) /
+                DENOMINATOR);
+        uint idealShare = (asset.percent * DENOMINATOR) /
+            context.totalAssetPercents;
+        uint deviationNew = shareNew > idealShare
+            ? shareNew - idealShare
+            : idealShare - shareNew;
+        uint deviationOld = shareOld > idealShare
+            ? shareOld - idealShare
+            : idealShare - shareOld;
 
         if (deviationNew <= deviationOld) {
             if (deviationOld != 0) {
-                uint cashback = asset.collectedCashbacks * (deviationOld - deviationNew) / deviationOld;
+                uint cashback = (asset.collectedCashbacks *
+                    (deviationOld - deviationNew)) / deviationOld;
                 asset.collectedCashbacks -= cashback;
                 context.userCashbackBalance += cashback;
             }
-            suppliedQuantity = utilisableQuantity * (1e18 + context.operationBaseFee) / DENOMINATOR;
+            suppliedQuantity =
+                (utilisableQuantity * (1e18 + context.operationBaseFee)) /
+                DENOMINATOR;
         } else {
-            require(deviationNew < context.deviationPercentLimit, "MULTIPOOL: deviation overflow");
-            uint depegFee = context.curveCoef * deviationNew * utilisableQuantity 
-            / context.deviationPercentLimit / (context.deviationPercentLimit - deviationNew);
+            require(
+                deviationNew < context.deviationPercentLimit,
+                "MULTIPOOL: deviation overflow"
+            );
+            uint depegFee = (context.curveCoef *
+                deviationNew *
+                utilisableQuantity) /
+                context.deviationPercentLimit /
+                (context.deviationPercentLimit - deviationNew);
             asset.collectedCashbacks += depegFee;
-            suppliedQuantity = (utilisableQuantity * (1e18 + context.operationBaseFee) + depegFee) / DENOMINATOR;
+            suppliedQuantity =
+                (utilisableQuantity *
+                    (1e18 + context.operationBaseFee) +
+                    depegFee) /
+                DENOMINATOR;
         }
 
-        asset.quantity += utilisableQuantity; 
-        context.totalCurrentUsdAmount += utilisableQuantity * asset.price / DENOMINATOR;
-        asset.collectedFees += utilisableQuantity * context.operationBaseFee / DENOMINATOR;
+        asset.quantity += utilisableQuantity;
+        context.totalCurrentUsdAmount +=
+            (utilisableQuantity * asset.price) /
+            DENOMINATOR;
+        asset.collectedFees +=
+            (utilisableQuantity * context.operationBaseFee) /
+            DENOMINATOR;
     }
 
     function evalBurn(
         MpContext memory context,
         MpAsset memory asset,
         uint suppliedQuantity
-    ) internal view returns(uint utilisableQuantity) {
-        require(suppliedQuantity <= asset.quantity, "MULTIPOOL: asset quantity exceeded");
+    ) internal pure returns (uint utilisableQuantity) {
+        require(
+            suppliedQuantity <= asset.quantity,
+            "MULTIPOOL: asset quantity exceeded"
+        );
 
-        uint shareOld = asset.quantity * asset.price * DENOMINATOR / context.totalCurrentUsdAmount;
-        uint shareNew = (asset.quantity - suppliedQuantity) * asset.price
-                / (context.totalCurrentUsdAmount - suppliedQuantity * asset.price / DENOMINATOR);
-        uint idealShare = asset.percent * DENOMINATOR / context.totalAssetPercents;
-        uint deviationNew = shareNew > idealShare ? shareNew - idealShare : idealShare - shareNew;
-        uint deviationOld = shareOld > idealShare ? shareOld - idealShare : idealShare - shareOld;
+        uint shareOld = (asset.quantity * asset.price * DENOMINATOR) /
+            context.totalCurrentUsdAmount;
+        uint shareNew = ((asset.quantity - suppliedQuantity) * asset.price) /
+            (context.totalCurrentUsdAmount -
+                (suppliedQuantity * asset.price) /
+                DENOMINATOR);
+        uint idealShare = (asset.percent * DENOMINATOR) /
+            context.totalAssetPercents;
+        uint deviationNew = shareNew > idealShare
+            ? shareNew - idealShare
+            : idealShare - shareNew;
+        uint deviationOld = shareOld > idealShare
+            ? shareOld - idealShare
+            : idealShare - shareOld;
 
         if (deviationNew <= deviationOld) {
             if (deviationOld != 0) {
-                uint cashback = asset.collectedCashbacks * (deviationOld - deviationNew) / deviationOld;
+                uint cashback = (asset.collectedCashbacks *
+                    (deviationOld - deviationNew)) / deviationOld;
                 asset.collectedCashbacks -= cashback;
                 context.userCashbackBalance += cashback;
             }
-            utilisableQuantity = suppliedQuantity * DENOMINATOR / (1e18 + context.operationBaseFee);
+            utilisableQuantity =
+                (suppliedQuantity * DENOMINATOR) /
+                (1e18 + context.operationBaseFee);
         } else {
-            require(deviationNew < context.deviationPercentLimit, "MULTIPOOL: deviation overflow");
-            uint feeRatio = context.curveCoef * deviationNew  * DENOMINATOR
-                / context.deviationPercentLimit / (context.deviationPercentLimit - deviationNew);
-            utilisableQuantity = suppliedQuantity * DENOMINATOR / (1e18 + feeRatio + context.operationBaseFee);
-            asset.collectedCashbacks += suppliedQuantity - utilisableQuantity * (1e18 + context.operationBaseFee) / DENOMINATOR;
+            require(
+                deviationNew < context.deviationPercentLimit,
+                "MULTIPOOL: deviation overflow"
+            );
+            uint feeRatio = (context.curveCoef * deviationNew * DENOMINATOR) /
+                context.deviationPercentLimit /
+                (context.deviationPercentLimit - deviationNew);
+            utilisableQuantity =
+                (suppliedQuantity * DENOMINATOR) /
+                (1e18 + feeRatio + context.operationBaseFee);
+            asset.collectedCashbacks +=
+                suppliedQuantity -
+                (utilisableQuantity * (1e18 + context.operationBaseFee)) /
+                DENOMINATOR;
         }
 
-        asset.quantity -= suppliedQuantity; 
-        context.totalCurrentUsdAmount -= suppliedQuantity * asset.price / DENOMINATOR;
-        asset.collectedFees += utilisableQuantity * context.operationBaseFee / DENOMINATOR;
+        asset.quantity -= suppliedQuantity;
+        context.totalCurrentUsdAmount -=
+            (suppliedQuantity * asset.price) /
+            DENOMINATOR;
+        asset.collectedFees +=
+            (utilisableQuantity * context.operationBaseFee) /
+            DENOMINATOR;
     }
 
-
     function mint(
-        address _asset, 
-        uint _share, 
+        address _asset,
+        uint _share,
         address _to
     ) public returns (uint _amountIn) {
         MpAsset memory asset = assets[_asset];
         MpContext memory context = getContext(baseMintFee);
 
         uint transferredAmount = getTransferredAmount(asset, _asset);
-        uint amountOut = totalSupply() != 0 ? shareToAmount(_share, context, asset) : transferredAmount;
+        uint amountOut = totalSupply() != 0
+            ? shareToAmount(_share, context, asset)
+            : transferredAmount;
 
         _amountIn = evalMint(context, asset, amountOut);
-        require(_amountIn <= transferredAmount, "MULTIPOOL: mint amount in exeeded");
+        require(
+            _amountIn <= transferredAmount,
+            "MULTIPOOL: mint amount in exeeded"
+        );
 
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         // add unused quantity to refund
-        uint refund = context.userCashbackBalance + (transferredAmount - _amountIn);
+        uint refund = context.userCashbackBalance +
+            (transferredAmount - _amountIn);
 
         _mint(_to, _share);
         assets[_asset] = asset;
@@ -213,64 +277,77 @@ contract Multipool is ERC20, Ownable {
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         uint refund = context.userCashbackBalance;
 
-       _burn(address(this), _share);
-       assets[_asset] = asset;
-       IERC20(_asset).transfer(_to, _amountOut + refund);
-       // return unused amount
-       _transfer(address(this), msg.sender, balanceOf(address(this)));
-       emit AssetQuantityChange(_asset, asset.quantity);
-   }
+        _burn(address(this), _share);
+        assets[_asset] = asset;
+        IERC20(_asset).transfer(_to, _amountOut + refund);
+        // return unused amount
+        _transfer(address(this), msg.sender, balanceOf(address(this)));
+        emit AssetQuantityChange(_asset, asset.quantity);
+    }
 
-
-   function swap(
-       address _assetIn,
-       address _assetOut,
-       uint _share,
-       address _to
-   ) public returns (uint _amountIn, uint _amountOut, uint refundIn, uint refundOut) {
+    function swap(
+        address _assetIn,
+        address _assetOut,
+        uint _share,
+        address _to
+    )
+        public
+        returns (uint _amountIn, uint _amountOut, uint refundIn, uint refundOut)
+    {
         MpAsset memory assetIn = assets[_assetIn];
         MpAsset memory assetOut = assets[_assetOut];
         MpContext memory context = getContext(baseTradeFee);
 
-
         uint transferredAmount = getTransferredAmount(assetIn, _assetIn);
-        {{
-            uint amountOut = shareToAmount(_share, context, assetIn);
-            _amountIn = evalMint(context, assetIn, amountOut);
-            require(_amountIn <= transferredAmount, "MULTIPOOL: amount in exeeded");
+        {
+            {
+                uint amountOut = shareToAmount(_share, context, assetIn);
+                _amountIn = evalMint(context, assetIn, amountOut);
+                require(
+                    _amountIn <= transferredAmount,
+                    "MULTIPOOL: amount in exeeded"
+                );
 
-            refundIn = context.userCashbackBalance + (transferredAmount - _amountIn);
-            context.userCashbackBalance = 0;
-        }}
+                refundIn =
+                    context.userCashbackBalance +
+                    (transferredAmount - _amountIn);
+                context.userCashbackBalance = 0;
+            }
+        }
 
-        {{
-            uint amountIn = shareToAmount(_share, context, assetOut);
-            _amountOut = evalBurn(context, assetOut, amountIn);
+        {
+            {
+                uint amountIn = shareToAmount(_share, context, assetOut);
+                _amountOut = evalBurn(context, assetOut, amountIn);
 
-            refundOut = context.userCashbackBalance;
-            totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-        }}
+                refundOut = context.userCashbackBalance;
+                totalCurrentUsdAmount = context.totalCurrentUsdAmount;
+            }
+        }
 
+        assets[_assetIn] = assetIn;
+        assets[_assetOut] = assetOut;
 
-       assets[_assetIn] = assetIn;
-       assets[_assetOut] = assetOut;
-
-       if (_amountOut + refundOut > 0) {
+        if (_amountOut + refundOut > 0) {
             IERC20(_assetOut).transfer(_to, (_amountOut + refundOut));
-       }
-       if (refundIn > 0) {
+        }
+        if (refundIn > 0) {
             IERC20(_assetIn).transfer(_to, refundIn);
-       }
-       emit AssetQuantityChange(_assetIn, assetIn.quantity);
-       emit AssetQuantityChange(_assetOut, assetOut.quantity);
-   }
+        }
+        emit AssetQuantityChange(_assetIn, assetIn.quantity);
+        emit AssetQuantityChange(_assetOut, assetOut.quantity);
+    }
 
     /** ---------------- Owner ------------------ */
 
     function updatePrice(address _asset, uint _price) public onlyOwner {
         MpAsset memory asset = assets[_asset];
-        totalCurrentUsdAmount = totalCurrentUsdAmount - asset.quantity * asset.price / DENOMINATOR 
-            + asset.quantity * _price / DENOMINATOR;
+        totalCurrentUsdAmount =
+            totalCurrentUsdAmount -
+            (asset.quantity * asset.price) /
+            DENOMINATOR +
+            (asset.quantity * _price) /
+            DENOMINATOR;
         asset.price = _price;
         assets[_asset] = asset;
         emit AssetPriceChange(_asset, _price);
@@ -287,7 +364,9 @@ contract Multipool is ERC20, Ownable {
         emit AssetPercentsChange(_asset, _percent);
     }
 
-    function setDeviationPercentLimit(uint _deviationPercentLimit) external onlyOwner {
+    function setDeviationPercentLimit(
+        uint _deviationPercentLimit
+    ) external onlyOwner {
         deviationPercentLimit = _deviationPercentLimit;
     }
 
