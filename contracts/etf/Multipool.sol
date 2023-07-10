@@ -16,7 +16,7 @@ struct MpAsset {
 struct MpContext {
     uint totalCurrentUsdAmount;
     uint totalAssetPercents;
-    uint curveCoef;
+    uint halfDeviationFeeRatio;
     uint deviationPercentLimit;
     uint operationBaseFee;
     uint userCashbackBalance;
@@ -40,7 +40,7 @@ contract Multipool is ERC20, Ownable {
     uint public totalCurrentUsdAmount;
     uint public totalAssetPercents;
 
-    uint public curveCoef = 0.0003e18;
+    uint public halfDeviationFeeRatio = 0.0003e18;
     uint public deviationPercentLimit = 0.1e18;
 
     uint public baseMintFee = 0.0001e18;
@@ -75,7 +75,7 @@ contract Multipool is ERC20, Ownable {
         context = MpContext({
             totalCurrentUsdAmount: totalCurrentUsdAmount,
             totalAssetPercents: totalAssetPercents,
-            curveCoef: curveCoef,
+            halfDeviationFeeRatio: halfDeviationFeeRatio,
             deviationPercentLimit: deviationPercentLimit,
             operationBaseFee: baseFee,
             userCashbackBalance: 0e18
@@ -147,7 +147,7 @@ contract Multipool is ERC20, Ownable {
                 deviationNew < context.deviationPercentLimit,
                 "MULTIPOOL: deviation overflow"
             );
-            uint depegFee = (context.curveCoef *
+            uint depegFee = (context.halfDeviationFeeRatio *
                 deviationNew *
                 utilisableQuantity) /
                 context.deviationPercentLimit /
@@ -209,7 +209,7 @@ contract Multipool is ERC20, Ownable {
                 deviationNew < context.deviationPercentLimit,
                 "MULTIPOOL: deviation overflow"
             );
-            uint feeRatio = (context.curveCoef * deviationNew * DENOMINATOR) /
+            uint feeRatio = (context.halfDeviationFeeRatio * deviationNew * DENOMINATOR) /
                 context.deviationPercentLimit /
                 (context.deviationPercentLimit - deviationNew);
             utilisableQuantity =
@@ -369,8 +369,8 @@ contract Multipool is ERC20, Ownable {
         deviationPercentLimit = _deviationPercentLimit;
     }
 
-    function setCurveCoef(uint _curveCoef) external onlyOwner {
-        curveCoef = _curveCoef;
+    function setHalfDeviationFeeRatio(uint _halfDeviationFeeRatio) external onlyOwner {
+        halfDeviationFeeRatio = _halfDeviationFeeRatio;
     }
 
     function setBaseTradeFee(uint _baseTradeFee) external onlyOwner {
