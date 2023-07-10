@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
+import { ERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
 struct MpAsset {
@@ -235,7 +234,7 @@ contract Multipool is ERC20, Ownable {
         address _asset,
         uint _share,
         address _to
-    ) public returns (uint _amountIn) {
+    ) public returns (uint _amountIn, uint refund) {
         MpAsset memory asset = assets[_asset];
         MpContext memory context = getContext(baseMintFee);
 
@@ -252,7 +251,7 @@ contract Multipool is ERC20, Ownable {
 
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
         // add unused quantity to refund
-        uint refund = context.userCashbackBalance +
+        refund = context.userCashbackBalance +
             (transferredAmount - _amountIn);
 
         _mint(_to, _share);
@@ -267,7 +266,7 @@ contract Multipool is ERC20, Ownable {
         address _asset,
         uint _share,
         address _to
-    ) public returns (uint _amountOut) {
+    ) public returns (uint _amountOut, uint refund) {
         MpAsset memory asset = assets[_asset];
         MpContext memory context = getContext(baseBurnFee);
 
@@ -275,7 +274,7 @@ contract Multipool is ERC20, Ownable {
         _amountOut = evalBurn(context, asset, amountIn);
 
         totalCurrentUsdAmount = context.totalCurrentUsdAmount;
-        uint refund = context.userCashbackBalance;
+        refund = context.userCashbackBalance;
 
         _burn(address(this), _share);
         assets[_asset] = asset;
