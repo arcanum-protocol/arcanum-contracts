@@ -5,7 +5,7 @@ import "@nomicfoundation/hardhat-chai-matchers";
 
 import { toDecimal } from "../utils/numbers";
 
-describe("Multipool", function() {
+describe("Multipool base", function() {
     let alice: any;
     let bob: any;
     let carol: any;
@@ -44,6 +44,12 @@ describe("Multipool", function() {
             "ETF1",
             "ETF1",
         );
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
+        await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
+
+        await etf.connect(owner).setBaseTradeFee(toDecimal(5, 13));
+        await etf.connect(owner).setBaseBurnFee(toDecimal(1, 14));
+        await etf.connect(owner).setBaseMintFee(toDecimal(1, 14));
     });
 
     it("ETF mint and swap should work", async function() {
@@ -56,7 +62,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -98,7 +104,7 @@ describe("Multipool", function() {
         await expect(result).to.changeTokenBalances(assets[0], [
             etf.address,
             alice.address,
-        ], ["-1100064997750112494", "1100064997750112494"]);
+        ], ["-1000049997500124993", "1000049997500124993"]);
     });
 
     it("Mint return unused transfer", async function() {
@@ -111,7 +117,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -150,7 +156,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -181,7 +187,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -216,7 +222,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -257,7 +263,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -291,7 +297,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -325,7 +331,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -393,7 +399,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
@@ -426,10 +432,10 @@ describe("Multipool", function() {
         );
         // whole positive swap with cashback??
         expect(await assets[0].balanceOf(carol.address)).to.eq(
-            assetABefore.add("94999750000000000000"),
+            assetABefore.add("94999560606060606061"),
         );
         expect(await assets[1].balanceOf(carol.address)).to.eq(
-            assetBBefore.add("5012249387530623468"),
+            assetBBefore.add("4999365465152499879"),
         );
     });
 
@@ -443,7 +449,7 @@ describe("Multipool", function() {
             toDecimal(50),
         );
 
-        await etf.connect(owner).setCurveCoef(toDecimal(3, 14));
+        await etf.connect(owner).setHalfDeviationFeeRatio(toDecimal(3, 14));
         await etf.connect(owner).setDeviationPercentLimit(toDecimal(1, 17));
 
         await etf.connect(owner).updatePrice(assets[0].address, toDecimal(10));
