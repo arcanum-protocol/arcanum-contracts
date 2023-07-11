@@ -22,7 +22,7 @@ contract MultipoolRouter {
     ) internal pure returns (MpContext memory context) {
         context.totalCurrentUsdAmount = ud(ctx.totalCurrentUsdAmount);
         context.totalAssetPercents = ud(ctx.totalAssetPercents);
-        context.curveCoef = ud(ctx.curveCoef);
+        context.curveCoef = ud(ctx.halfDeviationFeeRatio);
         context.deviationPercentLimit = ud(ctx.deviationPercentLimit);
         context.operationBaseFee = ud(ctx.operationBaseFee);
         context.userCashbackBalance = ud(ctx.userCashbackBalance);
@@ -62,7 +62,7 @@ contract MultipoolRouter {
         uint deadline
     ) public ensure(deadline) {
         IERC20(_pool).transferFrom(msg.sender, _pool, _sharesIn.unwrap());
-        uint amountOut = Multipool(_pool).burn(_asset, _sharesIn.unwrap(), _to);
+        (uint amountOut, ) = Multipool(_pool).burn(_asset, _sharesIn.unwrap(), _to);
 
         require(
             ud(amountOut) >= _amountOutMin,
