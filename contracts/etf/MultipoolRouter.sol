@@ -263,7 +263,7 @@ contract MultipoolRouter {
         address _pool,
         address _asset,
         UD60x18 _amountIn
-    ) public view returns (UD60x18 sharesOut) {
+    ) public view returns (UD60x18 sharesOut, UD60x18 fee, UD60x18 cashbackIn) {
         MpAsset memory asset = convertAsset(Multipool(_pool).getAssets(_asset));
         MpContext memory context = convertContext(
             Multipool(_pool).getMintContext()
@@ -273,16 +273,26 @@ contract MultipoolRouter {
 
         UD60x18 amountOut = context.mint(asset, _amountIn);
 
+        require(
+            oldTotalCurrentUsdAmount != ud(0),
+            "MULTIPOOL ROUTER: no shares"
+        );
         sharesOut =
             (amountOut * asset.price * totalSupply) /
             oldTotalCurrentUsdAmount;
+
+        cashbackIn = context.userCashbackBalance;
+
+        UD60x18 noFeeShareOut = ((_amountIn * asset.price * (totalSupply)) /
+            oldTotalCurrentUsdAmount);
+        fee = noFeeShareOut / sharesOut - ud(1e18);
     }
 
     function estimateMintAmountIn(
         address _pool,
         address _asset,
         UD60x18 _sharesOut
-    ) public view returns (UD60x18 _amountIn) {
+    ) public view returns (UD60x18 amountIn, UD60x18 fee, UD60x18 cashbackIn) {
         MpAsset memory asset = convertAsset(Multipool(_pool).getAssets(_asset));
         MpContext memory context = convertContext(
             Multipool(_pool).getMintContext()
@@ -290,11 +300,17 @@ contract MultipoolRouter {
         UD60x18 totalSupply = ud(Multipool(_pool).totalSupply());
         UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
-        UD60x18 amountIn = (_sharesOut * oldTotalCurrentUsdAmount) /
+        require(totalSupply != ud(0), "MULTIPOOL ROUTER: no shares");
+        UD60x18 _amountIn = (_sharesOut * oldTotalCurrentUsdAmount) /
             asset.price /
             totalSupply;
 
-        _amountIn = context.mintRev(asset, amountIn);
+        amountIn = context.mintRev(asset, _amountIn);
+        cashbackIn = context.userCashbackBalance;
+
+        UD60x18 noFeeShareOut = ((amountIn * asset.price * (totalSupply)) /
+            oldTotalCurrentUsdAmount);
+        fee = noFeeShareOut / _sharesOut - ud(1e18);
     }
 
     // this works straight way
@@ -302,7 +318,11 @@ contract MultipoolRouter {
         address _pool,
         address _asset,
         UD60x18 _sharesIn
-    ) public view returns (UD60x18 _amountOut) {
+    )
+        public
+        view
+        returns (UD60x18 amountOut, UD60x18 fee, UD60x18 cashbackOut)
+    {
         MpAsset memory asset = convertAsset(Multipool(_pool).getAssets(_asset));
         MpContext memory context = convertContext(
             Multipool(_pool).getBurnContext()
@@ -314,14 +334,19 @@ contract MultipoolRouter {
             asset.price /
             totalSupply;
 
-        _amountOut = context.burn(asset, amountIn);
+        amountOut = context.burn(asset, amountIn);
+
+        cashbackOut = context.userCashbackBalance;
+        UD60x18 noFeeSharesIn = ((amountOut * asset.price * (totalSupply)) /
+            oldTotalCurrentUsdAmount);
+        fee = _sharesIn / noFeeSharesIn - ud(1e18);
     }
 
     function estimateBurnSharesIn(
         address _pool,
         address _asset,
         UD60x18 _amountOut
-    ) public view returns (UD60x18 _sharesIn) {
+    ) public view returns (UD60x18 sharesIn, UD60x18 fee, UD60x18 cashbackOut) {
         MpAsset memory asset = convertAsset(Multipool(_pool).getAssets(_asset));
         MpContext memory context = convertContext(
             Multipool(_pool).getBurnContext()
@@ -331,17 +356,32 @@ contract MultipoolRouter {
 
         UD60x18 amountIn = context.burnRev(asset, _amountOut);
 
-        _sharesIn =
+        sharesIn =
             (amountIn * asset.price * totalSupply) /
             oldTotalCurrentUsdAmount;
+
+        cashbackOut = context.userCashbackBalance;
+        UD60x18 noFeeSharesIn = ((_amountOut * asset.price * (totalSupply)) /
+            oldTotalCurrentUsdAmount);
+        fee = sharesIn / noFeeSharesIn - ud(1e18);
     }
 
-    function estimateSwapSharesByAmountIn(
+    function estimateSwapAmountOut(
         address _pool,
         address _assetIn,
         address _assetOut,
         UD60x18 _amountIn
-    ) public view returns (UD60x18 shares, UD60x18 amountOut) {
+    )
+        public
+        view
+        returns (
+            UD60x18 shares,
+            UD60x18 amountOut,
+            UD60x18 fee,
+            UD60x18 cashbackIn,
+            UD60x18 cashbackOut
+        )
+    {
         MpAsset memory assetIn = convertAsset(
             Multipool(_pool).getAssets(_assetIn)
         );
@@ -355,6 +395,8 @@ contract MultipoolRouter {
         UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
         UD60x18 mintAmountOut = context.mint(assetIn, _amountIn);
+        cashbackIn = context.userCashbackBalance;
+        context.userCashbackBalance = ud(0);
 
         shares =
             (mintAmountOut * assetIn.price * totalSupply) /
@@ -365,14 +407,30 @@ contract MultipoolRouter {
             (totalSupply + shares);
 
         amountOut = context.burn(assetOut, burnAmountIn);
+        cashbackOut = context.userCashbackBalance;
+
+        fee =
+            _amountIn /
+            ((amountOut * assetOut.price) / assetIn.price) -
+            ud(1e18);
     }
 
-    function estimateSwapSharesByAmountOut(
+    function estimateSwapAmountIn(
         address _pool,
         address _assetIn,
         address _assetOut,
         UD60x18 _amountOut
-    ) public view returns (UD60x18 shares, UD60x18 amountIn) {
+    )
+        public
+        view
+        returns (
+            UD60x18 shares,
+            UD60x18 amountIn,
+            UD60x18 fee,
+            UD60x18 cashbackIn,
+            UD60x18 cashbackOut
+        )
+    {
         MpAsset memory assetIn = convertAsset(
             Multipool(_pool).getAssets(_assetIn)
         );
@@ -386,6 +444,8 @@ contract MultipoolRouter {
         UD60x18 oldTotalCurrentUsdAmount = context.totalCurrentUsdAmount;
 
         UD60x18 burnAmountIn = context.burnRev(assetOut, _amountOut);
+        cashbackOut = context.userCashbackBalance;
+        context.userCashbackBalance = ud(0);
 
         shares =
             (burnAmountIn * assetOut.price * totalSupply) /
@@ -396,5 +456,10 @@ contract MultipoolRouter {
             (totalSupply - shares);
 
         amountIn = context.mintRev(assetIn, mintAmountIn);
+        cashbackIn = context.userCashbackBalance;
+
+        UD60x18 out = _amountOut;
+        UD60x18 amoutOutNoFees = ((amountIn * assetIn.price) / assetOut.price);
+        fee = amoutOutNoFees / out - ud(1e18);
     }
 }

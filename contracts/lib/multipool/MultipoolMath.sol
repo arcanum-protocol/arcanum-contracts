@@ -367,51 +367,64 @@ library MpMath {
             "can't burn more assets than exist"
         );
 
-        UD60x18 deviationNew = calculateDeviationBurn(
-            context,
-            asset,
-            suppliedQuantity
-        );
-        UD60x18 deviationOld = calculateDeviationBurn(context, asset, ud(0));
+        if (context.totalCurrentUsdAmount < suppliedQuantity * asset.price) {
+            UD60x18 deviationNew = calculateDeviationBurn(
+                context,
+                asset,
+                suppliedQuantity
+            );
+            UD60x18 deviationOld = calculateDeviationBurn(
+                context,
+                asset,
+                ud(0)
+            );
 
-        if (deviationNew <= deviationOld) {
-            UD60x18 cashback;
-            if (deviationOld != ud(0)) {
-                cashback =
-                    (asset.collectedCashbacks * (deviationOld - deviationNew)) /
-                    deviationOld;
+            if (deviationNew <= deviationOld) {
+                UD60x18 cashback;
+                if (deviationOld != ud(0)) {
+                    cashback =
+                        (asset.collectedCashbacks *
+                            (deviationOld - deviationNew)) /
+                        deviationOld;
+                }
+                asset.collectedCashbacks = asset.collectedCashbacks - cashback;
+                context.userCashbackBalance =
+                    context.userCashbackBalance +
+                    cashback;
+                utilisableQuantity =
+                    suppliedQuantity /
+                    (ud(1e18) + context.operationBaseFee);
+            } else {
+                require(
+                    deviationNew < context.deviationPercentLimit,
+                    "deviation overflows limit"
+                );
+
+                UD60x18 feeRatio = (context.curveCoef * deviationNew) /
+                    context.deviationPercentLimit /
+                    (context.deviationPercentLimit - deviationNew);
+
+                utilisableQuantity =
+                    suppliedQuantity /
+                    (ud(1e18) + feeRatio + context.operationBaseFee);
+
+                UD60x18 collectedCashbacks = (suppliedQuantity -
+                    utilisableQuantity *
+                    (ud(1e18) + context.operationBaseFee));
+                UD60x18 collectedBaseDepegFee = collectedCashbacks *
+                    context.depegBaseFeeRatio;
+                asset.collectedCashbacks =
+                    asset.collectedCashbacks +
+                    collectedCashbacks -
+                    collectedBaseDepegFee;
+                asset.collectedFees =
+                    asset.collectedFees +
+                    collectedBaseDepegFee;
             }
-            asset.collectedCashbacks = asset.collectedCashbacks - cashback;
-            context.userCashbackBalance =
-                context.userCashbackBalance +
-                cashback;
+        } else {
             utilisableQuantity =
                 suppliedQuantity /
                 (ud(1e18) + context.operationBaseFee);
-        } else {
-            require(
-                deviationNew < context.deviationPercentLimit,
-                "deviation overflows limit"
-            );
-
-            UD60x18 feeRatio = (context.curveCoef * deviationNew) /
-                context.deviationPercentLimit /
-                (context.deviationPercentLimit - deviationNew);
-
-            utilisableQuantity =
-                suppliedQuantity /
-                (ud(1e18) + feeRatio + context.operationBaseFee);
-
-            UD60x18 collectedCashbacks = (suppliedQuantity -
-                utilisableQuantity *
-                (ud(1e18) + context.operationBaseFee));
-            UD60x18 collectedBaseDepegFee = collectedCashbacks *
-                context.depegBaseFeeRatio;
-            asset.collectedCashbacks =
-                asset.collectedCashbacks +
-                collectedCashbacks -
-                collectedBaseDepegFee;
-            asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
         }
 
         asset.quantity = asset.quantity - suppliedQuantity;
