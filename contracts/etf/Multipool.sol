@@ -20,6 +20,7 @@ struct MpContext {
     uint deviationPercentLimit;
     uint operationBaseFee;
     uint userCashbackBalance;
+    uint depegBaseFeeRatio;
 }
 
 contract Multipool is ERC20, Ownable {
@@ -43,6 +44,7 @@ contract Multipool is ERC20, Ownable {
     event BaseMintFeeChange(uint value);
     event BaseBurnFeeChange(uint value);
     event BaseTradeFeeChange(uint value);
+    event DepegBaseFeeRatioChange(uint value);
 
     /** ---------------- Variables ------------------ */
 
@@ -52,6 +54,7 @@ contract Multipool is ERC20, Ownable {
 
     uint public halfDeviationFeeRatio;
     uint public deviationPercentLimit;
+    uint public depegBaseFeeRatio;
 
     uint public baseMintFee;
     uint public baseBurnFee;
@@ -89,7 +92,8 @@ contract Multipool is ERC20, Ownable {
             halfDeviationFeeRatio: halfDeviationFeeRatio,
             deviationPercentLimit: deviationPercentLimit,
             operationBaseFee: baseFee,
-            userCashbackBalance: 0e18
+            userCashbackBalance: 0e18,
+            depegBaseFeeRatio: depegBaseFeeRatio
         });
     }
 
@@ -164,11 +168,14 @@ contract Multipool is ERC20, Ownable {
                 utilisableQuantity) /
                 context.deviationPercentLimit /
                 (context.deviationPercentLimit - deviationNew);
-            asset.collectedCashbacks += depegFee;
-            suppliedQuantity =
-                (utilisableQuantity *
-                    (1e18 + context.operationBaseFee) / DENOMINATOR +
-                    depegFee);
+            uint deviationBaseFee = (context.depegBaseFeeRatio * depegFee) /
+                DENOMINATOR;
+            asset.collectedCashbacks += depegFee - deviationBaseFee;
+            asset.collectedFees += deviationBaseFee;
+            suppliedQuantity = ((utilisableQuantity *
+                (1e18 + context.operationBaseFee)) /
+                DENOMINATOR +
+                depegFee);
         }
 
         asset.quantity += utilisableQuantity;
@@ -235,10 +242,14 @@ contract Multipool is ERC20, Ownable {
                 utilisableQuantity =
                     (suppliedQuantity * DENOMINATOR) /
                     (1e18 + feeRatio + context.operationBaseFee);
-                asset.collectedCashbacks +=
-                    suppliedQuantity -
+
+                uint depegFee = suppliedQuantity -
                     (utilisableQuantity * (1e18 + context.operationBaseFee)) /
                     DENOMINATOR;
+                uint deviationBaseFee = (context.depegBaseFeeRatio * depegFee) /
+                    DENOMINATOR;
+                asset.collectedCashbacks += depegFee - deviationBaseFee;
+                asset.collectedFees += deviationBaseFee;
             }
         } else {
             utilisableQuantity =
@@ -341,7 +352,12 @@ contract Multipool is ERC20, Ownable {
 
         {
             {
-                uint amountIn = shareToAmount(_share, context, assetOut, _share);
+                uint amountIn = shareToAmount(
+                    _share,
+                    context,
+                    assetOut,
+                    _share
+                );
                 _amountOut = evalBurn(context, assetOut, amountIn);
 
                 refundOut = context.userCashbackBalance;
@@ -356,7 +372,10 @@ contract Multipool is ERC20, Ownable {
             IERC20(_assetOut).transfer(_to, (_amountOut + refundOut));
         }
         if (refundIn + (transferredAmount - _amountIn) > 0) {
-            IERC20(_assetIn).transfer(_to, refundIn + (transferredAmount - _amountIn));
+            IERC20(_assetIn).transfer(
+                _to,
+                refundIn + (transferredAmount - _amountIn)
+            );
         }
         emit AssetQuantityChange(_assetIn, assetIn.quantity);
         emit AssetQuantityChange(_assetOut, assetOut.quantity);
@@ -379,7 +398,10 @@ contract Multipool is ERC20, Ownable {
     }
 
     function updateAssetPercents(address _asset, uint _percent) public {
-        require(percentsSource == msg.sender, "MULTIPOOL: only percents setter");
+        require(
+            percentsSource == msg.sender,
+            "MULTIPOOL: only percents setter"
+        );
         MpAsset memory asset = assets[_asset];
         totalAssetPercents = totalAssetPercents - asset.percent + _percent;
         asset.percent = _percent;
@@ -409,6 +431,13 @@ contract Multipool is ERC20, Ownable {
     function setBaseMintFee(uint _baseMintFee) external onlyOwner {
         baseMintFee = _baseMintFee;
         emit BaseMintFeeChange(_baseMintFee);
+    }
+
+    function setBaseFeeCashbackRatio(
+        uint _depegBaseFeeRatio
+    ) external onlyOwner {
+        depegBaseFeeRatio = _depegBaseFeeRatio;
+        emit DepegBaseFeeRatioChange(_depegBaseFeeRatio);
     }
 
     function setBaseBurnFee(uint _baseBurnFee) external onlyOwner {

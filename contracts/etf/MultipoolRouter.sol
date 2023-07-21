@@ -62,7 +62,11 @@ contract MultipoolRouter {
         uint deadline
     ) public ensure(deadline) {
         IERC20(_pool).transferFrom(msg.sender, _pool, _sharesIn.unwrap());
-        (uint amountOut, ) = Multipool(_pool).burn(_asset, _sharesIn.unwrap(), _to);
+        (uint amountOut, ) = Multipool(_pool).burn(
+            _asset,
+            _sharesIn.unwrap(),
+            _to
+        );
 
         require(
             ud(amountOut) >= _amountOutMin,
