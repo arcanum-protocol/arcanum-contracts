@@ -22,6 +22,7 @@ struct MpContext {
     UD60x18 deviationPercentLimit;
     UD60x18 operationBaseFee;
     UD60x18 userCashbackBalance;
+    UD60x18 depegBaseFeeRatio;
 }
 
 library MpMath {
@@ -40,6 +41,7 @@ library MpMath {
         SD59x18 deviationPercentLimit;
         SD59x18 operationBaseFee;
         SD59x18 userCashbackBalance;
+        SD59x18 depegBaseFeeRatio;
     }
 
     function sign(
@@ -52,7 +54,8 @@ library MpMath {
                 curveCoef: sign(c.curveCoef),
                 deviationPercentLimit: sign(c.deviationPercentLimit),
                 operationBaseFee: sign(c.operationBaseFee),
-                userCashbackBalance: sign(c.userCashbackBalance)
+                userCashbackBalance: sign(c.userCashbackBalance),
+                depegBaseFeeRatio: sign(c.depegBaseFeeRatio)
             });
     }
 
@@ -148,9 +151,13 @@ library MpMath {
                 utilisableQuantity) /
                 context.deviationPercentLimit /
                 (context.deviationPercentLimit - deviationNew);
+            UD60x18 collectedBaseDepegFee = collectedDeviationFee *
+                context.depegBaseFeeRatio;
             asset.collectedCashbacks =
                 asset.collectedCashbacks +
-                collectedDeviationFee;
+                collectedDeviationFee -
+                collectedBaseDepegFee;
+            asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
             suppliedQuantity =
                 utilisableQuantity +
                 utilisableQuantity *
@@ -233,11 +240,16 @@ library MpMath {
             require(withFees != ud(0), "no curve solutions found");
 
             UD60x18 _operationBaseFee = context.operationBaseFee;
+            UD60x18 collectedCashbacks = (suppliedQuantity -
+                utilisableQuantity *
+                (ud(1e18) + _operationBaseFee));
+            UD60x18 collectedBaseDepegFee = collectedCashbacks *
+                context.depegBaseFeeRatio;
             asset.collectedCashbacks =
                 asset.collectedCashbacks +
-                (suppliedQuantity -
-                    utilisableQuantity *
-                    (ud(1e18) + _operationBaseFee));
+                collectedCashbacks -
+                collectedBaseDepegFee;
+            asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
         }
 
         asset.quantity = asset.quantity - suppliedQuantity;
@@ -322,11 +334,16 @@ library MpMath {
             //         * (sd(1e18) + context.operationBaseFee) == suppliedQuantity, "deviation overflows limit");
             // asset.collectedCashbacks = asset.collectedCashbacks + cashbacks;
             UD60x18 _operationBaseFee = context.operationBaseFee;
+            UD60x18 collectedCashbacks = (suppliedQuantity -
+                utilisableQuantity *
+                (ud(1e18) + _operationBaseFee));
+            UD60x18 collectedBaseDepegFee = collectedCashbacks *
+                context.depegBaseFeeRatio;
             asset.collectedCashbacks =
                 asset.collectedCashbacks +
-                (suppliedQuantity -
-                    utilisableQuantity *
-                    (ud(1e18) + _operationBaseFee));
+                collectedCashbacks -
+                collectedBaseDepegFee;
+            asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
         }
 
         asset.quantity = asset.quantity + utilisableQuantity;
@@ -385,11 +402,16 @@ library MpMath {
                 suppliedQuantity /
                 (ud(1e18) + feeRatio + context.operationBaseFee);
 
+            UD60x18 collectedCashbacks = (suppliedQuantity -
+                utilisableQuantity *
+                (ud(1e18) + context.operationBaseFee));
+            UD60x18 collectedBaseDepegFee = collectedCashbacks *
+                context.depegBaseFeeRatio;
             asset.collectedCashbacks =
                 asset.collectedCashbacks +
-                (suppliedQuantity -
-                    utilisableQuantity *
-                    (ud(1e18) + context.operationBaseFee));
+                collectedCashbacks -
+                collectedBaseDepegFee;
+            asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
         }
 
         asset.quantity = asset.quantity - suppliedQuantity;
