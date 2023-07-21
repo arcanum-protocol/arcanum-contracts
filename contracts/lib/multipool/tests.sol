@@ -32,6 +32,10 @@ contract TestMultipoolMath {
             a.userCashbackBalance == b.userCashbackBalance,
             "userCashbackBalance not equal"
         );
+        require(
+            a.depegBaseFeeRatio == b.depegBaseFeeRatio,
+            "depegBaseFeeRatio not equal"
+        );
     }
 
     function assertAsset(MpAsset memory a, MpAsset memory b) public {
@@ -45,9 +49,9 @@ contract TestMultipoolMath {
         require(a.percent == b.percent, "percent not equal");
     }
 
-    //TODO: reversed mint with zero balance
     function mintWithZeroBalanceReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(0e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -67,6 +71,7 @@ contract TestMultipoolMath {
         UD60x18 suppliedQuantity = context.mintRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(100000000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -93,6 +98,7 @@ contract TestMultipoolMath {
 
     function mintWithZeroBalance() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(0e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -112,6 +118,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(100000000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -138,6 +145,7 @@ contract TestMultipoolMath {
 
     function mintWithDeviationFee() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -157,6 +165,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -183,6 +192,7 @@ contract TestMultipoolMath {
 
     function mintWithDeviationFeeReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -202,6 +212,7 @@ contract TestMultipoolMath {
         UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -228,6 +239,7 @@ contract TestMultipoolMath {
 
     function burnWithDeviationFeeReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -247,6 +259,7 @@ contract TestMultipoolMath {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18) -
                 ud(5005866126138531618) *
                 ud(10e18),
@@ -275,6 +288,7 @@ contract TestMultipoolMath {
 
     function burnWithDeviationFee() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -297,6 +311,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18) -
                 ud(5005866126138531618 - 397) *
                 ud(10e18),
@@ -325,6 +340,7 @@ contract TestMultipoolMath {
 
     function mintWithNoDeviationFee() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -344,6 +360,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -370,6 +387,7 @@ contract TestMultipoolMath {
 
     function mintWithNoDeviationFeeReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -389,6 +407,7 @@ contract TestMultipoolMath {
         UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -415,6 +434,7 @@ contract TestMultipoolMath {
 
     function burnWithNoDeviationFeeReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -434,6 +454,7 @@ contract TestMultipoolMath {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(949.995e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -460,6 +481,7 @@ contract TestMultipoolMath {
 
     function burnWithNoDeviationFee() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -480,6 +502,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(949.995e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -506,6 +529,7 @@ contract TestMultipoolMath {
 
     function mintWithNoDeviationFeeAndCashback() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -525,6 +549,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -551,6 +576,7 @@ contract TestMultipoolMath {
 
     function mintWithNoDeviationFeeAndCashbackReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -570,6 +596,7 @@ contract TestMultipoolMath {
         UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -596,6 +623,7 @@ contract TestMultipoolMath {
 
     function burnWithNoDeviationFeeAndCashbackReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -615,6 +643,7 @@ contract TestMultipoolMath {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(949.995e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -641,6 +670,7 @@ contract TestMultipoolMath {
 
     function burnWithNoDeviationFeeAndCashback() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -661,6 +691,7 @@ contract TestMultipoolMath {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(949.995e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -709,6 +740,10 @@ contract TestMultipoolMathCorner {
             a.userCashbackBalance == b.userCashbackBalance,
             "userCashbackBalance not equal"
         );
+        require(
+            a.depegBaseFeeRatio == b.depegBaseFeeRatio,
+            "depegBaseFeeRatio not equal"
+        );
     }
 
     function assertAsset(MpAsset memory a, MpAsset memory b) public {
@@ -732,6 +767,7 @@ contract TestMultipoolMathCorner {
     // change no deviation (from - to +)
     function mintWithDeviationBiggerThanLimit() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -751,6 +787,7 @@ contract TestMultipoolMathCorner {
         UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -777,6 +814,7 @@ contract TestMultipoolMathCorner {
 
     function mintWithDeviationBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -796,6 +834,7 @@ contract TestMultipoolMathCorner {
         UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1050e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -822,6 +861,7 @@ contract TestMultipoolMathCorner {
 
     function burnWithDeviationBiggerThanLimit() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -842,6 +882,7 @@ contract TestMultipoolMathCorner {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18 - 50.005e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -868,6 +909,7 @@ contract TestMultipoolMathCorner {
 
     function burnWithDeviationBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -887,6 +929,7 @@ contract TestMultipoolMathCorner {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18 - 50.005e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -913,6 +956,7 @@ contract TestMultipoolMathCorner {
 
     function mintTooMuch() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -932,6 +976,7 @@ contract TestMultipoolMathCorner {
         UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18 + 249995289120819944910),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -960,6 +1005,7 @@ contract TestMultipoolMathCorner {
 
     function mintTooMuchReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -979,6 +1025,7 @@ contract TestMultipoolMathCorner {
         UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
 
         MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18 + 249995289120819944910),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1010,6 +1057,7 @@ contract TestMultipoolMathCorner {
 
     function burnTooMuch() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1032,6 +1080,7 @@ contract TestMultipoolMathCorner {
 
     function burnTooMuchReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1053,6 +1102,7 @@ contract TestMultipoolMathCorner {
 
     function mintTooMuchBeingBiggerThanLimit() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1074,6 +1124,7 @@ contract TestMultipoolMathCorner {
 
     function mintTooMuchBeingBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1095,6 +1146,7 @@ contract TestMultipoolMathCorner {
 
     function burnTooMuchBeingBiggerThanLimit() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1117,6 +1169,7 @@ contract TestMultipoolMathCorner {
 
     function burnTooMuchBeingBiggerThanLimitMoreThenQuantity() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1139,6 +1192,7 @@ contract TestMultipoolMathCorner {
 
     function burnTooMuchBeingBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1160,6 +1214,7 @@ contract TestMultipoolMathCorner {
 
     function burnTooMuchBeingBiggerThanLimitMoreThenQuantityReversed() public {
         MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
             totalAssetPercents: ud(100e18),
             curveCoef: ud(0.0003e18),
@@ -1177,5 +1232,216 @@ contract TestMultipoolMathCorner {
         UD60x18 utilisableQuantity = ud(5000e18);
 
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
+    }
+
+    function mintWithDeviationFeeAndDepegBaseFee() public {
+        MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(25e16), // 25% goes to fees
+            totalCurrentUsdAmount: ud(1000e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory asset = MpAsset({
+            quantity: ud(50e18),
+            price: ud(10e18),
+            collectedFees: ud(0e18),
+            collectedCashbacks: ud(0e18),
+            percent: ud(50e18)
+        });
+        UD60x18 suppliedQuantity = ud(5.0051875e18);
+
+        UD60x18 utilisableQuantity = context.mint(asset, suppliedQuantity);
+
+        MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(25e16), // 25% goes to fees
+            totalCurrentUsdAmount: ud(1050e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory resultAsset = MpAsset({
+            quantity: ud(55e18),
+            price: ud(10e18),
+            collectedFees: ud(
+                0.0005e18 + uint(0.0051875e18 - 0.0005e18) / uint(4)
+            ),
+            collectedCashbacks: ud(
+                (uint(0.0051875e18 - 0.0005e18) * uint(3)) / uint(4)
+            ),
+            percent: ud(50e18)
+        });
+        UD60x18 resultUtilisableQuantity = ud(5e18);
+
+        require(
+            resultUtilisableQuantity == utilisableQuantity,
+            "utilisable quantity not match"
+        );
+        assertAsset(resultAsset, asset);
+        assertContext(resultContext, context);
+    }
+
+    function mintWithDeviationFeeReversedAndDepegBaseFee() public {
+        MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(1e18), // 100% goes to fees
+            totalCurrentUsdAmount: ud(1000e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory asset = MpAsset({
+            quantity: ud(50e18),
+            price: ud(10e18),
+            collectedFees: ud(0e18),
+            collectedCashbacks: ud(0e18),
+            percent: ud(50e18)
+        });
+        UD60x18 utilisableQuantity = ud(5e18);
+
+        UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
+
+        MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(1e18), // 100% goes to fees
+            totalCurrentUsdAmount: ud(1050e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory resultAsset = MpAsset({
+            quantity: ud(55e18),
+            price: ud(10e18),
+            collectedFees: ud(0.0005e18 + 5005187499999999906 - 5.0005e18),
+            collectedCashbacks: ud(0),
+            percent: ud(50e18)
+        });
+        UD60x18 resultSuppliableQuantity = ud(5005187499999999906);
+
+        require(
+            resultSuppliableQuantity == suppliableQuantity,
+            "suppliable quantity not match"
+        );
+        assertAsset(resultAsset, asset);
+        assertContext(resultContext, context);
+    }
+
+    function burnWithDeviationFeeReversedAndDepegBaseFee() public {
+        MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(5e17), //50% goes to base fee
+            totalCurrentUsdAmount: ud(1000e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory asset = MpAsset({
+            quantity: ud(50e18),
+            price: ud(10e18),
+            collectedFees: ud(0e18),
+            collectedCashbacks: ud(0e18),
+            percent: ud(50e18)
+        });
+        UD60x18 utilisableQuantity = ud(5e18);
+
+        UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
+
+        MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(5e17), //50% goes to base fee
+            totalCurrentUsdAmount: ud(1000e18) -
+                ud(5005866126138531618) *
+                ud(10e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory resultAsset = MpAsset({
+            quantity: ud(50e18) - ud(5005866126138531618),
+            price: ud(10e18),
+            collectedFees: ud(
+                0.0005e18 + uint(5005866126138531618 - 5.0005e18) / uint(2)
+            ),
+            collectedCashbacks: ud(
+                uint(5005866126138531618 - 5.0005e18) / uint(2)
+            ),
+            percent: ud(50e18)
+        });
+        UD60x18 resultSuppliableQuantity = ud(5005866126138531618);
+
+        require(
+            resultSuppliableQuantity == suppliableQuantity,
+            "suppliable quantity not match"
+        );
+        assertAsset(resultAsset, asset);
+        assertContext(resultContext, context);
+    }
+
+    function burnWithDeviationFeeAndDepegBaseFee() public {
+        MpContext memory context = MpContext({
+            depegBaseFeeRatio: ud(1e17), // 10% goes to base fee
+            totalCurrentUsdAmount: ud(1000e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory asset = MpAsset({
+            quantity: ud(50e18),
+            price: ud(10e18),
+            collectedFees: ud(0e18),
+            collectedCashbacks: ud(0e18),
+            percent: ud(50e18)
+        });
+        //TODO: 397 wei difference between burn and reversed burn. This might take place bacuse
+        // of square root calculation or any other heavy ops. Find out few tests to show this
+        // diff won't grow with other numbers a lot
+        UD60x18 suppliedQuantity = ud(5005866126138531618 - 397);
+
+        UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
+
+        MpContext memory resultContext = MpContext({
+            depegBaseFeeRatio: ud(1e17), // 10% goes to base fee
+            totalCurrentUsdAmount: ud(1000e18) -
+                ud(5005866126138531618 - 397) *
+                ud(10e18),
+            totalAssetPercents: ud(100e18),
+            curveCoef: ud(0.0003e18),
+            deviationPercentLimit: ud(0.1e18),
+            operationBaseFee: ud(0.0001e18),
+            userCashbackBalance: ud(0e18)
+        });
+        MpAsset memory resultAsset = MpAsset({
+            quantity: ud(50e18) - ud(5005866126138531618 - 397),
+            price: ud(10e18),
+            collectedFees: ud(
+                0.0005e18 +
+                    uint(5005866126138531618 - 397 - 5.0005e18) /
+                    uint(10)
+            ),
+            collectedCashbacks: ud(
+                (uint(5005866126138531618 - 397 - 5.0005e18) * uint(9)) /
+                    uint(10) +
+                    1
+            ),
+            percent: ud(50e18)
+        });
+        UD60x18 resultUtilisableQuantity = ud(5e18);
+
+        require(
+            resultUtilisableQuantity == utilisableQuantity,
+            "utilisable quantity not match"
+        );
+        assertAsset(resultAsset, asset);
+        assertContext(resultContext, context);
     }
 }

@@ -433,9 +433,7 @@ contract Multipool is ERC20, Ownable {
         emit BaseMintFeeChange(_baseMintFee);
     }
 
-    function setBaseFeeCashbackRatio(
-        uint _depegBaseFeeRatio
-    ) external onlyOwner {
+    function setDepegBaseFeeRatio(uint _depegBaseFeeRatio) external onlyOwner {
         depegBaseFeeRatio = _depegBaseFeeRatio;
         emit DepegBaseFeeRatioChange(_depegBaseFeeRatio);
     }
