@@ -9,6 +9,8 @@ import "hardhat/console.sol";
 import {MpAsset, MpContext} from "./MultipoolMath.sol";
 import "./MultipoolMath.sol";
 
+//TODO: add test to burn till zero
+
 contract TestMultipoolMath {
     function assertContext(MpContext memory a, MpContext memory b) public {
         require(
