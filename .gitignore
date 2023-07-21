@@ -20,3 +20,4 @@ typechain-types/
 *.lock
 package-lock.json
 .deps
+./tokens.json
