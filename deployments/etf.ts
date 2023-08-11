@@ -75,6 +75,56 @@ async function awaitBytecode(address: string, hre: HardhatRuntimeEnvironment) {
     await delay(30000);
 }
 
+task("first-mint", "Deploy whole infrastructure with specified token names list")
+    .addParam("multipool", "address")
+    .addParam("token", "token address")
+    .addParam("amount", "token address")
+    .setAction(async (argsTask, hre) => {
+        const [deployer] = await hre.ethers.getSigners();
+        const Multipool = await hre.ethers.getContractAt("Multipool", argsTask.multipool);
+        const Token = await hre.ethers.getContractAt("MockERC20", argsTask.token);
+        await Token.connect(deployer).mint(argsTask.multipool, argsTask.amount);
+        await delay(13000);
+        await Multipool.connect(deployer).mint(argsTask.token, argsTask.amount, deployer.address);
+        //await tx.wait();
+        await delay(13000);
+    });
+
+task("add-percents", "Deploy whole infrastructure with specified token names list")
+    .addParam("multipoolAddress", "address")
+    .addParam("tokens", "Json file with token info")
+    .addParam("deployRouter", "Defines wether to deploy MultipoolRouter", true, types.boolean, true)
+    .addParam("verify", "Verify contract on Etherscan", true, types.boolean, true)
+    .setAction(async (argsTask, hre) => {
+        const [deployer] = await hre.ethers.getSigners();
+        const tokenList = JSON.parse(fs.readFileSync(argsTask.tokens, { encoding: 'utf8', flag: 'r' }));
+        // const MULTIPOOL = await hre.ethers.getContractFactory("MultipoolRouter");
+        // const Multipool = MULTIPOOL.attach(argsTask.multipoolAddress);
+        const Multipool = await hre.ethers.getContractAt("Multipool", argsTask.multipoolAddress);
+        for (let i = 0; i < tokenList.length; i++) {
+            let token = tokenList[i];
+            if (!token.address) {
+                console.log("Deploying ", token.symbol);
+                token.address = await hre.run("deploy-erc20-token", {
+                    name: token.name,
+                    symbol: token.symbol,
+                    verify: argsTask.verify
+                });
+            }
+            console.log("setting share for ", token.symbol);
+            let tx = await Multipool.connect(deployer).updateAssetPercents(token.address, token.initialShare);
+            //await tx.wait();
+            await delay(13000);
+        }
+
+        let tx = await Multipool.connect(deployer).updateAssetPercents('0x588F899FeFf77CD4f34D05eC435ed435A31DecCd',
+            0);
+        if (argsTask.deployRouter) {
+            await hre.run("deploy-multipool-router", {
+                verify: argsTask.verify
+            });
+        }
+    });
 
 task("deploy-all", "Deploy whole infrastructure with specified token names list")
     .addParam("name", "Multipool name")
@@ -102,7 +152,7 @@ task("deploy-all", "Deploy whole infrastructure with specified token names list"
             }
             console.log("setting share for ", token.symbol);
             await Multipool.connect(deployer).updateAssetPercents(token.address, token.initialShare);
-            delay(10000);
+            await delay(10000);
         }
         if (argsTask.deployRouter) {
             await hre.run("deploy-multipool-router", {
@@ -194,10 +244,11 @@ task("deploy-multipool-router", "Deploy ETF router")
                     " has insufficient funds to deploy contracts",
                 );
             }
+            console.log(e);
             process.exit(1);
         }
 
-        console.log("ETF deployed to:", clicolor.bgGreen(ETFContract.address));
+        console.log("ROUTER deployed to:", clicolor.bgGreen(ETFContract.address));
 
         if (argsTask.verify) {
             await awaitBytecode(ETFContract.address, hre);
@@ -246,6 +297,7 @@ task("deploy-multipool", "Deploy ETF with standart parameters")
                     " has insufficient funds to deploy contracts",
                 );
             }
+            console.log(e);
             process.exit(1);
         }
 

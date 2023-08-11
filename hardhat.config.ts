@@ -47,6 +47,18 @@ const config: HardhatUserConfig = {
                 ? [process.env.PRIVATE_KEY]
                 : [],
         },
+        arbitrum_goerli: {
+            url: process.env.ARBITRUM_GOERLI_URL || "",
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
+        },
+        op_bnb: {
+            url: process.env.OP_BNB_URL || "",
+            accounts: process.env.PRIVATE_KEY !== undefined
+                ? [process.env.PRIVATE_KEY]
+                : [],
+        },
         mumbai: {
             url: process.env.MUMBAI_URL || "",
             accounts: process.env.PRIVATE_KEY !== undefined
@@ -71,6 +83,9 @@ const config: HardhatUserConfig = {
                 : "",
             polygonMumbai: process.env.MUMBAI_SCAN_API_KEY !== undefined
                 ? process.env.MUMBAI_SCAN_API_KEY
+                : "",
+            arbitrumGoerli: process.env.ARBITRUM_GOERLI_SCAN_API_KEY !== undefined
+                ? process.env.ARBITRUM_GOERLI_SCAN_API_KEY
                 : "",
         },
     },

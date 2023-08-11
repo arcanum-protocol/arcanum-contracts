@@ -289,7 +289,7 @@ describe("Multipool contract maths", function() {
         ], ["-199980001999800019998001", "199980001999800019998001"]);
     });
 
-    it.only("Swapping", async function() {
+    it("Swapping", async function() {
         let executionResult;
         let asset1: MpAsset;
         let asset2: MpAsset;
