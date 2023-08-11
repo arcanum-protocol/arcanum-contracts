@@ -75,6 +75,16 @@ async function awaitBytecode(address: string, hre: HardhatRuntimeEnvironment) {
     await delay(30000);
 }
 
+task("vie", "Deploy whole infrastructure with specified token names list")
+    .addParam("multipool", "address")
+    .setAction(async (argsTask, hre) => {
+        const [deployer] = await hre.ethers.getSigners();
+        console.log(argsTask.multipool);
+        const Multipool = await hre.ethers.getContractAt("Multipool", argsTask.multipool);
+        const ctx = await Multipool.totalCurrentUsdAmount();
+        console.log(ctx);
+    });
+
 task("first-mint", "Deploy whole infrastructure with specified token names list")
     .addParam("multipool", "address")
     .addParam("token", "token address")

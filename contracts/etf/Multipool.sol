@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {ERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import "hardhat/console.sol";
 
 struct MpAsset {
     uint quantity;
