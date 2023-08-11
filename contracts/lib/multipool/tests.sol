@@ -710,6 +710,8 @@ contract TestMultipoolMath {
         });
         UD60x18 resultUtilisableQuantity = ud(5e18);
 
+        console.log(asset.collectedCashbacks.unwrap());
+        console.log(resultAsset.collectedCashbacks.unwrap());
         require(
             resultUtilisableQuantity == utilisableQuantity,
             "utilisable quantity not match"

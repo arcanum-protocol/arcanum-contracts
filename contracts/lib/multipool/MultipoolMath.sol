@@ -367,7 +367,7 @@ library MpMath {
             "can't burn more assets than exist"
         );
 
-        if (context.totalCurrentUsdAmount < suppliedQuantity * asset.price) {
+        if (context.totalCurrentUsdAmount > suppliedQuantity * asset.price) {
             UD60x18 deviationNew = calculateDeviationBurn(
                 context,
                 asset,

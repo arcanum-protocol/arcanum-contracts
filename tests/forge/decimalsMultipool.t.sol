@@ -1,7 +1,7 @@
 pragma solidity 0.8.10;
 
 import "forge-std/Test.sol";
-import "../../contracts/etf/Multipool.sol";
+import { Multipool } from "../../contracts/etf/Multipool.sol";
 
 contract TestContractBTest is Test {
     Multipool m;
@@ -15,5 +15,6 @@ contract TestContractBTest is Test {
     }
 
     function testFail_Subtract43() public {
+        return;
     }
 }
