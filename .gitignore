@@ -9,6 +9,7 @@ coverage.json
 typechain
 pnpm-lock.yaml
 package-lock.json
+*.DS_Store
 
 #Hardhat files
 cache
