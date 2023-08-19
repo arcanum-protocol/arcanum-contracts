@@ -2,10 +2,9 @@ pragma solidity 0.8.10;
 
 import "forge-std/Test.sol";
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "openzeppelin/access/Ownable.sol";
 import {UD60x18, ud} from "@prb/math/src/UD60x18.sol";
-import "hardhat/console.sol";
 
 import {MpAsset, MpContext} from "./MultipoolMath.sol";
 import "./MultipoolMath.sol";
