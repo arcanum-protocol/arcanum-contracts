@@ -3,8 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "../interfaces/IUniswapV2Pair.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "hardhat/console.sol";
+import "openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MpAsset, MpContext} from "../lib/multipool/MultipoolMath.sol";
 
 import {UD60x18, ud} from "@prb/math/src/UD60x18.sol";
