@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import {SD59x18, sd} from "@prb/math/src/SD59x18.sol";
-import {UD60x18, ud} from "@prb/math/src/UD60x18.sol";
-import "hardhat/console.sol";
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "openzeppelin/access/Ownable.sol";
+import {SD59x18, sd} from "prb-math/SD59x18.sol";
+import {UD60x18, ud} from "prb-math/UD60x18.sol";
 
 struct MpAsset {
     UD60x18 quantity;
