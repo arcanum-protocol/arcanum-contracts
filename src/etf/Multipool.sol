@@ -270,7 +270,10 @@ contract Multipool is ERC20, Ownable {
         uint _share,
         address _to
     ) public returns (uint _amountIn, uint refund) {
+        require(_share != 0, "MULTIPOOL: zero share");
         MpAsset memory asset = assets[_asset];
+        require(asset.price != 0, "MULTIPOOL: zero price");
+        require(asset.percent != 0, "MULTIPOOL: zero percent");
         MpContext memory context = getContext(baseMintFee);
 
         uint transferredAmount = getTransferredAmount(asset, _asset);
@@ -304,7 +307,10 @@ contract Multipool is ERC20, Ownable {
         uint _share,
         address _to
     ) public returns (uint _amountOut, uint refund) {
+        require(_share != 0, "MULTIPOOL: zero share");
         MpAsset memory asset = assets[_asset];
+        require(asset.price != 0, "MULTIPOOL: zero price");
+        require(asset.percent != 0, "MULTIPOOL: zero percent");
         MpContext memory context = getContext(baseBurnFee);
 
         uint amountIn = shareToAmount(_share, context, asset, 0);
@@ -396,7 +402,7 @@ contract Multipool is ERC20, Ownable {
         emit AssetPriceChange(_asset, _price);
     }
 
-    function updateAssetPercents(address _asset, uint _percent) public {
+    function updateTargetShare(address _asset, uint _percent) public {
         require(
             percentsSource == msg.sender,
             "MULTIPOOL: only percents setter"

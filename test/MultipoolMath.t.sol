@@ -1,13 +1,15 @@
-pragma solidity 0.8.10;
+pragma solidity >=0.8.19;
 
 import "forge-std/Test.sol";
 
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
-import {UD60x18, ud} from "@prb/math/src/UD60x18.sol";
+import {UD60x18, ud} from "prb-math/UD60x18.sol";
 
-import {MpAsset, MpContext} from "./MultipoolMath.sol";
-import "./MultipoolMath.sol";
+import {MpAsset, MpContext} from "../src/lib/multipool/MultipoolMath.sol";
+import "../src/lib/multipool/MultipoolMath.sol";
+
+//TODO: add test to burn till zero
 
 contract MultipoolMathTest is Test {
 
@@ -52,7 +54,7 @@ contract MultipoolMathTest is Test {
         require(a.percent == b.percent, "percent not equal");
     }
 
-    function mintWithZeroBalanceReversed() public {
+    function test_mintWithZeroBalanceReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(0e18),
@@ -99,7 +101,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithZeroBalance() public {
+    function test_mintWithZeroBalance() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(0e18),
@@ -146,7 +148,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithDeviationFee() public {
+    function test_mintWithDeviationFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -193,7 +195,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithDeviationFeeReversed() public {
+    function test_mintWithDeviationFeeReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -240,7 +242,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithDeviationFeeReversed() public {
+    function test_burnWithDeviationFeeReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -289,7 +291,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithDeviationFee() public {
+    function test_burnWithDeviationFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -341,7 +343,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithNoDeviationFee() public {
+    function test_mintWithNoDeviationFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -388,7 +390,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithNoDeviationFeeReversed() public {
+    function test_mintWithNoDeviationFeeReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -435,7 +437,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithNoDeviationFeeReversed() public {
+    function test_burnWithNoDeviationFeeReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -482,7 +484,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithNoDeviationFee() public {
+    function test_burnWithNoDeviationFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -530,7 +532,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithNoDeviationFeeAndCashback() public {
+    function test_mintWithNoDeviationFeeAndCashback() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -577,7 +579,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithNoDeviationFeeAndCashbackReversed() public {
+    function test_mintWithNoDeviationFeeAndCashbackReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -624,7 +626,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithNoDeviationFeeAndCashbackReversed() public {
+    function test_burnWithNoDeviationFeeAndCashbackReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -671,7 +673,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithNoDeviationFeeAndCashback() public {
+    function test_burnWithNoDeviationFeeAndCashback() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -729,7 +731,7 @@ contract MultipoolMathTest is Test {
     //TODO: if deviation old == 0 calculate cashback
 
     // change no deviation (from - to +)
-    function mintWithDeviationBiggerThanLimit() public {
+    function test_mintWithDeviationBiggerThanLimit() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -776,7 +778,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithDeviationBiggerThanLimitReversed() public {
+    function test_mintWithDeviationBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -823,7 +825,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithDeviationBiggerThanLimit() public {
+    function test_burnWithDeviationBiggerThanLimit() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -871,7 +873,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithDeviationBiggerThanLimitReversed() public {
+    function test_burnWithDeviationBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -918,7 +920,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintTooMuch() public {
+    function test_mintTooMuch() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -967,7 +969,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintTooMuchReversed() public {
+    function test_mintTooMuchReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1019,7 +1021,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnTooMuch() public {
+    function testFail_burnTooMuch() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1042,7 +1044,7 @@ contract MultipoolMathTest is Test {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
     }
 
-    function burnTooMuchReversed() public {
+    function testFail_burnTooMuchReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1064,7 +1066,7 @@ contract MultipoolMathTest is Test {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
     }
 
-    function mintTooMuchBeingBiggerThanLimit() public {
+    function testFail_mintTooMuchBeingBiggerThanLimit() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1086,7 +1088,7 @@ contract MultipoolMathTest is Test {
         UD60x18 suppliedQuantity = context.mint(asset, utilisableQuantity);
     }
 
-    function mintTooMuchBeingBiggerThanLimitReversed() public {
+    function testFail_mintTooMuchBeingBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1108,7 +1110,7 @@ contract MultipoolMathTest is Test {
         UD60x18 suppliableQuantity = context.mintRev(asset, utilisableQuantity);
     }
 
-    function burnTooMuchBeingBiggerThanLimit() public {
+    function testFail_burnTooMuchBeingBiggerThanLimit() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1131,7 +1133,7 @@ contract MultipoolMathTest is Test {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
     }
 
-    function burnTooMuchBeingBiggerThanLimitMoreThenQuantity() public {
+    function testFail_burnTooMuchBeingBiggerThanLimitMoreThenQuantity() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1154,7 +1156,7 @@ contract MultipoolMathTest is Test {
         UD60x18 utilisableQuantity = context.burn(asset, suppliedQuantity);
     }
 
-    function burnTooMuchBeingBiggerThanLimitReversed() public {
+    function testFail_burnTooMuchBeingBiggerThanLimitReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1176,7 +1178,7 @@ contract MultipoolMathTest is Test {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
     }
 
-    function burnTooMuchBeingBiggerThanLimitMoreThenQuantityReversed() public {
+    function testFail_burnTooMuchBeingBiggerThanLimitMoreThenQuantityReversed() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(0),
             totalCurrentUsdAmount: ud(1000e18),
@@ -1198,7 +1200,7 @@ contract MultipoolMathTest is Test {
         UD60x18 suppliableQuantity = context.burnRev(asset, utilisableQuantity);
     }
 
-    function mintWithDeviationFeeAndDepegBaseFee() public {
+    function test_mintWithDeviationFeeAndDepegBaseFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(25e16), // 25% goes to fees
             totalCurrentUsdAmount: ud(1000e18),
@@ -1249,7 +1251,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function mintWithDeviationFeeReversedAndDepegBaseFee() public {
+    function test_mintWithDeviationFeeReversedAndDepegBaseFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(1e18), // 100% goes to fees
             totalCurrentUsdAmount: ud(1000e18),
@@ -1296,7 +1298,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithDeviationFeeReversedAndDepegBaseFee() public {
+    function test_burnWithDeviationFeeReversedAndDepegBaseFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(5e17), //50% goes to base fee
             totalCurrentUsdAmount: ud(1000e18),
@@ -1349,7 +1351,7 @@ contract MultipoolMathTest is Test {
         assertContext(resultContext, context);
     }
 
-    function burnWithDeviationFeeAndDepegBaseFee() public {
+    function test_burnWithDeviationFeeAndDepegBaseFee() public {
         MpContext memory context = MpContext({
             depegBaseFeeRatio: ud(1e17), // 10% goes to base fee
             totalCurrentUsdAmount: ud(1000e18),
