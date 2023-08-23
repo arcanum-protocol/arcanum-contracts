@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
-import {MpAsset, MpContext} from "../lib/multipool/MultipoolMath.sol";
+import {MpAsset, MpContext} from "./MpCommonMath.sol";
 
 import {UD60x18, ud} from "prb-math/UD60x18.sol";
 
@@ -15,27 +15,6 @@ contract MultipoolRouter {
     }
 
     constructor() {}
-
-    function convertContext(
-        UintMpContext memory ctx
-    ) internal pure returns (MpContext memory context) {
-        context.totalCurrentUsdAmount = ud(ctx.totalCurrentUsdAmount);
-        context.totalAssetPercents = ud(ctx.totalAssetPercents);
-        context.curveCoef = ud(ctx.halfDeviationFeeRatio);
-        context.deviationPercentLimit = ud(ctx.deviationPercentLimit);
-        context.operationBaseFee = ud(ctx.operationBaseFee);
-        context.userCashbackBalance = ud(ctx.userCashbackBalance);
-    }
-
-    function convertAsset(
-        UintMpAsset memory _asset
-    ) internal pure returns (MpAsset memory asset) {
-        asset.quantity = ud(_asset.quantity);
-        asset.price = ud(_asset.price);
-        asset.collectedFees = ud(_asset.collectedFees);
-        asset.collectedCashbacks = ud(_asset.collectedCashbacks);
-        asset.percent = ud(_asset.percent);
-    }
 
     function mintWithSharesOut(
         address _pool,

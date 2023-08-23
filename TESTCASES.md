@@ -62,7 +62,9 @@ Here are 9 potential test cases for the Multipool ETF contract:
 
         check all update events suit
         check all operation events suit
-        
+
+        swap same tokens
+        swap existing and non existing tokens
     ```
 
 
