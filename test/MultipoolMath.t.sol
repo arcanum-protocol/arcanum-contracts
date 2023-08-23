@@ -6,14 +6,15 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {UD60x18, ud} from "prb-math/UD60x18.sol";
 
-import {MpAsset, MpContext} from "../src/lib/multipool/MultipoolMath.sol";
-import "../src/lib/multipool/MultipoolMath.sol";
+import {MpAsset, MpContext} from "../src/multipool/MpCommonMath.sol";
+//import "../src/multipool/MultipoolMath.sol";
 
 //TODO: add test to burn till zero
 
 contract MultipoolMathTest is Test {
 
-    function setUp() public {}
+    function setUp() public {
+    }
 
     function assertContext(MpContext memory a, MpContext memory b) public {
         require(
