@@ -3,7 +3,7 @@ pragma solidity >=0.8.19;
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
-import { Multipool, MpContext, MpAsset } from "../../src/etf/Multipool.sol";
+import { Multipool, MpContext, MpAsset } from "../../src/multipool/Multipool.sol";
 
 contract MultipoolSingleAssetTest is Test {
     Multipool mp;
@@ -23,19 +23,19 @@ contract MultipoolSingleAssetTest is Test {
 
         vm.expectRevert();
         vm.prank(address(0));
-        mp.setHalfDeviationFeeRatio(1e16);
+        mp.setHalfDeviationFee(1e16);
 
         vm.expectRevert();
         vm.prank(address(0));
-        mp.setDeviationPercentLimit(1e16);
+        mp.setDeviationLimit(1e16);
 
         vm.expectRevert();
         vm.prank(address(0));
-        mp.setPriceSource(address(0));
+        mp.setPriceAuthority(address(0));
 
         vm.expectRevert();
         vm.prank(address(0));
-        mp.setPercentsSource(address(0));
+        mp.setTargetShareAuthority(address(0));
     }
 
     function test_SetPriceAndTargetShareSources() public {
@@ -52,8 +52,8 @@ contract MultipoolSingleAssetTest is Test {
         mp.updateTargetShare(address(0), 10);
         mp.updatePrice(address(0), 10);
 
-        mp.setPriceSource(alice);
-        mp.setPercentsSource(alice);
+        mp.setPriceAuthority(alice);
+        mp.setTargetShareAuthority(alice);
 
         vm.prank(alice);
         mp.updateTargetShare(address(0), 10);
