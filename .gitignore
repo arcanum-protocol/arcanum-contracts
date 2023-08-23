@@ -10,6 +10,7 @@ typechain
 pnpm-lock.yaml
 package-lock.json
 *.DS_Store
+out/
 
 #Hardhat files
 cache

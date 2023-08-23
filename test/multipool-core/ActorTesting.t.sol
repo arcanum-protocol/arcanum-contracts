@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import { MockERC20 } from "../../src/mocks/erc20.sol";
-import { Multipool, MpContext, MpAsset } from "../../src/etf/Multipool.sol";
+import { Multipool, MpContext, MpAsset } from "../../src/multipool/Multipool.sol";
 
 contract MultipoolActor is Test {
     Multipool mp;
@@ -31,14 +31,14 @@ contract MultipoolActor is Test {
        mp.updateTargetShare(address(token), targetShare);
     }
 
-    function updateDeviationPercentLimit(uint value) public {
+    function updateDeviationLimit(uint value) public {
        value = bound(value, 1, 90e18);
-       mp.setDeviationPercentLimit(value);
+       mp.setDeviationLimit(value);
     }
 
-    function updateHalfDeviationFeeRatio(uint value) public {
+    function updateHalfDeviationFee(uint value) public {
        value = bound(value, 1, 90e18);
-       mp.setHalfDeviationFeeRatio(value);
+       mp.setHalfDeviationFee(value);
     }
 
     function updatePrice(uint8 tokenIndex, uint price) public {

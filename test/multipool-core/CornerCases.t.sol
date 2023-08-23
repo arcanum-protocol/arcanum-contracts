@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import { MockERC20 } from "../../src/mocks/erc20.sol";
-import { Multipool, MpContext, MpAsset } from "../../src/etf/Multipool.sol";
+import { Multipool, MpContext, MpAsset } from "../../src/multipool/Multipool.sol";
 
 contract MultipoolCornerCases is Test {
     Multipool mp;
@@ -45,5 +45,15 @@ contract MultipoolCornerCases is Test {
         vm.prank(users[0]);
         vm.expectRevert("MULTIPOOL: zero price");
         mp.burn(address(tokens[0]), 10e18, users[0]);
+    }
+
+    function test_mintBurnSignleAssetWithFees() public {
+        vm.prank(users[0]);
+        tokens[0].transfer(address(mp), 10e18);
+        vm.expectRevert("MULTIPOOL: zero price");
+        mp.mint(address(tokens[0]), 10e18, users[0]);
+        mp.updateTargetShare(address(tokens[0]), 10);
+        mp.updatePrice(address(tokens[0]), 10);
+        mp.mint(address(tokens[0]), 10e18, users[0]);
     }
 }
