@@ -229,33 +229,60 @@ contract Multipool is ERC20, Ownable {
         emit AssetQuantityChange(assetOutAddress, assetOut.quantity);
     }
 
-    /** ---------------- Owner ------------------ */
-
-    function updatePrice(address assetAddress, uint price) public {
-        require(priceAuthority == msg.sender, "MULTIPOOL: only price authority");
-        MpAsset memory asset = assets[assetAddress];
-        usdCap =
-            usdCap -
-            (asset.quantity * asset.price) /
-            DENOMINATOR +
-            (asset.quantity * price) /
-            DENOMINATOR;
-        asset.price = price;
-        assets[assetAddress] = asset;
-        emit AssetPriceChange(assetAddress, price);
+    function increaseCashback(
+        address assetAddress
+    ) public returns (uint amount) {
+        MpAsset storage asset = assets[assetAddress];
+        amount = getTransferredAmount(asset, assetAddress);
+        asset.collectedCashbacks += amount;
     }
 
-    function updateTargetShare(address assetAddress, uint share) public {
+    /** ---------------- Authorities ------------------ */
+
+    function updatePrices(address[] calldata assetAddresses, uint[] calldata prices) public {
+        require(priceAuthority == msg.sender, "MULTIPOOL: only price authority");
+        for(uint a = 0; a < assetAddresses.length; a++) {
+            MpAsset storage asset = assets[assetAddresses[a]];
+            usdCap =
+                usdCap -
+                (asset.quantity * asset.price) /
+                DENOMINATOR +
+                (asset.quantity * prices[a]) /
+                DENOMINATOR;
+            asset.price = prices[a];
+            emit AssetPriceChange(assetAddresses[a], prices[a]);
+        }
+    }
+
+    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public {
         require(
             targetShareAuthority == msg.sender,
             "MULTIPOOL: only target share authority"
         );
-        MpAsset memory asset = assets[assetAddress];
-        totalTargetShares = totalTargetShares - asset.share + share;
-        asset.share = share;
-        assets[assetAddress] = asset;
-        emit AssetTargetShareChange(assetAddress, share);
+        for(uint a = 0; a < assetAddresses.length; a++) {
+            MpAsset storage asset = assets[assetAddresses[a]];
+            totalTargetShares = totalTargetShares - asset.share + shares[a];
+            asset.share = shares[a];
+            emit AssetTargetShareChange(assetAddresses[a], shares[a]);
+        }
     }
+
+    function withdrawFees(
+        address assetAddress,
+        address to
+    ) public returns (uint fees) {
+        require(
+            withdrawAuthority == msg.sender,
+            "MULTIPOOL: only withdraw authority"
+        );
+        MpAsset storage asset = assets[assetAddress];
+        fees = asset.collectedFees;
+        asset.collectedFees = 0;
+        IERC20(assetAddress).transfer(to, fees);
+        emit WithdrawFees(assetAddress, fees);
+    }
+
+    /** ---------------- Owner ------------------ */
 
     function setDeviationLimit(
         uint newDeviationLimit
@@ -304,28 +331,5 @@ contract Multipool is ERC20, Ownable {
     function setWithdrawAuthority(address newWithdrawAuthority) external onlyOwner {
         withdrawAuthority = newWithdrawAuthority;
         emit WithdrawAuthorityChange(newWithdrawAuthority);
-    }
-
-    function withdrawFees(
-        address assetAddress,
-        address to
-    ) public returns (uint fees) {
-        require(
-            withdrawAuthority == msg.sender,
-            "MULTIPOOL: only withdraw authority"
-        );
-        MpAsset storage asset = assets[assetAddress];
-        fees = asset.collectedFees;
-        asset.collectedFees = 0;
-        IERC20(assetAddress).transfer(to, fees);
-        emit WithdrawFees(assetAddress, fees);
-    }
-
-    function increaseCashback(
-        address assetAddress
-    ) public returns (uint amount) {
-        MpAsset storage asset = assets[assetAddress];
-        amount = getTransferredAmount(asset, assetAddress);
-        asset.collectedCashbacks += amount;
     }
 }

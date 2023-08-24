@@ -36,12 +36,19 @@ contract MultipoolCornerCases is Test {
     function bootstrapTokens(uint[3] memory shares) private {
         mp.setDeviationLimit(1e18); // 100%
 
-        mp.updatePrice(address(tokens[0]), 10e18);
-        mp.updateTargetShare(address(tokens[0]), 50e18);
-        mp.updatePrice(address(tokens[1]), 20e18);
-        mp.updateTargetShare(address(tokens[1]), 25e18);
-        mp.updatePrice(address(tokens[2]), 10e18);
-        mp.updateTargetShare(address(tokens[2]), 25e18);
+       address[] memory t = new address[](3);
+       t[0] = address(tokens[0]);
+       t[1] = address(tokens[1]);
+       t[2] = address(tokens[2]);
+
+       uint[] memory s = new uint[](3);
+       s[0] = 50e18; s[1] = 25e18; s[2] = 25e18;
+
+       uint[] memory p = new uint[](3);
+       p[0] = 10e18; p[1] = 20e18; p[2] = 10e18;
+
+        mp.updatePrices(t, p);
+        mp.updateTargetShares(t, s);
 
         tokens[0].mint(address(mp), shares[0] / 10);
         mp.mint(address(tokens[0]), 100e18, users[3]);

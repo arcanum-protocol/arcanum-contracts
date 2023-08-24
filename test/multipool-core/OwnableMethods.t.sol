@@ -12,6 +12,24 @@ contract MultipoolSingleAssetTest is Test {
         mp = new Multipool('Name', 'SYMBOL');
     }
 
+    function mpUpdateTargetShare(address token, uint share) internal {
+       address[] memory t = new address[](1);
+       t[0] = address(token);
+
+       uint[] memory s = new uint[](1);
+       s[0] = share;
+        mp.updateTargetShares(t,s);
+    }
+
+    function mpUpdatePrice(address token, uint price) internal {
+       address[] memory t = new address[](1);
+       t[0] = address(token);
+
+       uint[] memory p = new uint[](1);
+       p[0] = price;
+        mp.updatePrices(t,p);
+    }
+
     function test_OnlyOwnerCanChangeParams() public {
         vm.expectRevert();
         vm.prank(address(0));
@@ -43,29 +61,29 @@ contract MultipoolSingleAssetTest is Test {
 
         vm.expectRevert();
         vm.prank(alice);
-        mp.updateTargetShare(address(0), 10);
+        mpUpdateTargetShare(address(0), 10);
 
         vm.expectRevert();
         vm.prank(alice);
-        mp.updatePrice(address(0), 10);
+        mpUpdatePrice(address(0), 10);
 
-        mp.updateTargetShare(address(0), 10);
-        mp.updatePrice(address(0), 10);
+        mpUpdateTargetShare(address(0), 10);
+        mpUpdatePrice(address(0), 10);
 
         mp.setPriceAuthority(alice);
         mp.setTargetShareAuthority(alice);
 
         vm.prank(alice);
-        mp.updateTargetShare(address(0), 10);
+        mpUpdateTargetShare(address(0), 10);
 
         vm.prank(alice);
-        mp.updatePrice(address(0), 10);
+        mpUpdatePrice(address(0), 10);
 
         vm.expectRevert();
-        mp.updateTargetShare(address(0), 10);
+        mpUpdateTargetShare(address(0), 10);
 
         vm.expectRevert();
-        mp.updatePrice(address(0), 10);
+        mpUpdatePrice(address(0), 10);
     }
 
 }
