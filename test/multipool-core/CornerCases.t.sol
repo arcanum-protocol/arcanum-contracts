@@ -31,13 +31,31 @@ contract MultipoolCornerCases is Test {
         }
     }
 
+    function mpUpdateTargetShares(address token, uint share) internal {
+       address[] memory t = new address[](1);
+       t[0] = address(token);
+
+       uint[] memory s = new uint[](1);
+       s[0] = share;
+        mp.updateTargetShares(t,s);
+    }
+
+    function mpUpdatePrices(address token, uint price) internal {
+       address[] memory t = new address[](1);
+       t[0] = address(token);
+
+       uint[] memory p = new uint[](1);
+       p[0] = price;
+        mp.updatePrices(t,p);
+    }
+
     function test_mintUnconfiguredContract() public {
         vm.prank(users[0]);
         tokens[0].transfer(address(mp), 10e18);
         vm.expectRevert("MULTIPOOL: zero price");
         mp.mint(address(tokens[0]), 10e18, users[0]);
-        mp.updateTargetShare(address(tokens[0]), 10);
-        mp.updatePrice(address(tokens[0]), 10);
+        mpUpdateTargetShares(address(tokens[0]), 10);
+        mpUpdatePrices(address(tokens[0]), 10);
         mp.mint(address(tokens[0]), 10e18, users[0]);
     }
 
@@ -52,8 +70,8 @@ contract MultipoolCornerCases is Test {
         tokens[0].transfer(address(mp), 10e18);
         vm.expectRevert("MULTIPOOL: zero price");
         mp.mint(address(tokens[0]), 10e18, users[0]);
-        mp.updateTargetShare(address(tokens[0]), 10);
-        mp.updatePrice(address(tokens[0]), 10);
+        mpUpdateTargetShares(address(tokens[0]), 10);
+        mpUpdatePrices(address(tokens[0]), 10);
         mp.mint(address(tokens[0]), 10e18, users[0]);
     }
 }

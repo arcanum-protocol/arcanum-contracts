@@ -6,12 +6,7 @@ import "openzeppelin/access/Ownable.sol";
 import {SD59x18, sd} from "prb-math/SD59x18.sol";
 import {MpAsset, MpContext} from "./Multipool.sol";
 
-using {
-    MpComplexMath.mintRev,
-    MpComplexMath.burnRev,
-    MpComplexMath.mint,
-    MpComplexMath.burn
-} for MpContext;
+uint constant DENOMINATOR = 1e18;
 
 library MpComplexMath {
     struct MpAssetSigned {
@@ -93,9 +88,9 @@ library MpComplexMath {
             ((asset.quantity + utilisableQuantity) * asset.price) /
                 (context.usdCap +
                     utilisableQuantity *
-                    asset.price)
+                    asset.price / DENOMINATOR)
         );
-        SD59x18 targetShare = sign(asset.share / context.totalTargetShares);
+        SD59x18 targetShare = sign(asset.share * DENOMINATOR / context.totalTargetShares);
         deviation = unsign((share - targetShare).abs());
     }
 
@@ -106,9 +101,9 @@ library MpComplexMath {
     ) internal pure returns (uint deviation) {
         SD59x18 share = sign(
             ((asset.quantity - suppliedQuantity) * asset.price) /
-                (context.usdCap - suppliedQuantity * asset.price)
+                (context.usdCap - suppliedQuantity * asset.price / DENOMINATOR)
         );
-        SD59x18 targetShare = sign(asset.share / context.totalTargetShares);
+        SD59x18 targetShare = sign(asset.share * DENOMINATOR / context.totalTargetShares);
         deviation = unsign((share - targetShare).abs());
     }
 
@@ -131,7 +126,7 @@ library MpComplexMath {
             )
         );
         uint noFees = utilisableQuantity *
-            (1e18 + context.operationBaseFee);
+            (1e18 + context.operationBaseFee) / DENOMINATOR;
 
         uint deviationWithFees = calculateDeviationBurn(
             context,
@@ -177,11 +172,11 @@ library MpComplexMath {
             require(withFees != 0, "no curve solutions found");
 
             uint _operationBaseFee = context.operationBaseFee;
-            uint collectedCashbacks = (suppliedQuantity -
+            uint collectedCashbacks = suppliedQuantity -
                 utilisableQuantity *
-                (1e18 + _operationBaseFee));
-            uint collectedBaseDepegFee = collectedCashbacks *
-                context.depegBaseFee;
+                (1e18 + _operationBaseFee) / DENOMINATOR;
+            uint collectedBaseDepegFee = (collectedCashbacks *
+                context.depegBaseFee) / DENOMINATOR;
             asset.collectedCashbacks =
                 asset.collectedCashbacks +
                 collectedCashbacks -
@@ -193,11 +188,11 @@ library MpComplexMath {
         context.usdCap =
             context.usdCap -
             suppliedQuantity *
-            asset.price;
+            asset.price / DENOMINATOR;
         asset.collectedFees =
             asset.collectedFees +
             utilisableQuantity *
-            context.operationBaseFee;
+            context.operationBaseFee / DENOMINATOR;
     }
 
     function mint(
@@ -206,7 +201,7 @@ library MpComplexMath {
         uint suppliedQuantity
     ) internal pure returns (uint utilisableQuantity) {
         if (context.usdCap == 0) {
-            context.usdCap = suppliedQuantity * asset.price;
+            context.usdCap = suppliedQuantity * asset.price / DENOMINATOR;
             asset.quantity = asset.quantity + suppliedQuantity;
             return suppliedQuantity;
         }
@@ -217,7 +212,7 @@ library MpComplexMath {
                 sign(asset)
             )
         );
-        uint noFees = suppliedQuantity /
+        uint noFees = suppliedQuantity * DENOMINATOR /
             (1e18 + context.operationBaseFee);
 
         uint deviationWithFees = calculateDeviationMint(
@@ -265,11 +260,11 @@ library MpComplexMath {
             // deviation fee + base fee + utilisable val = supplied val
             // we use substraction here
             uint _operationBaseFee = context.operationBaseFee;
-            uint collectedCashbacks = (suppliedQuantity -
+            uint collectedCashbacks = suppliedQuantity -
                 utilisableQuantity *
-                (1e18 + _operationBaseFee));
+                (1e18 + _operationBaseFee) / DENOMINATOR;
             uint collectedBaseDepegFee = collectedCashbacks *
-                context.depegBaseFee;
+                context.depegBaseFee / DENOMINATOR;
             asset.collectedCashbacks =
                 asset.collectedCashbacks +
                 collectedCashbacks -
@@ -281,11 +276,11 @@ library MpComplexMath {
         context.usdCap =
             context.usdCap +
             utilisableQuantity *
-            asset.price;
+            asset.price / DENOMINATOR;
         asset.collectedFees =
             asset.collectedFees +
             utilisableQuantity *
-            context.operationBaseFee;
+            context.operationBaseFee / DENOMINATOR;
     }
 
     function getUtilisableMintQuantity(

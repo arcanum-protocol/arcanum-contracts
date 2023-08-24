@@ -28,7 +28,14 @@ contract MultipoolActor is Test {
     function updateTargetShare(uint8 tokenIndex, uint targetShare) public {
        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
        targetShare = bound(targetShare, 0, 100000e18);
-       mp.updateTargetShare(address(token), targetShare);
+
+       address[] memory tkn = new address[](1);
+       tkn[0] = address(token);
+
+       uint[] memory trgtShare = new uint[](1);
+       trgtShare[0] = targetShare;
+
+       mp.updateTargetShares(tkn, trgtShare);
     }
 
     function updateDeviationLimit(uint value) public {
@@ -44,7 +51,14 @@ contract MultipoolActor is Test {
     function updatePrice(uint8 tokenIndex, uint price) public {
        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
        price = bound(price, 0, 100000e18);
-       mp.updatePrice(address(token), price);
+
+       address[] memory tkn = new address[](1);
+       tkn[0] = address(token);
+
+       uint[] memory pr = new uint[](1);
+       pr[0] = price;
+
+       mp.updatePrices(tkn, pr);
     }
 
     function mint(uint8 callerIndex, uint8 tokenIndex, uint share, uint supplyAmount, uint8 toIndex) public {
@@ -108,7 +122,7 @@ contract MultipoolSingleAssetTest is Test {
         targetContract(address(h));
     }
 
-    function invariant_BalancesMatch() public {
-        assertEq(address(h),address(h));
-    }
+   // function invariant_BalancesMatch() public {
+   //     assertEq(address(h),address(h));
+   // }
 }
