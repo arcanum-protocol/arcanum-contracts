@@ -5,11 +5,7 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 
 contract MockERC20 is ERC20, Ownable {
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint _totalSupply
-    ) ERC20(name, symbol) {
+    constructor(string memory name, string memory symbol, uint _totalSupply) ERC20(name, symbol) {
         _mint(msg.sender, _totalSupply);
     }
 

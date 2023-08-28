@@ -3,7 +3,7 @@ pragma solidity >=0.8.19;
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
-import { Multipool, MpContext, MpAsset } from "../../src/multipool/Multipool.sol";
+import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 
 contract MultipoolSingleAssetTest is Test {
     Multipool mp;
@@ -13,21 +13,21 @@ contract MultipoolSingleAssetTest is Test {
     }
 
     function mpUpdateTargetShare(address token, uint share) internal {
-       address[] memory t = new address[](1);
-       t[0] = address(token);
+        address[] memory t = new address[](1);
+        t[0] = address(token);
 
-       uint[] memory s = new uint[](1);
-       s[0] = share;
-        mp.updateTargetShares(t,s);
+        uint[] memory s = new uint[](1);
+        s[0] = share;
+        mp.updateTargetShares(t, s);
     }
 
     function mpUpdatePrice(address token, uint price) internal {
-       address[] memory t = new address[](1);
-       t[0] = address(token);
+        address[] memory t = new address[](1);
+        t[0] = address(token);
 
-       uint[] memory p = new uint[](1);
-       p[0] = price;
-        mp.updatePrices(t,p);
+        uint[] memory p = new uint[](1);
+        p[0] = price;
+        mp.updatePrices(t, p);
     }
 
     function test_OnlyOwnerCanChangeParams() public {
@@ -85,5 +85,4 @@ contract MultipoolSingleAssetTest is Test {
         vm.expectRevert();
         mpUpdatePrice(address(0), 10);
     }
-
 }

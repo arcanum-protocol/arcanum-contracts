@@ -33,39 +33,24 @@ contract LpFarm is Ownable {
         rewardToken = _rewardToken;
     }
 
-    function calculateReward(
-        PoolInfo memory pool,
-        uint blockNumber
-    ) internal pure returns (uint rewards) {
-        rewards =
-            ((blockNumber - pool.lastRewardBlock) *
-                1e12 *
-                pool.distributionAmountLeft) /
-            (pool.distributeTill - pool.lastRewardBlock);
+    function calculateReward(PoolInfo memory pool, uint blockNumber) internal pure returns (uint rewards) {
+        rewards = ((blockNumber - pool.lastRewardBlock) * 1e12 * pool.distributionAmountLeft)
+            / (pool.distributeTill - pool.lastRewardBlock);
     }
 
     function updatePool(uint _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
-        if (
-            pool.distributeTill > pool.lastRewardBlock &&
-            pool.totalLpSupply != 0
-        ) {
+        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
             uint newRewards = calculateReward(pool, block.number);
             pool.arps += newRewards / pool.totalLpSupply;
         }
         pool.lastRewardBlock = block.number;
     }
 
-    function pendingRewards(
-        uint _pid,
-        address _user
-    ) external view returns (uint amount) {
+    function pendingRewards(uint _pid, address _user) external view returns (uint amount) {
         PoolInfo memory pool = poolInfo[_pid];
         UserInfo memory user = userInfo[_pid][_user];
-        if (
-            pool.distributeTill > pool.lastRewardBlock &&
-            pool.totalLpSupply != 0
-        ) {
+        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
             uint newRewards = calculateReward(pool, block.number);
             pool.arps += newRewards / pool.totalLpSupply;
         }
@@ -83,11 +68,7 @@ contract LpFarm is Ownable {
             }
         }
         if (_amount > 0) {
-            pool.lpToken.transferFrom(
-                address(msg.sender),
-                address(this),
-                _amount
-            );
+            pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
             user.amount += _amount;
             pool.totalLpSupply += _amount;
         }
@@ -114,11 +95,7 @@ contract LpFarm is Ownable {
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
-    function setDistribution(
-        uint _pid,
-        uint _amount,
-        uint _distributionTime
-    ) public onlyOwner {
+    function setDistribution(uint _pid, uint _amount, uint _distributionTime) public onlyOwner {
         PoolInfo storage pool = poolInfo[_pid];
         updatePool(_pid);
         rewardToken.transferFrom(msg.sender, address(this), _amount);

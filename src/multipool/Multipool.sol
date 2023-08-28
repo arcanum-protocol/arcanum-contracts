@@ -7,10 +7,7 @@ import {MpAsset, MpContext} from "./MpCommonMath.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 contract Multipool is ERC20, Ownable {
-    constructor(
-        string memory _name,
-        string memory _symbol
-    ) ERC20(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) {
         priceAuthority = msg.sender;
         targetShareAuthority = msg.sender;
         withdrawAuthority = msg.sender;
@@ -32,7 +29,9 @@ contract Multipool is ERC20, Ownable {
     event BaseTradeFeeChange(uint value);
     event DepegBaseFeeChange(uint value);
 
-    /** ---------------- Variables ------------------ */
+    /**
+     * ---------------- Variables ------------------
+     */
 
     mapping(address => MpAsset) public assets;
     uint public usdCap;
@@ -52,11 +51,11 @@ contract Multipool is ERC20, Ownable {
     address public targetShareAuthority;
     address public withdrawAuthority;
 
-    /** ---------------- Methods ------------------ */
+    /**
+     * ---------------- Methods ------------------
+     */
 
-    function getAssets(
-        address assetAddress
-    ) public view returns (MpAsset memory asset) {
+    function getAssets(address assetAddress) public view returns (MpAsset memory asset) {
         asset = assets[assetAddress];
     }
 
@@ -72,9 +71,7 @@ contract Multipool is ERC20, Ownable {
         context = getContext(baseTradeFee);
     }
 
-    function getContext(
-        uint baseFee
-    ) public view returns (MpContext memory context) {
+    function getContext(uint baseFee) public view returns (MpContext memory context) {
         context = MpContext({
             usdCap: usdCap,
             totalTargetShares: totalTargetShares,
@@ -86,34 +83,20 @@ contract Multipool is ERC20, Ownable {
         });
     }
 
-    function getTransferredAmount(
-        MpAsset memory asset,
-        address assetAddress
-    ) public view returns (uint amount) {
-        amount =
-            IERC20(assetAddress).balanceOf(address(this)) -
-            asset.quantity -
-            asset.collectedFees -
-            asset.collectedCashbacks;
+    function getTransferredAmount(MpAsset memory asset, address assetAddress) public view returns (uint amount) {
+        amount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity - asset.collectedFees
+            - asset.collectedCashbacks;
     }
 
-    function shareToAmount(
-        uint share,
-        MpContext memory context,
-        MpAsset memory asset,
-        uint totalSupply
-    ) public pure returns (uint amount) {
-        amount =
-            (share * context.usdCap * DENOMINATOR) /
-            totalSupply /
-            asset.price;
+    function shareToAmount(uint share, MpContext memory context, MpAsset memory asset, uint totalSupply)
+        public
+        pure
+        returns (uint amount)
+    {
+        amount = (share * context.usdCap * DENOMINATOR) / totalSupply / asset.price;
     }
 
-    function mint(
-        address assetAddress,
-        uint share,
-        address to
-    ) public returns (uint amountIn, uint refund) {
+    function mint(address assetAddress, uint share, address to) public returns (uint amountIn, uint refund) {
         require(share != 0, "MULTIPOOL: zero share");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: zero price");
@@ -121,15 +104,10 @@ contract Multipool is ERC20, Ownable {
         MpContext memory context = getContext(baseMintFee);
 
         uint transferredAmount = getTransferredAmount(asset, assetAddress);
-        uint amountOut = totalSupply() != 0
-            ? shareToAmount(share, context, asset, totalSupply())
-            : transferredAmount;
+        uint amountOut = totalSupply() != 0 ? shareToAmount(share, context, asset, totalSupply()) : transferredAmount;
 
         amountIn = context.evalMint(asset, amountOut);
-        require(
-            amountIn <= transferredAmount,
-            "MULTIPOOL: mint amount in exeeded"
-        );
+        require(amountIn <= transferredAmount, "MULTIPOOL: mint amount in exeeded");
 
         usdCap = context.usdCap;
         // add unused quantity to refund
@@ -146,11 +124,7 @@ contract Multipool is ERC20, Ownable {
 
     // share here needs to be specified and can't be taken by balance of because
     // if there is too much share you will be frozen by deviaiton limit overflow
-    function burn(
-        address assetAddress,
-        uint share,
-        address to
-    ) public returns (uint amountOut, uint refund) {
+    function burn(address assetAddress, uint share, address to) public returns (uint amountOut, uint refund) {
         require(share != 0, "MULTIPOOL: zero share");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: zero price");
@@ -170,12 +144,7 @@ contract Multipool is ERC20, Ownable {
         emit AssetQuantityChange(assetAddress, asset.quantity);
     }
 
-    function swap(
-        address assetInAddress,
-        address assetOutAddress,
-        uint share,
-        address to
-    )
+    function swap(address assetInAddress, address assetOutAddress, uint share, address to)
         public
         returns (uint amountIn, uint amountOut, uint refundIn, uint refundOut)
     {
@@ -189,10 +158,7 @@ contract Multipool is ERC20, Ownable {
             {
                 uint _amountOut = shareToAmount(share, context, assetIn, totalSupply());
                 amountIn = context.evalMint(assetIn, _amountOut);
-                require(
-                    amountIn <= transferredAmount,
-                    "MULTIPOOL: amount in exeeded"
-                );
+                require(amountIn <= transferredAmount, "MULTIPOOL: amount in exeeded");
 
                 refundIn = context.userCashbackBalance;
                 context.userCashbackBalance = 0;
@@ -201,12 +167,7 @@ contract Multipool is ERC20, Ownable {
 
         {
             {
-                uint _amountIn = shareToAmount(
-                    share,
-                    context,
-                    assetOut,
-                    totalSupply() + share
-                );
+                uint _amountIn = shareToAmount(share, context, assetOut, totalSupply() + share);
                 amountOut = context.evalBurn(assetOut, _amountIn);
 
                 refundOut = context.userCashbackBalance;
@@ -221,46 +182,35 @@ contract Multipool is ERC20, Ownable {
             IERC20(assetOutAddress).transfer(to, (amountOut + refundOut));
         }
         if (refundIn + (transferredAmount - amountIn) > 0) {
-            IERC20(assetInAddress).transfer(
-                to,
-                refundIn + (transferredAmount - amountIn)
-            );
+            IERC20(assetInAddress).transfer(to, refundIn + (transferredAmount - amountIn));
         }
         emit AssetQuantityChange(assetInAddress, assetIn.quantity);
         emit AssetQuantityChange(assetOutAddress, assetOut.quantity);
     }
 
-    function increaseCashback(
-        address assetAddress
-    ) public returns (uint amount) {
+    function increaseCashback(address assetAddress) public returns (uint amount) {
         MpAsset storage asset = assets[assetAddress];
         amount = getTransferredAmount(asset, assetAddress);
         asset.collectedCashbacks += amount;
     }
 
-    /** ---------------- Authorities ------------------ */
+    /**
+     * ---------------- Authorities ------------------
+     */
 
     function updatePrices(address[] calldata assetAddresses, uint[] calldata prices) public {
         require(priceAuthority == msg.sender, "MULTIPOOL: only price authority");
-        for(uint a = 0; a < assetAddresses.length; a++) {
+        for (uint a = 0; a < assetAddresses.length; a++) {
             MpAsset storage asset = assets[assetAddresses[a]];
-            usdCap =
-                usdCap -
-                (asset.quantity * asset.price) /
-                DENOMINATOR +
-                (asset.quantity * prices[a]) /
-                DENOMINATOR;
+            usdCap = usdCap - (asset.quantity * asset.price) / DENOMINATOR + (asset.quantity * prices[a]) / DENOMINATOR;
             asset.price = prices[a];
             emit AssetPriceChange(assetAddresses[a], prices[a]);
         }
     }
 
     function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public {
-        require(
-            targetShareAuthority == msg.sender,
-            "MULTIPOOL: only target share authority"
-        );
-        for(uint a = 0; a < assetAddresses.length; a++) {
+        require(targetShareAuthority == msg.sender, "MULTIPOOL: only target share authority");
+        for (uint a = 0; a < assetAddresses.length; a++) {
             MpAsset storage asset = assets[assetAddresses[a]];
             totalTargetShares = totalTargetShares - asset.share + shares[a];
             asset.share = shares[a];
@@ -268,14 +218,8 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    function withdrawFees(
-        address assetAddress,
-        address to
-    ) public returns (uint fees) {
-        require(
-            withdrawAuthority == msg.sender,
-            "MULTIPOOL: only withdraw authority"
-        );
+    function withdrawFees(address assetAddress, address to) public returns (uint fees) {
+        require(withdrawAuthority == msg.sender, "MULTIPOOL: only withdraw authority");
         MpAsset storage asset = assets[assetAddress];
         fees = asset.collectedFees;
         asset.collectedFees = 0;
@@ -283,18 +227,16 @@ contract Multipool is ERC20, Ownable {
         emit WithdrawFees(assetAddress, fees);
     }
 
-    /** ---------------- Owner ------------------ */
+    /**
+     * ---------------- Owner ------------------
+     */
 
-    function setDeviationLimit(
-        uint newDeviationLimit
-    ) external onlyOwner {
+    function setDeviationLimit(uint newDeviationLimit) external onlyOwner {
         deviationLimit = newDeviationLimit;
         emit DeviationLimitChange(newDeviationLimit);
     }
 
-    function setHalfDeviationFee(
-        uint newHalfDeviationFee
-    ) external onlyOwner {
+    function setHalfDeviationFee(uint newHalfDeviationFee) external onlyOwner {
         halfDeviationFee = newHalfDeviationFee;
         emit HalfDeviationFeeChange(newHalfDeviationFee);
     }
