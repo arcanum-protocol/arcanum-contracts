@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "forge-std/Test.sol";
+
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
@@ -15,7 +17,8 @@ contract MultipoolRouter {
         MpComplexMath.mintRev,
         MpComplexMath.burnRev,
         MpComplexMath.mint,
-        MpComplexMath.burn
+        MpComplexMath.burn,
+        MpComplexMath.burnTrace
     } for MpContext;
 
     modifier ensure(uint deadline) {
@@ -118,7 +121,7 @@ contract MultipoolRouter {
         }}
 
         IERC20(assetAddress).transferFrom(msg.sender, poolAddress, amountIn);
-        (uint amount, uint _refund) = Multipool(poolAddress).mint(assetAddress, shares, to);
+        (, uint _refund) = Multipool(poolAddress).mint(assetAddress, shares, to);
         refund = _refund;
     }
 
@@ -175,7 +178,7 @@ contract MultipoolRouter {
         }}
 
         IERC20(assetInAddress).transferFrom(msg.sender, poolAddress, amountIn);
-        (, uint _amountOut, uint refundIn, uint refundOut ) = Multipool(poolAddress).swap(
+        (, uint _amountOut, uint _refundIn, uint _refundOut ) = Multipool(poolAddress).swap(
             assetInAddress,
             assetOutAddress,
             shares,
@@ -186,7 +189,7 @@ contract MultipoolRouter {
             _amountOut >= amountOutMin,
             "Multipool Router: sleepage exeeded"
         );
-        return (_amountOut, refundIn, refundOut);
+        return (_amountOut, _refundIn, _refundOut);
     }
 
     function swapWithAmountOut(
@@ -201,12 +204,14 @@ contract MultipoolRouter {
         uint shares;
         {{
                 MpAsset memory assetOut = Multipool(poolAddress).getAssets(assetOutAddress);
+                MpAsset memory assetIn = Multipool(poolAddress).getAssets(assetInAddress);
                 MpContext memory context = Multipool(poolAddress).getTradeContext();
                 uint totalSupply = Multipool(poolAddress).totalSupply();
                 uint oldUsdCap = context
                     .usdCap;
 
-                uint burnAmountIn = context.burnRev(assetOut, amountOut);
+                uint _amountOut = amountOut;
+                (uint burnAmountIn,,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
                 shares = (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR / oldUsdCap;
         }}
 
@@ -385,20 +390,25 @@ contract MultipoolRouter {
         uint totalSupply = Multipool(poolAddress).totalSupply();
         uint oldUsdCap = context.usdCap;
 
-        uint burnAmountIn = context.burnRev(assetOut, amountOut);
-        cashbackOut = context.userCashbackBalance;
-        context.userCashbackBalance = 0;
+        uint burnAmountIn;
+        {{
+            uint _amountOut = amountOut;
+            (uint _burnAmountIn, uint burnCashback,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
+            cashbackOut = burnCashback;
+            burnAmountIn = _burnAmountIn;
+        }}
 
+        {{
         shares =
             (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR /
             oldUsdCap;
 
-        uint mintAmountIn = (shares * context.usdCap) * DENOMINATOR /
-            assetIn.price /
-            (totalSupply - shares);
+        uint mintAmountOut = (shares * context.usdCap) * DENOMINATOR /
+            assetIn.price / totalSupply;
 
-        amountIn = context.mintRev(assetIn, mintAmountIn);
+        amountIn = context.mintRev(assetIn, mintAmountOut);
         cashbackIn = context.userCashbackBalance;
+        }}
 
         uint out = amountOut;
         uint amoutOutNoFees = ((amountIn * assetIn.price) / assetOut.price);

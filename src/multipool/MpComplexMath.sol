@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.19;
+// It's deserved to be called complex
+// Tons of hours to make it work
+// Never underestimate multipool maths or it will destroy you...
+// Enjoy P.S BadConfig
+
+import "forge-std/Test.sol";
 
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
@@ -102,6 +108,21 @@ library MpComplexMath {
         SD59x18 share = sign(
             ((asset.quantity - suppliedQuantity) * asset.price) /
                 (context.usdCap - suppliedQuantity * asset.price / DENOMINATOR)
+        );
+        SD59x18 targetShare = sign(asset.share * DENOMINATOR / context.totalTargetShares);
+        deviation = unsign((share - targetShare).abs());
+    }
+
+    function calculateDeviationBurnTrace(
+        MpContext memory context,
+        MpAsset memory asset,
+        uint suppliedQuantity,
+        uint mintQuantity,
+        uint mintPrice
+    ) internal pure returns (uint deviation) {
+        SD59x18 share = sign(
+            ((asset.quantity - suppliedQuantity) * asset.price) /
+                (context.usdCap + mintQuantity * mintPrice / DENOMINATOR - suppliedQuantity * asset.price / DENOMINATOR)
         );
         SD59x18 targetShare = sign(asset.share * DENOMINATOR / context.totalTargetShares);
         deviation = unsign((share - targetShare).abs());
@@ -280,6 +301,104 @@ library MpComplexMath {
         asset.collectedFees =
             asset.collectedFees +
             utilisableQuantity *
+            context.operationBaseFee / DENOMINATOR;
+    }
+
+    function burnTrace(
+        MpContext memory context,
+        MpAsset memory asset,
+        uint mintPrice,
+        uint utilisableQuantity
+    ) internal view returns (
+        uint suppliedQuantity, 
+        uint cashback, 
+        uint fees
+    ) {
+        require(
+            utilisableQuantity <= asset.quantity,
+            "can't burn more assets than exist"
+        );
+
+        uint withFees;
+        uint noFees = utilisableQuantity *
+            (1e18 + context.operationBaseFee) / DENOMINATOR;
+
+        uint deviationWithFees;
+        {{
+            withFees = unsign(
+                getSuppliableBurnQuantityReversed(
+                    sign(utilisableQuantity),
+                    sign(context),
+                    sign(asset),
+                    sign(mintPrice)
+                )
+            );
+            console.log("mq ", withFees * asset.price / mintPrice);
+            deviationWithFees = calculateDeviationBurnTrace(
+                context,
+                asset,
+                withFees,
+                withFees * asset.price / mintPrice,
+                mintPrice
+            );
+        }}
+        uint deviationNoFees = calculateDeviationBurnTrace(
+            context,
+            asset,
+            noFees,
+            noFees * asset.price / mintPrice,
+            mintPrice
+        );
+        uint deviationOldNoFees = calculateDeviationBurnTrace(
+            context, 
+            asset, 
+            0,
+            noFees * asset.price / mintPrice,
+            mintPrice
+        );
+
+        if (deviationNoFees <= deviationOldNoFees) {
+            suppliedQuantity = noFees;
+            require(
+                suppliedQuantity <= asset.quantity,
+                "can't burn more assets than exist"
+            );
+
+            if (deviationOldNoFees != 0) {
+                cashback =
+                    (asset.collectedCashbacks *
+                        (deviationOldNoFees - deviationNoFees)) /
+                    deviationOldNoFees;
+            }
+        } else {
+            suppliedQuantity = withFees;
+            require(
+                suppliedQuantity <= asset.quantity,
+                "can't burn more assets than exist"
+            );
+            console.log("deviation ", deviationWithFees);
+            require(
+                deviationWithFees < context.deviationLimit,
+                "deviation overflows limit"
+            );
+            require(withFees != 0, "no curve solutions found");
+
+            uint _operationBaseFee = context.operationBaseFee;
+            uint _depegBaseFee = context.depegBaseFee;
+            console.log("q ", suppliedQuantity, " ", utilisableQuantity);
+            uint collectedCashbacks = suppliedQuantity -
+                utilisableQuantity *
+                (1e18 + _operationBaseFee) / DENOMINATOR;
+            console.log("HERE");
+            uint collectedBaseDepegFee = (collectedCashbacks *
+                _depegBaseFee) / DENOMINATOR;
+            cashback = 
+                collectedCashbacks -
+                collectedBaseDepegFee;
+            fees += collectedBaseDepegFee;
+        }
+
+        fees += utilisableQuantity *
             context.operationBaseFee / DENOMINATOR;
     }
 
@@ -566,6 +685,71 @@ library MpComplexMath {
                 }
             }
         }
+    }
+
+    function getSuppliableBurnQuantityReversed(
+        SD59x18 utilisableQuantity,
+        MpContextSigned memory context,
+        MpAssetSigned memory asset,
+        SD59x18 mintPrice
+    ) internal view returns (SD59x18 suppliedQuantity) {
+        SD59x18[] memory repl = new SD59x18[](7);
+        {{
+            SD59x18 m = mintPrice;
+            SD59x18 s = asset.share / context.totalTargetShares;
+            SD59x18 dt = context.deviationLimit - s;
+            SD59x18 f = (sd(1e18) + context.operationBaseFee);
+            SD59x18 dfh = context.deviationLimit * f - context.halfDeviationFee;
+            SD59x18 bt = asset.price*utilisableQuantity*(s-sd(1e18)) + asset.price * asset.quantity;
+            repl[0] = m;
+            repl[1] = s;
+            repl[2] = dt;
+            repl[3] = f;
+            repl[4] = dfh;
+            repl[5] = bt;
+            repl[6] = utilisableQuantity;
+        }}
+
+        SD59x18 b;
+        {{
+            b = asset.price * context.deviationLimit * repl[6] * 
+                (-context.deviationLimit * (repl[3]+repl[0]) + repl[3] * repl[1]) + 
+                context.deviationLimit * repl[0] * repl[5] - 
+                asset.price * context.halfDeviationFee * repl[1] * repl[6] +
+                context.usdCap * context.deviationLimit * repl[0] * repl[2];
+        }}
+        SD59x18 c;
+        {{
+          //  console.log("val ", unsign(-(asset.price * context.deviationLimit * context.deviationLimit * repl[3] * repl[6] -
+          //      repl[5] * repl[4])));
+          //  console.log("val ", unsign(context.usdCap * (context.deviationLimit * repl[3] * repl[2] + context.deviationLimit * repl[1])));
+          //  console.log("val ", unsign(-context.deviationLimit * repl[3] * repl[2]));
+          //  console.log("val ", unsign(context.deviationLimit * repl[1]));
+            c = repl[0] * repl[6] * (
+                asset.price * context.deviationLimit * context.deviationLimit * repl[3] * repl[6] -
+                repl[5] * repl[4] -
+                context.usdCap * (context.deviationLimit * repl[3] * repl[2] + context.halfDeviationFee * repl[1])
+            );
+        }}
+        SD59x18 a = asset.price * context.deviationLimit * repl[2];
+
+        console.log("v ", unsign(repl[6]));
+        console.log("a ", unsign(-a));
+        console.log("b ", unsign(b));
+        console.log("c ", unsign(-c));
+
+        {{
+            SD59x18 d = b.powu(2) - sd(4e18) * a * c;
+            if (d >= sd(0)) {
+                d = d.sqrt();
+                SD59x18 x1 = (-b - d) / sd(2e18) / a;
+                SD59x18 x2 = (-b + d) / sd(2e18) / a;
+
+                x1 = x1 > sd(0) ? x1 : sd(0);
+                x2 = x2 > sd(0) ? x2 : sd(0);
+                suppliedQuantity = x1 < x2 ? x1 : x2;
+            }
+        }}
     }
 }
 

@@ -16,7 +16,8 @@ contract MultipoolMathTest is Test {
         MpComplexMath.mintRev,
         MpComplexMath.burnRev,
         MpComplexMath.mint,
-        MpComplexMath.burn
+        MpComplexMath.burn,
+        MpComplexMath.burnTrace
     } for MpContext;
 
     function setUp() public {}
@@ -1304,5 +1305,123 @@ contract MultipoolMathTest is Test {
         assertEq(resultUtilisableQuantity, utilisableQuantity);
         assertAsset(resultAsset, asset);
         assertContext(resultContext, context);
+    }
+
+    function test_Swap_prediction_in_burn() public {
+        MpContext memory context = MpContext({
+            depegBaseFee: 0,
+            usdCap: 1000e18,
+            totalTargetShares: 100e18,
+            halfDeviationFee: 0.0003e18,
+            deviationLimit: 0.1e18,
+            operationBaseFee: 0.0001e18,
+            userCashbackBalance: 0e18
+        });
+
+        MpAsset memory mintAsset = MpAsset({
+            quantity: 50e18,
+            price: 10e18,
+            collectedFees: 0e18,
+            collectedCashbacks: 0e18,
+            share: 50e18
+        });
+        uint mintAmountOut = 5e18;
+
+        uint mintAmountIn = context.mintRev(mintAsset, mintAmountOut);
+
+        MpContext memory expectedMintContext = MpContext({
+            depegBaseFee: 0,
+            usdCap: 1050e18,
+            totalTargetShares: 100e18,
+            halfDeviationFee: 0.0003e18,
+            deviationLimit: 0.1e18,
+            operationBaseFee: 0.0001e18,
+            userCashbackBalance: 0e18
+        });
+        MpAsset memory expectedMintAsset = MpAsset({
+            quantity: 55e18,
+            price: 10e18,
+            collectedFees: 0.0005e18,
+            collectedCashbacks: 5005187499999999999 - 5.0005e18,
+            share: 50e18
+        });
+
+        uint expectedMintAmountIn = 5005187499999999999;
+        assertEq(expectedMintAmountIn, mintAmountIn);
+        assertAsset(expectedMintAsset, mintAsset);
+        assertContext(expectedMintContext, context);
+
+        MpAsset memory burnAsset = MpAsset({
+            quantity: 25e18,
+            price: 20e18,
+            collectedFees: 0,
+            collectedCashbacks: 0,
+            share: 50e18
+        });
+
+        uint burnAmountOut = context.burn(burnAsset, mintAmountOut / 2);
+
+        MpContext memory expectedBurnContext = MpContext({
+            depegBaseFee: 0,
+            usdCap: 1000e18,
+            totalTargetShares: 100e18,
+            halfDeviationFee: 0.0003e18,
+            deviationLimit: 0.1e18,
+            operationBaseFee: 0.0001e18,
+            userCashbackBalance: 0e18
+        });
+        MpAsset memory expectedBurnAsset = MpAsset({
+            quantity: 22.5e18,
+            price: 20e18,
+            collectedFees: 0.000249227395075266e18,
+            collectedCashbacks: 2.5e18 - 0.000249227395075266e18 - 2.492273950752666733e18,
+            share: 50e18
+        });
+
+        uint expectedBurnAmountOut = 2.492273950752666733e18;
+        assertEq(expectedBurnAmountOut, burnAmountOut);
+        assertAsset(expectedBurnAsset, burnAsset);
+        assertContext(expectedBurnContext, context);
+
+        MpAsset memory burnAssetCloned = MpAsset({
+            quantity: 25e18,
+            price: 20e18,
+            collectedFees: 0,
+            collectedCashbacks: 0,
+            share: 50e18
+        });
+
+        MpContext memory initialContext = MpContext({
+            depegBaseFee: 0,
+            usdCap: 1000e18,
+            totalTargetShares: 100e18,
+            halfDeviationFee: 0.0003e18,
+            deviationLimit: 0.1e18,
+            operationBaseFee: 0.0001e18,
+            userCashbackBalance: 0e18
+        });
+        (uint tracedBurnAmountIn, uint traceBurnCashback, uint traceBurnFees) = initialContext.burnTrace(burnAssetCloned, 10e18, burnAmountOut);
+        assertEq(tracedBurnAmountIn, 2.495533644017007922e18);
+        assertEq(traceBurnCashback, 2.495533644017007922e18 - 0.000249227395075266e18 - 2.492273950752666733e18);
+        assertEq(traceBurnFees, 0.000249227395075266e18);
+        MpAsset memory expectedBurnAssetCloned = MpAsset({
+            quantity: 25e18,
+            price: 20e18,
+            collectedFees: 0,
+            collectedCashbacks: 0,
+            share: 50e18
+        });
+
+        MpContext memory expectedInitialContext = MpContext({
+            depegBaseFee: 0,
+            usdCap: 1000e18,
+            totalTargetShares: 100e18,
+            halfDeviationFee: 0.0003e18,
+            deviationLimit: 0.1e18,
+            operationBaseFee: 0.0001e18,
+            userCashbackBalance: 0e18
+        });
+        assertAsset(expectedBurnAssetCloned, burnAssetCloned);
+        assertContext(expectedInitialContext, initialContext);
     }
 }

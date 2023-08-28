@@ -8,6 +8,7 @@ import { Multipool, MpContext, MpAsset } from "../../src/multipool/Multipool.sol
 import { MultipoolRouter } from "../../src/multipool/MultipoolRouter.sol";
 
 contract MultipoolRouterCases is Test {
+    
     Multipool mp;
     MultipoolRouter router;
     MockERC20[] tokens;
@@ -99,10 +100,10 @@ contract MultipoolRouterCases is Test {
 
             MpAsset memory asset = mp.getAssets(address(tokens[0]));
             
-            assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18);
-            assertEq(refund, 0);
+            assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18 + 4.761904761904761e18);
+            assertEq(refund, 4.761904761904761e18);
             assertEq(amount, 0.8008e18);
-            assertEq(asset.collectedCashbacks, 4.761904761904761e18);
+            assertEq(asset.collectedCashbacks, 95.238095238095239e18);
             assertEq(asset.collectedFees, 0.0008e18);
             assertEq(mp.balanceOf(users[0]), 2e18);
         }}
@@ -122,10 +123,10 @@ contract MultipoolRouterCases is Test {
 
             MpAsset memory asset = mp.getAssets(address(tokens[0]));
             
-            assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18);
-            assertEq(refund, 0);
+            assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18 + 4.761904761904761e18);
+            assertEq(refund, 4.761904761904761e18);
             assertEq(shares, 2e18);
-            assertEq(asset.collectedCashbacks, 4.761904761904761e18);
+            assertEq(asset.collectedCashbacks, 95.238095238095239e18);
             assertEq(asset.collectedFees, 0.0008e18);
             assertEq(mp.balanceOf(users[0]), 2e18);
         }}
@@ -157,7 +158,7 @@ contract MultipoolRouterCases is Test {
         }}
     }
 
-    function test_Router_Burn_LowerThanTarget_DeviationInRange_NoCashback() public {
+    function test_Router_Burn_LowerThanTarget_DeviationInRange_Cashback() public {
         bootstrapTokens([uint(400e18),300e18,300e18]);
 
         vm.prank(users[3]);
@@ -286,7 +287,6 @@ contract MultipoolRouterCases is Test {
             assertEq(refundIn, 18.972332015810277620e18);
             assertEq(refundOut, 5.259574468085106133e18);
 
-            // 2 wei accuracy
             assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.605999999999999998e18 + 18.972332015810277620e18);
             assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 1.188118811881188117e18 + 5.259574468085106133e18);
 
@@ -344,6 +344,38 @@ contract MultipoolRouterCases is Test {
 
             assertEq(assetIn.quantity - assetInBefore.quantity, 0.599999999999999999e18);
             assertEq(assetOutBefore.quantity - assetOut.quantity, 1.199999999999999999e18);
+        }}
+
+        vm.revertTo(snapshot);
+
+        {{
+            (uint shares, uint amountIn, uint fee, uint cashbackIn, uint cashbackOut) = router.estimateSwapAmountIn(
+                address(mp), 
+                address(tokens[1]), 
+                address(tokens[0]), 
+                1.188118811881188119e18
+            );
+
+            assertEq(shares, 2e18);
+            assertEq(amountIn, 0.605999999999999998e18);
+            assertEq(fee, 0.0201e18 - 4);
+            assertEq(cashbackIn, 18.972332015810277620e18);
+            assertEq(cashbackOut, 5.259574468085106133e18);
+        }}
+
+        {{
+            (uint shares, uint amountOut, uint fee, uint cashbackIn, uint cashbackOut) = router.estimateSwapAmountOut(
+                address(mp), 
+                address(tokens[1]), 
+                address(tokens[0]), 
+                0.606e18
+            );
+
+            assertEq(shares, 2e18);
+            assertEq(amountOut, 1.188118811881188117e18);
+            assertEq(fee, 0.0201e18 + 2);
+            assertEq(cashbackIn, 18.972332015810277620e18);
+            assertEq(cashbackOut, 5.259574468085106133e18);
         }}
 
     }
