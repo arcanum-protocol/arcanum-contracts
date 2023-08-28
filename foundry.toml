@@ -5,5 +5,8 @@ optimizer_runs = 20_000
 [profile.ci]
 verbosity = 4
 
-[invariant] #invariant section
+[invariant]
 fail_on_revert = true
+
+[fmt]
+int_types = "preserve"

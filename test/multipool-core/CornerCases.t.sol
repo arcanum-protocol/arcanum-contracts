@@ -3,8 +3,8 @@ pragma solidity >=0.8.19;
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
-import { MockERC20 } from "../../src/mocks/erc20.sol";
-import { Multipool, MpContext, MpAsset } from "../../src/multipool/Multipool.sol";
+import {MockERC20} from "../../src/mocks/erc20.sol";
+import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 
 contract MultipoolCornerCases is Test {
     Multipool mp;
@@ -16,7 +16,7 @@ contract MultipoolCornerCases is Test {
     function setUp() public {
         tokenNum = 4;
         userNum = 4;
-        
+
         mp = new Multipool('Name', 'SYMBOL');
         for (uint i; i < tokenNum; i++) {
             tokens.push(new MockERC20('token', 'token', 0));
@@ -32,21 +32,21 @@ contract MultipoolCornerCases is Test {
     }
 
     function mpUpdateTargetShares(address token, uint share) internal {
-       address[] memory t = new address[](1);
-       t[0] = address(token);
+        address[] memory t = new address[](1);
+        t[0] = address(token);
 
-       uint[] memory s = new uint[](1);
-       s[0] = share;
-        mp.updateTargetShares(t,s);
+        uint[] memory s = new uint[](1);
+        s[0] = share;
+        mp.updateTargetShares(t, s);
     }
 
     function mpUpdatePrices(address token, uint price) internal {
-       address[] memory t = new address[](1);
-       t[0] = address(token);
+        address[] memory t = new address[](1);
+        t[0] = address(token);
 
-       uint[] memory p = new uint[](1);
-       p[0] = price;
-        mp.updatePrices(t,p);
+        uint[] memory p = new uint[](1);
+        p[0] = price;
+        mp.updatePrices(t, p);
     }
 
     function test_mintUnconfiguredContract() public {
