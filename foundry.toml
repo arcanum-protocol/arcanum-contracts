@@ -6,4 +6,4 @@ optimizer_runs = 20_000
 verbosity = 4
 
 [invariant] #invariant section
-#fail_on_revert = true
+fail_on_revert = true
