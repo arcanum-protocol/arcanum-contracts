@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
+// Multipool can't be understood by your mind, only heart
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MpAsset, MpContext} from "./MpCommonMath.sol";
@@ -101,7 +102,7 @@ contract Multipool is ERC20, Ownable {
         MpContext memory context,
         MpAsset memory asset,
         uint totalSupply
-    ) public view returns (uint amount) {
+    ) public pure returns (uint amount) {
         amount =
             (share * context.usdCap * DENOMINATOR) /
             totalSupply /
