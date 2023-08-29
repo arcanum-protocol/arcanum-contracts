@@ -52,7 +52,7 @@ contract MultipoolCornerCases is Test {
     function test_mintUnconfiguredContract() public {
         vm.prank(users[0]);
         tokens[0].transfer(address(mp), 10e18);
-        vm.expectRevert("MULTIPOOL: zero price");
+        vm.expectRevert("MULTIPOOL: ZP");
         mp.mint(address(tokens[0]), 10e18, users[0]);
         mpUpdateTargetShares(address(tokens[0]), 10);
         mpUpdatePrices(address(tokens[0]), 10);
@@ -61,14 +61,14 @@ contract MultipoolCornerCases is Test {
 
     function test_burnUnconfiguredContract() public {
         vm.prank(users[0]);
-        vm.expectRevert("MULTIPOOL: zero price");
+        vm.expectRevert("MULTIPOOL: ZP");
         mp.burn(address(tokens[0]), 10e18, users[0]);
     }
 
     function test_mintBurnSignleAssetWithFees() public {
         vm.prank(users[0]);
         tokens[0].transfer(address(mp), 10e18);
-        vm.expectRevert("MULTIPOOL: zero price");
+        vm.expectRevert("MULTIPOOL: ZP");
         mp.mint(address(tokens[0]), 10e18, users[0]);
         mpUpdateTargetShares(address(tokens[0]), 10);
         mpUpdatePrices(address(tokens[0]), 10);

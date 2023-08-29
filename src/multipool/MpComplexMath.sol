@@ -186,7 +186,6 @@ library MpComplexMath {
                 asset.collectedCashbacks = asset.collectedCashbacks - cashback;
                 context.userCashbackBalance = context.userCashbackBalance + cashback;
             }
-
         } else {
             require(deviationWithFees < context.deviationLimit, "MULTIPOOL: DO");
             require(withFees != 0, "MULTIPOOL: CF");

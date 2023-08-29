@@ -75,7 +75,7 @@ contract MultipoolCornerCases is Test {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
         vm.startPrank(users[0]);
-        vm.expectRevert("MULTIPOOL: insufficient share");
+        vm.expectRevert("MULTIPOOL: ZS");
         mp.mint(address(tokens[0]), 2, users[0]);
     }
 
@@ -136,7 +136,7 @@ contract MultipoolCornerCases is Test {
         vm.startPrank(users[0]);
         assertEq(tokens[1].balanceOf(address(mp)), 30e18);
         tokens[1].transfer(address(mp), 1000e18);
-        vm.expectRevert("MULTIPOOL: deviation overflow");
+        vm.expectRevert("MULTIPOOL: DO");
         (uint amount, uint refund) = mp.mint(address(tokens[1]), 2e18, users[0]);
 
         MpAsset memory asset = mp.getAssets(address(tokens[1]));
@@ -195,7 +195,7 @@ contract MultipoolCornerCases is Test {
         vm.startPrank(users[3]);
         mp.transfer(address(mp), 2e18);
         changePrank(users[0]);
-        vm.expectRevert("MULTIPOOL: deviation overflow");
+        vm.expectRevert("MULTIPOOL: DO");
         (uint amount, uint refund) = mp.burn(address(tokens[0]), 2e18, users[0]);
     }
 
