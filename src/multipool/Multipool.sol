@@ -59,25 +59,47 @@ contract Multipool is ERC20, Ownable {
         asset = assets[assetAddress];
     }
 
-    function getMintContext() public view returns (MpContext memory context) {
-        context = getContext(baseMintFee);
+    function getMintData(address assetAddress)
+        public
+        view
+        returns (MpContext memory context, MpAsset memory asset, uint ts)
+    {
+        context = getContext(0);
+        asset = assets[assetAddress];
+        ts = totalSupply();
     }
 
-    function getBurnContext() public view returns (MpContext memory context) {
-        context = getContext(baseBurnFee);
+    function getBurnData(address assetAddress)
+        public
+        view
+        returns (MpContext memory context, MpAsset memory asset, uint ts)
+    {
+        context = getContext(1);
+        asset = assets[assetAddress];
+        ts = totalSupply();
     }
 
-    function getTradeContext() public view returns (MpContext memory context) {
-        context = getContext(baseTradeFee);
+    function getTradeData(address assetInAddress, address assetOutAddress)
+        public
+        view
+        returns (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint ts)
+    {
+        context = getContext(2);
+        assetIn = assets[assetInAddress];
+        assetOut = assets[assetOutAddress];
+        ts = totalSupply();
     }
 
-    function getContext(uint baseFee) public view returns (MpContext memory context) {
+    // 0 - mint
+    // 1 - burn
+    // 2 - swap
+    function getContext(uint action) public view returns (MpContext memory context) {
         context = MpContext({
             usdCap: usdCap,
             totalTargetShares: totalTargetShares,
             halfDeviationFee: halfDeviationFee,
             deviationLimit: deviationLimit,
-            operationBaseFee: baseFee,
+            operationBaseFee: action == 0 ? baseMintFee : (action == 1 ? baseBurnFee : baseTradeFee),
             userCashbackBalance: 0e18,
             depegBaseFee: depegBaseFee
         });
@@ -101,7 +123,7 @@ contract Multipool is ERC20, Ownable {
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: ZP");
         require(asset.share != 0, "MULTIPOOL: ZT");
-        MpContext memory context = getContext(baseMintFee);
+        MpContext memory context = getContext(0);
 
         uint transferredAmount = getTransferredAmount(asset, assetAddress);
         uint amountOut = totalSupply() != 0 ? shareToAmount(share, context, asset, totalSupply()) : transferredAmount;
@@ -128,7 +150,7 @@ contract Multipool is ERC20, Ownable {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: ZP");
-        MpContext memory context = getContext(baseBurnFee);
+        MpContext memory context = getContext(1);
 
         uint amountIn = shareToAmount(share, context, asset, totalSupply());
         amountOut = context.evalBurn(asset, amountIn);
@@ -155,7 +177,7 @@ contract Multipool is ERC20, Ownable {
         require(assetIn.share != 0, "MULTIPOOL: ZT");
         require(assetOut.price != 0, "MULTIPOOL: ZP");
         require(assetOut.share != 0, "MULTIPOOL: ZT");
-        MpContext memory context = getContext(baseTradeFee);
+        MpContext memory context = getContext(2);
 
         uint transferredAmount = getTransferredAmount(assetIn, assetInAddress);
         {
