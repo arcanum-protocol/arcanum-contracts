@@ -20,7 +20,7 @@ contract MultipoolRouterActor is Test {
             tokens.push(new MockERC20('token', 'token', 0));
         }
         for (uint i; i < userNum; i++) {
-            users.push(makeAddr(string(abi.encode("ROUTER", i ,1000))));
+            users.push(makeAddr(string(abi.encode("ROUTER", i, 1000))));
         }
         for (uint u; u < userNum; u++) {
             for (uint t; t < tokenNum; t++) {
@@ -38,163 +38,119 @@ contract MultipoolRouterActor is Test {
     }
 
     function updateTargetShare(uint8 tokenIndex, uint targetShare) public {
-       MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
-       targetShare = bound(targetShare, 0, 100000e18);
+        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length - 1)];
+        targetShare = bound(targetShare, 0, 100000e18);
 
-       address[] memory tkn = new address[](1);
-       tkn[0] = address(token);
+        address[] memory tkn = new address[](1);
+        tkn[0] = address(token);
 
-       uint[] memory trgtShare = new uint[](1);
-       trgtShare[0] = targetShare;
+        uint[] memory trgtShare = new uint[](1);
+        trgtShare[0] = targetShare;
 
-       mp.updateTargetShares(tkn, trgtShare);
+        mp.updateTargetShares(tkn, trgtShare);
     }
 
     function updateDeviationLimit(uint value) public {
-       value = bound(value, 1, 1e18);
-       mp.setDeviationLimit(value);
+        value = bound(value, 1, 1e18);
+        mp.setDeviationLimit(value);
     }
 
     function updateHalfDeviationFee(uint value) public {
-       value = bound(value, 1, 1e18);
-       mp.setHalfDeviationFee(value);
+        value = bound(value, 1, 1e18);
+        mp.setHalfDeviationFee(value);
     }
 
     function updatePrice(uint8 tokenIndex, uint price) public {
-       MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
-       price = bound(price, 0, 10e18);
+        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length - 1)];
+        price = bound(price, 0, 10e18);
 
-       address[] memory tkn = new address[](1);
-       tkn[0] = address(token);
+        address[] memory tkn = new address[](1);
+        tkn[0] = address(token);
 
-       uint[] memory pr = new uint[](1);
-       pr[0] = price;
+        uint[] memory pr = new uint[](1);
+        pr[0] = price;
 
-       mp.updatePrices(tkn, pr);
+        mp.updatePrices(tkn, pr);
     }
 
     function mintFromShare(uint8 callerIndex, uint8 tokenIndex, uint share, uint8 toIndex) public {
-       address caller = users[bound(callerIndex, 0, users.length-1)];
-       address to = users[bound(toIndex, 0, users.length-1)];
-       MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
-       share = bound(share, 0, 10e18);
+        address caller = users[bound(callerIndex, 0, users.length - 1)];
+        address to = users[bound(toIndex, 0, users.length - 1)];
+        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length - 1)];
+        share = bound(share, 0, 10e18);
 
-       uint balance = token.balanceOf(caller);
-       (bool success, bytes memory data) = address(router).call(abi.encode(
-               router.estimateMintAmountIn.selector,
-               address(mp),
-               address(token),
-               share
-       ));
-       if (!success) {
-           vm.expectRevert();
-       } 
-       vm.prank(caller);
-       router.mintWithSharesOut(
-           address(mp),
-           address(token),
-           share,
-           balance,
-           to,
-           uint(0)
-       );
+        uint balance = token.balanceOf(caller);
+        (bool success, bytes memory data) =
+            address(router).call(abi.encode(router.estimateMintAmountIn.selector, address(mp), address(token), share));
+        if (!success) {
+            vm.expectRevert();
+        }
+        vm.prank(caller);
+        router.mintWithSharesOut(address(mp), address(token), share, balance, to, uint(0));
     }
 
     function mintFromAmountIn(uint8 callerIndex, uint8 tokenIndex, uint amount, uint8 toIndex) public {
-       address caller = users[bound(callerIndex, 0, users.length-1)];
-       address to = users[bound(toIndex, 0, users.length-1)];
-       MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
-       amount = bound(amount, 0, 10e18);
+        address caller = users[bound(callerIndex, 0, users.length - 1)];
+        address to = users[bound(toIndex, 0, users.length - 1)];
+        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length - 1)];
+        amount = bound(amount, 0, 10e18);
 
-       (bool success, bytes memory data) = address(router).call(abi.encode(
-               router.estimateMintSharesOut.selector,
-               address(mp),
-               address(token),
-               amount
-       ));
-       if (!success) {
-           vm.expectRevert();
-       }
-       vm.prank(caller);
-       router.mintWithAmountIn(
-           address(mp),
-           address(token),
-           amount,
-           0,
-           to,
-           uint(0)
-       );
+        (bool success, bytes memory data) =
+            address(router).call(abi.encode(router.estimateMintSharesOut.selector, address(mp), address(token), amount));
+        if (!success) {
+            vm.expectRevert();
+        }
+        vm.prank(caller);
+        router.mintWithAmountIn(address(mp), address(token), amount, 0, to, uint(0));
     }
 
     function burnFromShare(uint8 callerIndex, uint8 tokenIndex, uint share, uint8 toIndex) public {
-       address caller = users[bound(callerIndex, 0, users.length-1)];
-       address to = users[bound(toIndex, 0, users.length-1)];
-       MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
-       share = bound(share, 0, 10e18);
+        address caller = users[bound(callerIndex, 0, users.length - 1)];
+        address to = users[bound(toIndex, 0, users.length - 1)];
+        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length - 1)];
+        share = bound(share, 0, 10e18);
 
-       (bool success, bytes memory data) = address(router).call(abi.encode(
-               router.estimateBurnAmountOut.selector,
-               address(mp),
-               address(token),
-               share
-       ));
-       if (!success) {
-           vm.expectRevert();
-       } 
-       vm.prank(caller);
-       router.burnWithSharesIn(
-           address(mp),
-           address(token),
-           share,
-           0,
-           to,
-           uint(0)
-       );
+        (bool success, bytes memory data) =
+            address(router).call(abi.encode(router.estimateBurnAmountOut.selector, address(mp), address(token), share));
+        if (!success) {
+            vm.expectRevert();
+        }
+        vm.prank(caller);
+        router.burnWithSharesIn(address(mp), address(token), share, 0, to, uint(0));
     }
 
     function burnFromAmountOut(uint8 callerIndex, uint8 tokenIndex, uint amount, uint8 toIndex) public {
-       address caller = users[bound(callerIndex, 0, users.length-1)];
-       address to = users[bound(toIndex, 0, users.length-1)];
-       MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length-1)];
-       amount = bound(amount, 0, 10e18);
+        address caller = users[bound(callerIndex, 0, users.length - 1)];
+        address to = users[bound(toIndex, 0, users.length - 1)];
+        MockERC20 token = tokens[bound(tokenIndex, 0, tokens.length - 1)];
+        amount = bound(amount, 0, 10e18);
 
         uint balance = mp.balanceOf(caller);
-       (bool success, bytes memory data) = address(router).call(abi.encode(
-               router.estimateBurnSharesIn.selector,
-               address(mp),
-               address(token),
-               amount
-       ));
-       if (!success) {
-           vm.expectRevert();
-       } 
-       vm.prank(caller);
-       router.burnWithAmountOut(
-           address(mp),
-           address(token),
-           amount,
-           balance,
-           to,
-           uint(0)
-       );
+        (bool success, bytes memory data) =
+            address(router).call(abi.encode(router.estimateBurnSharesIn.selector, address(mp), address(token), amount));
+        if (!success) {
+            vm.expectRevert();
+        }
+        vm.prank(caller);
+        router.burnWithAmountOut(address(mp), address(token), amount, balance, to, uint(0));
     }
 
-   // function swap(uint8 callerIndex,uint8 tokenInIndex, uint8 tokenOutIndex, uint share, uint supplyAmount, uint8 toIndex) public {
-   //    address caller = users[bound(callerIndex, 0, users.length-1)];
-   //    address to = users[bound(toIndex, 0, users.length-1)];
-   //    MockERC20 tokenIn = tokens[bound(tokenInIndex, 0, tokens.length-1)];
-   //    MockERC20 tokenOut = tokens[bound(tokenOutIndex, 0, tokens.length-1)];
+    // function swap(uint8 callerIndex,uint8 tokenInIndex, uint8 tokenOutIndex, uint share, uint supplyAmount, uint8 toIndex) public {
+    //    address caller = users[bound(callerIndex, 0, users.length-1)];
+    //    address to = users[bound(toIndex, 0, users.length-1)];
+    //    MockERC20 tokenIn = tokens[bound(tokenInIndex, 0, tokens.length-1)];
+    //    MockERC20 tokenOut = tokens[bound(tokenOutIndex, 0, tokens.length-1)];
 
-   //    MpContext memory ctx = mp.getMintContext();
-   //    uint balanceOfAsset = tokenIn.balanceOf(address(caller));
+    //    MpContext memory ctx = mp.getMintContext();
+    //    uint balanceOfAsset = tokenIn.balanceOf(address(caller));
 
-   //    share = bound(share, 0, 100000e18);
-   //    supplyAmount = bound(share, 0, balanceOfAsset);
+    //    share = bound(share, 0, 100000e18);
+    //    supplyAmount = bound(share, 0, balanceOfAsset);
 
-   //    vm.startPrank(caller);
-   //    tokenIn.transfer(address(mp), supplyAmount);
-   //    mp.swap(address(tokenIn), address(tokenOut), share, to);
-   // }
+    //    vm.startPrank(caller);
+    //    tokenIn.transfer(address(mp), supplyAmount);
+    //    mp.swap(address(tokenIn), address(tokenOut), share, to);
+    // }
 }
 
 contract MultipoolRouterSingleAssetTest is Test {
@@ -218,11 +174,11 @@ contract MultipoolRouterSingleAssetTest is Test {
             uint mpSumm = asset.quantity + asset.collectedCashbacks + asset.collectedFees;
             console.log("tot: ", mpSumm);
             console.log("balance: ", balance);
-            assertEq(mpSumm,balance);
-           // uint usersBalance;
-           // for (uint u = 0; u < usersNum; u++) {
-           //     usersBalance += token.balanceOf(h.users(u));
-           // }
+            assertEq(mpSumm, balance);
+            // uint usersBalance;
+            // for (uint u = 0; u < usersNum; u++) {
+            //     usersBalance += token.balanceOf(h.users(u));
+            // }
             console.log(address(token));
         }
     }

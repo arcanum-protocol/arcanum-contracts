@@ -85,10 +85,8 @@ contract MultipoolRouter {
     ) public ensure(deadline) returns (uint shares, uint refund) {
         {
             {
-                MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
-                MpContext memory context = Multipool(poolAddress).getMintContext();
-
-                uint totalSupply = Multipool(poolAddress).totalSupply();
+                (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+                    Multipool(poolAddress).getMintData(assetAddress);
                 uint oldUsdCap = context.usdCap;
 
                 uint amountOut = context.mint(asset, amountIn);
@@ -113,10 +111,8 @@ contract MultipoolRouter {
     ) public ensure(deadline) returns (uint shares, uint refund) {
         {
             {
-                MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
-                MpContext memory context = Multipool(poolAddress).getBurnContext();
-
-                uint totalSupply = Multipool(poolAddress).totalSupply();
+                (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+                    Multipool(poolAddress).getBurnData(assetAddress);
                 uint oldUsdCap = context.usdCap;
 
                 uint requiredAmountIn = context.burnRev(asset, amountOut);
@@ -142,9 +138,8 @@ contract MultipoolRouter {
         uint shares;
         {
             {
-                MpAsset memory assetIn = Multipool(poolAddress).getAssets(assetInAddress);
-                MpContext memory context = Multipool(poolAddress).getTradeContext();
-                uint totalSupply = Multipool(poolAddress).totalSupply();
+                (MpContext memory context, MpAsset memory assetIn,, uint totalSupply) =
+                    Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
                 uint oldUsdCap = context.usdCap;
 
                 uint mintAmountOut = context.mint(assetIn, amountIn);
@@ -172,13 +167,14 @@ contract MultipoolRouter {
         uint shares;
         {
             {
-                MpAsset memory assetOut = Multipool(poolAddress).getAssets(assetOutAddress);
-                MpAsset memory assetIn = Multipool(poolAddress).getAssets(assetInAddress);
-                MpContext memory context = Multipool(poolAddress).getTradeContext();
-                uint totalSupply = Multipool(poolAddress).totalSupply();
+                address assetInAddr = assetInAddress;
+                address assetOutAddr = assetOutAddress;
+                address poolAddr = poolAddress;
+                uint _amountOut = amountOut;
+                (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
+                    Multipool(poolAddr).getTradeData(assetInAddr, assetOutAddr);
                 uint oldUsdCap = context.usdCap;
 
-                uint _amountOut = amountOut;
                 (uint burnAmountIn,,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
                 shares = (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR / oldUsdCap;
             }
@@ -195,9 +191,8 @@ contract MultipoolRouter {
         view
         returns (uint sharesOut, uint fee, uint cashbackIn)
     {
-        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
-        MpContext memory context = Multipool(poolAddress).getMintContext();
-        uint totalSupply = Multipool(poolAddress).totalSupply();
+        (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+            Multipool(poolAddress).getMintData(assetAddress);
         uint oldUsdCap = context.usdCap;
 
         uint amountOut = context.mint(asset, amountIn);
@@ -216,10 +211,8 @@ contract MultipoolRouter {
         view
         returns (uint amountIn, uint fee, uint cashbackIn)
     {
-        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
-        MpContext memory context = Multipool(poolAddress).getMintContext();
-
-        uint totalSupply = Multipool(poolAddress).totalSupply();
+        (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+            Multipool(poolAddress).getMintData(assetAddress);
         uint oldUsdCap = context.usdCap;
 
         require(totalSupply != 0, "MULTIPOOL_ROUTER: NS");
@@ -237,9 +230,8 @@ contract MultipoolRouter {
         view
         returns (uint amountOut, uint fee, uint cashbackOut)
     {
-        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
-        MpContext memory context = Multipool(poolAddress).getBurnContext();
-        uint totalSupply = Multipool(poolAddress).totalSupply();
+        (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+            Multipool(poolAddress).getBurnData(assetAddress);
         uint oldUsdCap = context.usdCap;
 
         uint amountIn = (sharesIn * oldUsdCap * DENOMINATOR) / asset.price / totalSupply;
@@ -256,10 +248,8 @@ contract MultipoolRouter {
         view
         returns (uint sharesIn, uint fee, uint cashbackOut)
     {
-        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
-        MpContext memory context = Multipool(poolAddress).getBurnContext();
-
-        uint totalSupply = Multipool(poolAddress).totalSupply();
+        (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+            Multipool(poolAddress).getBurnData(assetAddress);
         uint oldUsdCap = context.usdCap;
 
         uint amountIn = context.burnRev(asset, amountOut);
@@ -276,11 +266,8 @@ contract MultipoolRouter {
         view
         returns (uint shares, uint amountOut, uint fee, uint cashbackIn, uint cashbackOut)
     {
-        MpAsset memory assetIn = Multipool(poolAddress).getAssets(assetInAddress);
-        MpAsset memory assetOut = Multipool(poolAddress).getAssets(assetOutAddress);
-        MpContext memory context = Multipool(poolAddress).getTradeContext();
-
-        uint totalSupply = Multipool(poolAddress).totalSupply();
+        (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
+            Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
         uint oldUsdCap = context.usdCap;
 
         uint mintAmountOut = context.mint(assetIn, amountIn);
@@ -302,11 +289,8 @@ contract MultipoolRouter {
         view
         returns (uint shares, uint amountIn, uint fee, uint cashbackIn, uint cashbackOut)
     {
-        MpAsset memory assetIn = Multipool(poolAddress).getAssets(assetInAddress);
-        MpAsset memory assetOut = Multipool(poolAddress).getAssets(assetOutAddress);
-        MpContext memory context = Multipool(poolAddress).getTradeContext();
-
-        uint totalSupply = Multipool(poolAddress).totalSupply();
+        (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
+            Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
         uint oldUsdCap = context.usdCap;
 
         uint burnAmountIn;

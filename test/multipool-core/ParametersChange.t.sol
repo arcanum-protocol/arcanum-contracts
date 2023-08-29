@@ -105,7 +105,7 @@ contract MultipoolCornerCases is Test {
         assertEq(assetOutBefore.quantity - assetOut.quantity, 1.199999999999999999e18);
 
         vm.stopPrank();
-        mp.setDeviationLimit(0.30e18); // 30%
+        mp.setDeviationLimit(0.3e18); // 30%
         mp.setHalfDeviationFee(0.003e18); // 3%
         mp.setBaseTradeFee(0.1e18); // 10%
         mp.setBaseMintFee(0.00001e18); // 0.001%
@@ -147,6 +147,7 @@ contract MultipoolCornerCases is Test {
             assertEq(assetOutBefore.quantity - assetOut.quantity, 17.999999999999999999e18);
         }
     }
+
     function test_TokenRemovalWorks() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
