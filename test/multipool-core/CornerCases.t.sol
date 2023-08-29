@@ -31,6 +31,44 @@ contract MultipoolCornerCases is Test {
         }
     }
 
+    function bootstrapTokens(uint[3] memory shares) private {
+        mp.setDeviationLimit(1e18); // 100%
+
+        address[] memory t = new address[](3);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+
+        uint[] memory s = new uint[](3);
+        s[0] = 50e18;
+        s[1] = 25e18;
+        s[2] = 25e18;
+
+        uint[] memory p = new uint[](3);
+        p[0] = 10e18;
+        p[1] = 20e18;
+        p[2] = 10e18;
+
+        mp.updatePrices(t, p);
+        mp.updateTargetShares(t, s);
+
+        tokens[0].mint(address(mp), shares[0] / 10);
+        mp.mint(address(tokens[0]), 100e18, users[3]);
+
+        tokens[1].mint(address(mp), shares[1] / 20);
+        mp.mint(address(tokens[1]), 100e18 * shares[1] / shares[0], users[3]);
+
+        tokens[2].mint(address(mp), shares[2] / 10);
+        mp.mint(address(tokens[2]), 100e18 * shares[2] / shares[0], users[3]);
+
+        mp.setDeviationLimit(0.15e18); // 0.15
+        mp.setHalfDeviationFee(0.0003e18); // 0.0003
+        mp.setBaseTradeFee(0.01e18); // 0.01 1%
+        mp.setBaseMintFee(0.001e18); // 0.001 0.1%
+        mp.setBaseBurnFee(0.1e18); // 0.1 10%
+        mp.setDepegBaseFee(0.6e18);
+    }
+
     function mpUpdateTargetShares(address token, uint share) internal {
         address[] memory t = new address[](1);
         t[0] = address(token);
@@ -73,5 +111,59 @@ contract MultipoolCornerCases is Test {
         mpUpdateTargetShares(address(tokens[0]), 10);
         mpUpdatePrices(address(tokens[0]), 10);
         mp.mint(address(tokens[0]), 10e18, users[0]);
+    }
+
+    function test_MintZeroShares() public {
+        bootstrapTokens([uint(50e18), 475e18, 475e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 1e18);
+        vm.expectRevert("MULTIPOOL: ZS");
+        mp.mint(address(tokens[0]), 0, users[0]);
+    }
+
+    function test_BurnZeroShares() public {
+        bootstrapTokens([uint(50e18), 475e18, 475e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 1e18);
+        vm.expectRevert("MULTIPOOL: ZS");
+        mp.burn(address(tokens[0]), 0, users[0]);
+    }
+
+    function test_SwapSameTokens() public {
+        bootstrapTokens([uint(50e18), 475e18, 475e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 1e18);
+        vm.expectRevert("MULTIPOOL: SA");
+        mp.swap(address(tokens[0]), address(tokens[0]), 2e18, users[0]);
+    }
+
+    function test_SwapZeroShare() public {
+        bootstrapTokens([uint(50e18), 475e18, 475e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 1e18);
+        vm.expectRevert("MULTIPOOL: ZS");
+        mp.swap(address(tokens[0]), address(tokens[1]), 0e18, users[0]);
+    }
+
+    function test_SwapToNonExistingToken() public {
+        bootstrapTokens([uint(50e18), 475e18, 475e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 1e18);
+        vm.expectRevert("MULTIPOOL: ZP");
+        mp.swap(address(tokens[0]), users[0], 2e18, users[0]);
+    }
+
+    function test_SwapWithNonExistingToken() public {
+        bootstrapTokens([uint(50e18), 475e18, 475e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 1e18);
+        vm.expectRevert("MULTIPOOL: ZP");
+        mp.swap(users[0], address(tokens[0]), 2e18, users[0]);
     }
 }
