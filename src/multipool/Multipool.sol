@@ -128,7 +128,6 @@ contract Multipool is ERC20, Ownable {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: ZP");
-        require(asset.share != 0, "MULTIPOOL: ZT");
         MpContext memory context = getContext(baseBurnFee);
 
         uint amountIn = shareToAmount(share, context, asset, totalSupply());
@@ -149,8 +148,13 @@ contract Multipool is ERC20, Ownable {
         returns (uint amountIn, uint amountOut, uint refundIn, uint refundOut)
     {
         require(assetInAddress != assetOutAddress, "MULTIPOOL: SA");
+        require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory assetIn = assets[assetInAddress];
         MpAsset memory assetOut = assets[assetOutAddress];
+        require(assetIn.price != 0, "MULTIPOOL: ZP");
+        require(assetIn.share != 0, "MULTIPOOL: ZT");
+        require(assetOut.price != 0, "MULTIPOOL: ZP");
+        require(assetOut.share != 0, "MULTIPOOL: ZT");
         MpContext memory context = getContext(baseTradeFee);
 
         uint transferredAmount = getTransferredAmount(assetIn, assetInAddress);

@@ -20,12 +20,6 @@ Here are 9 potential test cases for the Multipool ETF contract:
 
 9) Test edge cases - call functions with zero shares, prices, assets etc and verify expected behavior.
     
-    9.1) Mint zero amount of shares, using existing token.
-    
-    9.2) Burn zero amount of shares, using existing token.
-    
-    9.3) Swap zero amount of share, using existing token.
-    
     9.4) Make everything above with 0% target share, and 0% actual share, and 0$ price.
 
 10) Test adding tokens - add token to existing ETF then, mint/burn/swap, with it
@@ -48,9 +42,6 @@ Here are 9 potential test cases for the Multipool ETF contract:
 
         check all update events suit
         check all operation events suit
-
-        swap same tokens
-        swap existing and non existing tokens
     ```
 
 
