@@ -8,6 +8,35 @@ This repository contains the source code for the [Multipool](https://arcanum.to/
 - [TEST](https://github.com/provisorDAO/core-contracts/tree/master/test) - contains the tests for the contracts, written in TypeScript.
 - [DEPLOYMENTS](https://github.com/provisorDAO/core-contracts/tree/master/scripts) - contains the scripts for the contracts, written in TypeScript. That scripts are used for the deploy on testnet and mainnet.
 
+# Error codes
+
+<details>
+    <summary> MULTIPOOL </summary> All messages are in format "MULTIPOOL: error_code"
+
+| Error code | description | Reason |
+| --- | --- | --- |
+| DO | Deviation of asset overflows limit | Probably you are trying to perform an action that depegs pool too much | 
+| QE | Burn quantity exceeded | Your action tries to take out more quantity than multipoll has | 
+| ZS | Zero share | This error can appear if there is zero shares to mint by your action | 
+| CF | Curve calculation failed | This error is probably unreachable and means that there are no proper quantity on curve | 
+| ZP | Zero price | Prive of the asset that is used by the action is unset | 
+| ZT | Zero target share | Target share of the asset that is used by the action is unset or zero (reduced) | 
+| IQ | Insufficient quantity | Operation requires more tokens to supply to contract | 
+| SA | Same assets | Probably you are trying to swap token on itself | 
+| PA | Price authority only | This operation requires you to have price setting permissions | 
+| TA | Target share authority only | This operation requires you to have target share setting permissions | 
+| WA | Withdraw authority only | This operation requires you to have withdrawal permissions | 
+</details>
+<details>
+    <summary> MULTIPOOL ROUTER </summary> All messages are in format "MULTIPOOL_ROUTER: error_code"
+
+| Error code | description | Reason |
+| --- | --- | --- |
+| SE | Slippage exceeded | Transaction's quantity doesn't suit provided slippage | 
+| DE | Deadline exceeded | Specified deadline exceeded | 
+| NS | No shares | Etf doesn't have any shares minted, router can't work with this, you need to make price initialising manually through multipool | 
+</details>
+
 # How to contribute
 
 ## RULES
@@ -56,6 +85,7 @@ ____________________
 | MultipoolMath | The code part responsible for all multipool mathemathical computations |
 | MultipoolRouter | Router contract that is used to get dafault interactions with core |
 | OPS | The deployers, actions and tools |
+| FOUNDRY | For foundry things like adding libraries |
     
 </details>
 

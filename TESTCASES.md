@@ -39,20 +39,6 @@ Here are 9 potential test cases for the Multipool ETF contract:
     ```
         for each scenario check refund works ok:
 
-        mint + lower than target share, deivation </> deviation limit - deviation descrease, *check 2 scenarius: cashbacks = 0 / cashbacks > 0
-
-        mint + higher than target share, deivation </> deviation limit - deviation increase, *check 2 scenarius: cashbacks = 0 / cashbacks > 0
-        
-        burn + lower than target share, deivation </> deviation limit - deviation increase, *check 2 scenarius: cashbacks = 0 / cashbacks > 0
-
-        burn + higher than target share, deivation </> deviation limit - deviation decrease, *check 2 scenarius: cashbacks = 0 / cashbacks > 0
-
-        swap both assets deviation decrease , *check 2 scenarius: cashbacks = 0 / cashbacks > 0
-
-        swap both assets deviation increase
-
-        swap both assets one's deviation increase other's decrease, *check 2 scenarius: cashbacks = 0 / cashbacks > 0
-
         swap, change fee and curve, and deviation fee distribution than swap again 
         mint, change all mint again
         burn change all than burn again

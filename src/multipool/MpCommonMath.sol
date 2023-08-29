@@ -54,7 +54,7 @@ library MpCommonMath {
             }
             suppliedQuantity = (utilisableQuantity * (1e18 + context.operationBaseFee)) / DENOMINATOR;
         } else {
-            require(deviationNew < context.deviationLimit, "MULTIPOOL: deviation overflow");
+            require(deviationNew < context.deviationLimit, "MULTIPOOL: DO");
             uint depegFee = (context.halfDeviationFee * deviationNew * utilisableQuantity) / context.deviationLimit
                 / (context.deviationLimit - deviationNew);
             uint deviationBaseFee = (context.depegBaseFee * depegFee) / DENOMINATOR;
@@ -63,7 +63,7 @@ library MpCommonMath {
             suppliedQuantity = ((utilisableQuantity * (1e18 + context.operationBaseFee)) / DENOMINATOR + depegFee);
         }
 
-        require(suppliedQuantity != 0, "MULTIPOOL: insufficient share");
+        require(suppliedQuantity != 0, "MULTIPOOL: ZS");
 
         asset.quantity += utilisableQuantity;
         context.usdCap += (utilisableQuantity * asset.price) / DENOMINATOR;
@@ -75,7 +75,7 @@ library MpCommonMath {
         pure
         returns (uint utilisableQuantity)
     {
-        require(suppliedQuantity <= asset.quantity, "MULTIPOOL: asset quantity exceeded");
+        require(suppliedQuantity <= asset.quantity, "MULTIPOOL: QE");
 
         if (context.usdCap - (suppliedQuantity * asset.price) / DENOMINATOR != 0) {
             uint shareOld = (asset.quantity * asset.price) / context.usdCap;
@@ -93,7 +93,7 @@ library MpCommonMath {
                 }
                 utilisableQuantity = (suppliedQuantity * DENOMINATOR) / (1e18 + context.operationBaseFee);
             } else {
-                require(deviationNew < context.deviationLimit, "MULTIPOOL: deviation overflow");
+                require(deviationNew < context.deviationLimit, "MULTIPOOL: DO");
                 uint feeRatio = (context.halfDeviationFee * deviationNew * DENOMINATOR) / context.deviationLimit
                     / (context.deviationLimit - deviationNew);
                 utilisableQuantity = (suppliedQuantity * DENOMINATOR) / (1e18 + feeRatio + context.operationBaseFee);

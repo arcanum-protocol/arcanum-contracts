@@ -123,7 +123,7 @@ library MpComplexMath {
         pure
         returns (uint suppliedQuantity)
     {
-        require(utilisableQuantity <= asset.quantity, "can't burn more assets than exist");
+        require(utilisableQuantity <= asset.quantity, "MULTIPOOL: QE");
 
         uint withFees = unsign(getSuppliableBurnQuantity(sign(utilisableQuantity), sign(context), sign(asset)));
         uint noFees = utilisableQuantity * (1e18 + context.operationBaseFee) / DENOMINATOR;
@@ -134,7 +134,7 @@ library MpComplexMath {
 
         if (deviationNoFees <= deviationOld) {
             suppliedQuantity = noFees;
-            require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
+            require(suppliedQuantity <= asset.quantity, "MULTIPOOL: QE");
 
             uint cashback;
             if (deviationOld != 0) {
@@ -145,9 +145,9 @@ library MpComplexMath {
             context.userCashbackBalance = context.userCashbackBalance + cashback;
         } else {
             suppliedQuantity = withFees;
-            require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
-            require(deviationWithFees < context.deviationLimit, "deviation overflows limit");
-            require(withFees != 0, "no curve solutions found");
+            require(suppliedQuantity <= asset.quantity, "MULTIPOOL: QE");
+            require(deviationWithFees < context.deviationLimit, "MULTIPOOL: DO");
+            require(withFees != 0, "MULTIPOOL: CF");
 
             uint _operationBaseFee = context.operationBaseFee;
             uint collectedCashbacks = suppliedQuantity - utilisableQuantity * (1e18 + _operationBaseFee) / DENOMINATOR;
@@ -180,19 +180,16 @@ library MpComplexMath {
 
         if (deviationNoFees <= deviationOld) {
             utilisableQuantity = noFees;
-            require(deviationNoFees <= deviationOld, "deviation no fees should be lower than old");
 
-            uint cashback;
             if (deviationOld != 0) {
-                cashback = (asset.collectedCashbacks * (deviationOld - deviationNoFees)) / deviationOld;
+                uint cashback = (asset.collectedCashbacks * (deviationOld - deviationNoFees)) / deviationOld;
+                asset.collectedCashbacks = asset.collectedCashbacks - cashback;
+                context.userCashbackBalance = context.userCashbackBalance + cashback;
             }
 
-            asset.collectedCashbacks = asset.collectedCashbacks - cashback;
-
-            context.userCashbackBalance = context.userCashbackBalance + cashback;
         } else {
-            require(deviationWithFees < context.deviationLimit, "deviation overflows limit");
-            require(withFees != 0, "no curve solutions found");
+            require(deviationWithFees < context.deviationLimit, "MULTIPOOL: DO");
+            require(withFees != 0, "MULTIPOOL: CF");
 
             utilisableQuantity = withFees;
             // straightforward form but seems like it is not so good in accuracy,
@@ -216,7 +213,7 @@ library MpComplexMath {
         pure
         returns (uint suppliedQuantity, uint cashback, uint fees)
     {
-        require(utilisableQuantity <= asset.quantity, "can't burn more assets than exist");
+        require(utilisableQuantity <= asset.quantity, "MULTIPOOL: QE");
 
         uint withFees;
         uint noFees = utilisableQuantity * (1e18 + context.operationBaseFee) / DENOMINATOR;
@@ -240,16 +237,16 @@ library MpComplexMath {
 
         if (deviationNoFees <= deviationOldNoFees) {
             suppliedQuantity = noFees;
-            require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
+            require(suppliedQuantity <= asset.quantity, "MULTIPOOL: QE");
 
             if (deviationOldNoFees != 0) {
                 cashback = (asset.collectedCashbacks * (deviationOldNoFees - deviationNoFees)) / deviationOldNoFees;
             }
         } else {
             suppliedQuantity = withFees;
-            require(suppliedQuantity <= asset.quantity, "can't burn more assets than exist");
-            require(deviationWithFees < context.deviationLimit, "deviation overflows limit");
-            require(withFees != 0, "no curve solutions found");
+            require(suppliedQuantity <= asset.quantity, "MULTIPOOL: QE");
+            require(deviationWithFees < context.deviationLimit, "MULTIPOOL: DO");
+            require(withFees != 0, "MULTIPOOL: CF");
 
             uint _operationBaseFee = context.operationBaseFee;
             uint _depegBaseFee = context.depegBaseFee;
