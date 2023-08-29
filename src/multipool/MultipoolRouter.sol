@@ -19,7 +19,7 @@ contract MultipoolRouter {
     } for MpContext;
 
     modifier ensure(uint deadline) {
-        require(deadline == 0 || deadline >= block.timestamp, "Multipool Router: EXPIRED");
+        require(deadline == 0 || deadline >= block.timestamp, "MULTIPOOL_ROUTER: DE");
         _;
     }
 
@@ -53,7 +53,7 @@ contract MultipoolRouter {
         amount = amountOut;
         refund = _refund;
 
-        require(amountOut >= amountOutMin, "Multipool Router: sleepage exeeded");
+        require(amountOut >= amountOutMin, "MULTIPOOL_ROUTER: SE");
     }
 
     function swap(
@@ -71,8 +71,8 @@ contract MultipoolRouter {
         // No need to check sleepage because contract will fail if there is no
         // enough funst been transfered
         (uint amountIn, uint amountOut,,) = Multipool(poolAddress).swap(assetInAddress, assetOutAddress, shares, to);
-        require(amountOut >= amountOutMin, "Multipool Router: sleepage exeeded");
-        require(amountIn <= amountInMax, "Multipool Router: sleepage exeeded");
+        require(amountOut >= amountOutMin, "MULTIPOOL_ROUTER: SE");
+        require(amountIn <= amountInMax, "MULTIPOOL_ROUTER: SE");
     }
 
     function mintWithAmountIn(
@@ -94,7 +94,7 @@ contract MultipoolRouter {
                 uint amountOut = context.mint(asset, amountIn);
 
                 shares = (amountOut * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
-                require(shares >= sharesOutMin, "Multipool Router: sleepage exeeded");
+                require(shares >= sharesOutMin, "MULTIPOOL_ROUTER: SE");
             }
         }
 
@@ -121,7 +121,7 @@ contract MultipoolRouter {
 
                 uint requiredAmountIn = context.burnRev(asset, amountOut);
                 shares = requiredAmountIn * asset.price * totalSupply / DENOMINATOR / oldUsdCap;
-                require(shares <= sharesInMax, "Multipool Router: sleepage exeeded");
+                require(shares <= sharesInMax, "MULTIPOOL_ROUTER: SE");
             }
         }
 
@@ -156,7 +156,7 @@ contract MultipoolRouter {
         (, uint _amountOut, uint _refundIn, uint _refundOut) =
             Multipool(poolAddress).swap(assetInAddress, assetOutAddress, shares, to);
 
-        require(_amountOut >= amountOutMin, "Multipool Router: sleepage exeeded");
+        require(_amountOut >= amountOutMin, "MULTIPOOL_ROUTER: SE");
         return (_amountOut, _refundIn, _refundOut);
     }
 
@@ -202,7 +202,7 @@ contract MultipoolRouter {
 
         uint amountOut = context.mint(asset, amountIn);
 
-        require(oldUsdCap != 0, "MULTIPOOL ROUTER: no shares");
+        require(oldUsdCap != 0, "MULTIPOOL_ROUTER: NS");
         sharesOut = (amountOut * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
 
         cashbackIn = context.userCashbackBalance;
@@ -222,7 +222,7 @@ contract MultipoolRouter {
         uint totalSupply = Multipool(poolAddress).totalSupply();
         uint oldUsdCap = context.usdCap;
 
-        require(totalSupply != 0, "MULTIPOOL ROUTER: no shares");
+        require(totalSupply != 0, "MULTIPOOL_ROUTER: NS");
         uint _amountIn = (sharesOut * oldUsdCap) * DENOMINATOR / asset.price / totalSupply;
 
         amountIn = context.mintRev(asset, _amountIn);

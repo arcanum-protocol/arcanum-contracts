@@ -97,17 +97,17 @@ contract Multipool is ERC20, Ownable {
     }
 
     function mint(address assetAddress, uint share, address to) public returns (uint amountIn, uint refund) {
-        require(share != 0, "MULTIPOOL: zero share");
+        require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
-        require(asset.price != 0, "MULTIPOOL: zero price");
-        require(asset.share != 0, "MULTIPOOL: zero target share");
+        require(asset.price != 0, "MULTIPOOL: ZP");
+        require(asset.share != 0, "MULTIPOOL: ZT");
         MpContext memory context = getContext(baseMintFee);
 
         uint transferredAmount = getTransferredAmount(asset, assetAddress);
         uint amountOut = totalSupply() != 0 ? shareToAmount(share, context, asset, totalSupply()) : transferredAmount;
 
         amountIn = context.evalMint(asset, amountOut);
-        require(amountIn <= transferredAmount, "MULTIPOOL: mint amount in exeeded");
+        require(amountIn <= transferredAmount, "MULTIPOOL: IQ");
 
         usdCap = context.usdCap;
         // add unused quantity to refund
@@ -125,10 +125,10 @@ contract Multipool is ERC20, Ownable {
     // share here needs to be specified and can't be taken by balance of because
     // if there is too much share you will be frozen by deviaiton limit overflow
     function burn(address assetAddress, uint share, address to) public returns (uint amountOut, uint refund) {
-        require(share != 0, "MULTIPOOL: zero share");
+        require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
-        require(asset.price != 0, "MULTIPOOL: zero price");
-        require(asset.share != 0, "MULTIPOOL: zero target share");
+        require(asset.price != 0, "MULTIPOOL: ZP");
+        require(asset.share != 0, "MULTIPOOL: ZT");
         MpContext memory context = getContext(baseBurnFee);
 
         uint amountIn = shareToAmount(share, context, asset, totalSupply());
@@ -148,7 +148,7 @@ contract Multipool is ERC20, Ownable {
         public
         returns (uint amountIn, uint amountOut, uint refundIn, uint refundOut)
     {
-        require(assetInAddress != assetOutAddress, "MULTIPOOL: same assets");
+        require(assetInAddress != assetOutAddress, "MULTIPOOL: SA");
         MpAsset memory assetIn = assets[assetInAddress];
         MpAsset memory assetOut = assets[assetOutAddress];
         MpContext memory context = getContext(baseTradeFee);
@@ -158,7 +158,7 @@ contract Multipool is ERC20, Ownable {
             {
                 uint _amountOut = shareToAmount(share, context, assetIn, totalSupply());
                 amountIn = context.evalMint(assetIn, _amountOut);
-                require(amountIn <= transferredAmount, "MULTIPOOL: amount in exeeded");
+                require(amountIn <= transferredAmount, "MULTIPOOL: IQ");
 
                 refundIn = context.userCashbackBalance;
                 context.userCashbackBalance = 0;
@@ -199,7 +199,7 @@ contract Multipool is ERC20, Ownable {
      */
 
     function updatePrices(address[] calldata assetAddresses, uint[] calldata prices) public {
-        require(priceAuthority == msg.sender, "MULTIPOOL: only price authority");
+        require(priceAuthority == msg.sender, "MULTIPOOL: PA");
         for (uint a = 0; a < assetAddresses.length; a++) {
             MpAsset storage asset = assets[assetAddresses[a]];
             usdCap = usdCap - (asset.quantity * asset.price) / DENOMINATOR + (asset.quantity * prices[a]) / DENOMINATOR;
@@ -209,7 +209,7 @@ contract Multipool is ERC20, Ownable {
     }
 
     function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public {
-        require(targetShareAuthority == msg.sender, "MULTIPOOL: only target share authority");
+        require(targetShareAuthority == msg.sender, "MULTIPOOL: TA");
         for (uint a = 0; a < assetAddresses.length; a++) {
             MpAsset storage asset = assets[assetAddresses[a]];
             totalTargetShares = totalTargetShares - asset.share + shares[a];
@@ -219,7 +219,7 @@ contract Multipool is ERC20, Ownable {
     }
 
     function withdrawFees(address assetAddress, address to) public returns (uint fees) {
-        require(withdrawAuthority == msg.sender, "MULTIPOOL: only withdraw authority");
+        require(withdrawAuthority == msg.sender, "MULTIPOOL: WA");
         MpAsset storage asset = assets[assetAddress];
         fees = asset.collectedFees;
         asset.collectedFees = 0;
