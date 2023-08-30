@@ -26,6 +26,8 @@ This repository contains the source code for the [Multipool](https://arcanum.to/
 | PA | Price authority only | This operation requires you to have price setting permissions | 
 | TA | Target share authority only | This operation requires you to have target share setting permissions | 
 | WA | Withdraw authority only | This operation requires you to have withdrawal permissions | 
+| TF | Token transfer failed | This error occures if transfer of ERC20 token returns false | 
+| IA | Invalid authority | Occures if zero address is specified as an authority | 
 </details>
 <details>
     <summary> MULTIPOOL ROUTER </summary> All messages are in format "MULTIPOOL_ROUTER: error_code"
