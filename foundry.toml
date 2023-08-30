@@ -10,3 +10,7 @@ fail_on_revert = true
 
 [fmt]
 int_types = "preserve"
+
+[etherscan]
+mainnet = { key = "${ETHERSCAN_KEY}" }
+arbitrum = { key = "${ETHERSCAN_KEY}" }
