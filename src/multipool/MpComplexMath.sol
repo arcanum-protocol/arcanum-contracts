@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.8.19;
+pragma solidity ^0.8.0;
 // It's deserved to be called complex
 // Tons of hours to make it work
 // Never underestimate multipool maths or it will destroy you...

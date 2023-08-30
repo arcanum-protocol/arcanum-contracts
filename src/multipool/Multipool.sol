@@ -7,7 +7,8 @@ import {MpAsset, MpContext} from "./MpCommonMath.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 contract Multipool is ERC20, Ownable {
-    constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) {
+
+    constructor(string memory mpName, string memory mpSymbol) ERC20(mpName, mpSymbol) {
         priceAuthority = msg.sender;
         targetShareAuthority = msg.sender;
         withdrawAuthority = msg.sender;
@@ -46,7 +47,6 @@ contract Multipool is ERC20, Ownable {
     uint public baseTradeFee;
     uint public constant DENOMINATOR = 1e18;
 
-    address public feeReceiver;
     address public priceAuthority;
     address public targetShareAuthority;
     address public withdrawAuthority;
@@ -110,12 +110,12 @@ contract Multipool is ERC20, Ownable {
             - asset.collectedCashbacks;
     }
 
-    function shareToAmount(uint share, MpContext memory context, MpAsset memory asset, uint totalSupply)
+    function shareToAmount(uint share, MpContext memory context, MpAsset memory asset, uint mpTotalSupply)
         public
         pure
         returns (uint amount)
     {
-        amount = (share * context.usdCap * DENOMINATOR) / totalSupply / asset.price;
+        amount = (share * context.usdCap * DENOMINATOR) / mpTotalSupply / asset.price;
     }
 
     function mint(address assetAddress, uint share, address to) public returns (uint amountIn, uint refund) {
@@ -138,10 +138,10 @@ contract Multipool is ERC20, Ownable {
 
         _mint(to, share);
         assets[assetAddress] = asset;
-        if (returnAmount > 0) {
-            IERC20(assetAddress).transfer(to, returnAmount);
-        }
         emit AssetQuantityChange(assetAddress, asset.quantity);
+        if (returnAmount > 0) {
+            require(IERC20(assetAddress).transfer(to, returnAmount), "MULTIPOOL: TF");
+        }
     }
 
     // share here needs to be specified and can't be taken by balance of because
@@ -160,9 +160,9 @@ contract Multipool is ERC20, Ownable {
 
         _burn(address(this), share);
         assets[assetAddress] = asset;
-        IERC20(assetAddress).transfer(to, amountOut + refund);
         _transfer(address(this), to, balanceOf(address(this)));
         emit AssetQuantityChange(assetAddress, asset.quantity);
+        require(IERC20(assetAddress).transfer(to, amountOut + refund), "MULTIPOOL: TF");
     }
 
     function swap(address assetInAddress, address assetOutAddress, uint share, address to)
@@ -204,14 +204,14 @@ contract Multipool is ERC20, Ownable {
         assets[assetInAddress] = assetIn;
         assets[assetOutAddress] = assetOut;
 
-        if (amountOut + refundOut > 0) {
-            IERC20(assetOutAddress).transfer(to, (amountOut + refundOut));
-        }
-        if (refundIn + (transferredAmount - amountIn) > 0) {
-            IERC20(assetInAddress).transfer(to, refundIn + (transferredAmount - amountIn));
-        }
         emit AssetQuantityChange(assetInAddress, assetIn.quantity);
         emit AssetQuantityChange(assetOutAddress, assetOut.quantity);
+        if (amountOut + refundOut > 0) {
+            require(IERC20(assetOutAddress).transfer(to, (amountOut + refundOut)), "MULTIPOOL: TF");
+        }
+        if (refundIn + (transferredAmount - amountIn) > 0) {
+            require(IERC20(assetInAddress).transfer(to, refundIn + (transferredAmount - amountIn)), "MULTIPOOL: TF");
+        }
     }
 
     function increaseCashback(address assetAddress) public returns (uint amount) {
@@ -249,8 +249,8 @@ contract Multipool is ERC20, Ownable {
         MpAsset storage asset = assets[assetAddress];
         fees = asset.collectedFees;
         asset.collectedFees = 0;
-        IERC20(assetAddress).transfer(to, fees);
         emit WithdrawFees(assetAddress, fees);
+        require(IERC20(assetAddress).transfer(to, fees), "MULTIPOOL: TF");
     }
 
     /**
@@ -288,16 +288,19 @@ contract Multipool is ERC20, Ownable {
     }
 
     function setPriceAuthority(address newPriceAuthority) external onlyOwner {
+        require(newPriceAuthority != address(0), "MULTIPOOL: IA");
         priceAuthority = newPriceAuthority;
         emit PriceAuthorityChange(newPriceAuthority);
     }
 
     function setTargetShareAuthority(address newTargetShareAuthority) external onlyOwner {
+        require(newTargetShareAuthority != address(0), "MULTIPOOL: IA");
         targetShareAuthority = newTargetShareAuthority;
         emit TargetShareAuthorityChange(newTargetShareAuthority);
     }
 
     function setWithdrawAuthority(address newWithdrawAuthority) external onlyOwner {
+        require(newWithdrawAuthority != address(0), "MULTIPOOL: IA");
         withdrawAuthority = newWithdrawAuthority;
         emit WithdrawAuthorityChange(newWithdrawAuthority);
     }
