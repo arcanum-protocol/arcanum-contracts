@@ -221,8 +221,8 @@ contract MultipoolRouter {
         amountIn = context.mintRev(asset, _amountIn);
         cashbackIn = context.userCashbackBalance;
 
-        uint noFeeShareOut = (amountIn * asset.price * (totalSupply)) / oldUsdCap / DENOMINATOR;
-        fee = noFeeShareOut * DENOMINATOR / sharesOut - 1e18;
+        uint noFeeAmountIn = sharesOut * oldUsdCap * DENOMINATOR / asset.price / totalSupply;
+        fee = noFeeAmountIn * DENOMINATOR / amountIn - 1e18;
     }
 
     function estimateBurnAmountOut(address poolAddress, address assetAddress, uint sharesIn)
@@ -314,8 +314,7 @@ contract MultipoolRouter {
             }
         }
 
-        uint out = amountOut;
-        uint amoutOutNoFees = ((amountIn * assetIn.price) / assetOut.price);
-        fee = amoutOutNoFees * DENOMINATOR / out - 1e18;
+        uint amoutInNoFees = amountOut * assetOut.price /  assetIn.price;
+        fee = amoutInNoFees * DENOMINATOR / amountIn - 1e18;
     }
 }
