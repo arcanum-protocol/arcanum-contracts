@@ -10,7 +10,6 @@ contract MyScript is Script {
         //string memory mpName = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-
         //Multipool mp = new Multipool();
 
         vm.stopBroadcast();

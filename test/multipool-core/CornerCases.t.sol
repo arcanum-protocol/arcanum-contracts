@@ -52,6 +52,10 @@ contract MultipoolCornerCases is Test {
         mp.updatePrices(t, p);
         mp.updateTargetShares(t, s);
 
+        mp.setTokenDecimals(address(tokens[0]), 18);
+        mp.setTokenDecimals(address(tokens[1]), 18);
+        mp.setTokenDecimals(address(tokens[2]), 18);
+
         tokens[0].mint(address(mp), shares[0] / 10);
         mp.mint(address(tokens[0]), 100e18, users[3]);
 

@@ -6,7 +6,7 @@ import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 
-contract MultipoolCornerCases is Test {
+contract MultipoolDeviationTestsWithDecimals is Test {
     Multipool mp;
     MockERC20[] tokens;
     address[] users;
@@ -52,14 +52,14 @@ contract MultipoolCornerCases is Test {
         mp.updatePrices(t, p);
         mp.updateTargetShares(t, s);
 
-        mp.setTokenDecimals(address(tokens[0]), 18);
-        mp.setTokenDecimals(address(tokens[1]), 18);
+        mp.setTokenDecimals(address(tokens[0]), 6);
+        mp.setTokenDecimals(address(tokens[1]), 24);
         mp.setTokenDecimals(address(tokens[2]), 18);
 
-        tokens[0].mint(address(mp), shares[0] / 10);
+        tokens[0].mint(address(mp), shares[0] / 1e12 / 10);
         mp.mint(address(tokens[0]), 100e18, users[3]);
 
-        tokens[1].mint(address(mp), shares[1] / 20);
+        tokens[1].mint(address(mp), shares[1] * 1e6 / 20);
         mp.mint(address(tokens[1]), 100e18 * shares[1] / shares[0], users[3]);
 
         tokens[2].mint(address(mp), shares[2] / 10);
@@ -87,12 +87,12 @@ contract MultipoolCornerCases is Test {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
         vm.startPrank(users[0]);
-        tokens[0].transfer(address(mp), 8e18);
+        tokens[0].transfer(address(mp), 8e6);
         (uint amount, uint refund) = mp.mint(address(tokens[0]), 2e18, users[0]);
 
         MpAsset memory asset = mp.getAssets(address(tokens[0]));
 
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e6);
         assertEq(refund, 0);
         assertEq(amount, 0.8008e18);
         assertEq(asset.collectedCashbacks, 0);
@@ -104,12 +104,12 @@ contract MultipoolCornerCases is Test {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
         vm.startPrank(users[0]);
-        tokens[1].transfer(address(mp), 1e18);
+        tokens[1].transfer(address(mp), 1e24);
         (uint amount, uint refund) = mp.mint(address(tokens[1]), 2e18, users[0]);
 
         MpAsset memory asset = mp.getAssets(address(tokens[1]));
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.4004e18 - 470588235294117);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.4004e24 - 470588235294117 * 1e6);
         assertEq(refund, 0);
         assertEq(amount, 0.4004e18 + 470588235294117);
         assertEq(asset.collectedCashbacks, uint(470588235294117) * 2 / 5 + 1);
@@ -121,12 +121,12 @@ contract MultipoolCornerCases is Test {
         bootstrapTokens([uint(50e18), 475e18, 475e18]);
 
         vm.startPrank(users[0]);
-        tokens[0].transfer(address(mp), 1e18);
+        tokens[0].transfer(address(mp), 1e6);
         (uint amount, uint refund) = mp.mint(address(tokens[0]), 2e18, users[0]);
 
         MpAsset memory asset = mp.getAssets(address(tokens[0]));
 
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.1001e18);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.1001e6);
         assertEq(refund, 0);
         assertEq(amount, 0.1001e18);
         assertEq(asset.collectedCashbacks, 0);
@@ -138,15 +138,15 @@ contract MultipoolCornerCases is Test {
         bootstrapTokens([uint(300e18), 600e18, 100e18]);
 
         vm.startPrank(users[0]);
-        assertEq(tokens[1].balanceOf(address(mp)), 30e18);
-        tokens[1].transfer(address(mp), 1000e18);
+        assertEq(tokens[1].balanceOf(address(mp)), 30e24);
+        tokens[1].transfer(address(mp), 1000e24);
         vm.expectRevert("MULTIPOOL: DO");
         (uint amount, uint refund) = mp.mint(address(tokens[1]), 2e18, users[0]);
 
         MpAsset memory asset = mp.getAssets(address(tokens[1]));
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 1000e18);
-        assertEq(tokens[1].balanceOf(address(mp)), 1030e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 1000e24);
+        assertEq(tokens[1].balanceOf(address(mp)), 1030e24);
         assertEq(asset.collectedCashbacks, 0);
         assertEq(asset.collectedFees, 0);
         assertEq(mp.balanceOf(users[0]), 0);
@@ -162,7 +162,7 @@ contract MultipoolCornerCases is Test {
 
         MpAsset memory asset = mp.getAssets(address(tokens[0]));
 
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 724215971548658261);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 724215971548658261 / uint(1e12));
         assertEq(refund, 0);
         assertEq(amount, 724215971548658261);
         assertEq(asset.collectedCashbacks, 1344972518590366);
@@ -183,13 +183,13 @@ contract MultipoolCornerCases is Test {
 
         MpAsset memory asset = mp.getAssets(address(tokens[1]));
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 + 0.363636363636363636e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 + 0.363636363636363636e24);
         assertEq(refund, 0);
         assertEq(amount, 0.363636363636363636e18);
         assertEq(asset.collectedFees, 0.036363636363636363e18);
         assertEq(asset.collectedCashbacks, 0);
         assertEq(mp.balanceOf(users[0]), 0);
-        assertEq(tokens[1].balanceOf(users[0]) - tokenBalanceBefore, 0.363636363636363636e18);
+        assertEq(tokens[1].balanceOf(users[0]) - tokenBalanceBefore, 0.363636363636363636e24);
         assertEq(assetBefore.quantity - asset.quantity, 0.4e18);
     }
 
@@ -215,12 +215,12 @@ contract MultipoolCornerCases is Test {
 
         MpAsset memory asset = mp.getAssets(address(tokens[1]));
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 + 0.272727272727272726e18);
-        assertEq(tokens[1].balanceOf(address(mp)), 29.727272727272727274e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 + 0.272727272727272726e24);
+        assertEq(tokens[1].balanceOf(address(mp)), 29.727272727272727274e24);
         assertEq(asset.collectedCashbacks, 0);
         assertEq(asset.collectedFees, 0.027272727272727272e18);
         assertEq(mp.balanceOf(users[0]), 0);
-        assertEq(tokens[1].balanceOf(users[0]) - tokenBalanceBefore, 0.272727272727272726e18);
+        assertEq(tokens[1].balanceOf(users[0]) - tokenBalanceBefore, 0.272727272727272726e24);
         assertEq(assetBefore.quantity - asset.quantity, 0.299999999999999999e18);
     }
 
@@ -233,7 +233,7 @@ contract MultipoolCornerCases is Test {
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
         vm.startPrank(users[0]);
-        tokens[1].transfer(address(mp), 2e18);
+        tokens[1].transfer(address(mp), 2e24);
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
@@ -242,19 +242,19 @@ contract MultipoolCornerCases is Test {
 
         assertEq(mp.balanceOf(users[0]), 0);
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.404470588235294117e18);
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 0.788066422741345342e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.404470588235294117e24);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 0.788066e6);
 
-        assertEq(tokens[1].balanceOf(address(mp)), 15.404470588235294117e18);
-        assertEq(tokens[0].balanceOf(address(mp)), 39.211933577258654658e18);
+        assertEq(tokens[1].balanceOf(address(mp)), 15.404470588235294117e24);
+        assertEq(tokens[0].balanceOf(address(mp)), 39.211933e6 + 1);
 
         assertEq(assetIn.collectedCashbacks, 0.000188235294117647e18);
         assertEq(assetIn.collectedFees, 0.00428235294117647e18);
         assertEq(assetOut.collectedCashbacks, 0.001621165212496482e18);
         assertEq(assetOut.collectedFees, 0.010312412046158176e18);
 
-        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.404470588235294117e18);
-        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 0.788066422741345342e18);
+        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.404470588235294117e24);
+        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 0.788066e6);
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.4e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 0.8e18);
@@ -269,7 +269,7 @@ contract MultipoolCornerCases is Test {
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
         vm.startPrank(users[0]);
-        tokens[1].transfer(address(mp), 2e18);
+        tokens[1].transfer(address(mp), 2e24);
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
@@ -278,19 +278,19 @@ contract MultipoolCornerCases is Test {
 
         assertEq(mp.balanceOf(users[0]), 0);
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.606762931034482756e18);
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 1.188118811881188117e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.606762931034482756e24);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 1.188118e6);
 
-        assertEq(tokens[1].balanceOf(address(mp)), 15.606762931034482756e18);
-        assertEq(tokens[0].balanceOf(address(mp)), 58.811881188118811883e18);
+        assertEq(tokens[1].balanceOf(address(mp)), 15.606762931034482756e24);
+        assertEq(tokens[0].balanceOf(address(mp)), 58.811881e6 + 1);
 
         assertEq(assetIn.collectedCashbacks, 0.000305172413793104e18);
         assertEq(assetIn.collectedFees, 0.006457758620689653e18);
         assertEq(assetOut.collectedCashbacks, 0);
         assertEq(assetOut.collectedFees, 0.011881188118811881e18);
 
-        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.606762931034482756e18);
-        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 1.188118811881188117e18);
+        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.606762931034482756e24);
+        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 1.188118e6);
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.599999999999999999e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 1.199999999999999999e18);
@@ -305,7 +305,7 @@ contract MultipoolCornerCases is Test {
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
         vm.startPrank(users[0]);
-        tokens[1].transfer(address(mp), 2e18);
+        tokens[1].transfer(address(mp), 2e24);
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
@@ -314,19 +314,19 @@ contract MultipoolCornerCases is Test {
 
         assertEq(mp.balanceOf(users[0]), 0);
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.404e18);
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 0.788066422741345342e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.404e24);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 0.788066e6);
 
-        assertEq(tokens[1].balanceOf(address(mp)), 10.404e18);
-        assertEq(tokens[0].balanceOf(address(mp)), 39.211933577258654658e18);
+        assertEq(tokens[1].balanceOf(address(mp)), 10.404e24);
+        assertEq(tokens[0].balanceOf(address(mp)), 39.211933e6 + 1);
 
         assertEq(assetIn.collectedCashbacks, 0);
         assertEq(assetIn.collectedFees, 0.004e18);
         assertEq(assetOut.collectedCashbacks, 0.001621165212496482e18);
         assertEq(assetOut.collectedFees, 0.010312412046158176e18);
 
-        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.404e18);
-        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 0.788066422741345342e18);
+        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.404e24);
+        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 0.788066e6);
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.4e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 0.8e18);
@@ -341,7 +341,7 @@ contract MultipoolCornerCases is Test {
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
         vm.startPrank(users[0]);
-        tokens[1].transfer(address(mp), 2e18);
+        tokens[1].transfer(address(mp), 2e24);
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
@@ -350,19 +350,19 @@ contract MultipoolCornerCases is Test {
 
         assertEq(mp.balanceOf(users[0]), 0);
 
-        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.605999999999999998e18);
-        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 1.188118811881188117e18);
+        assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.605999999999999998e24);
+        assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 1.188118e6);
 
-        assertEq(tokens[1].balanceOf(address(mp)), 10.605999999999999997e18);
-        assertEq(tokens[0].balanceOf(address(mp)), 58.811881188118811883e18);
+        assertEq(tokens[1].balanceOf(address(mp)), 10.605999999999999997e24);
+        assertEq(tokens[0].balanceOf(address(mp)), 58.811881e6 + 1);
 
         assertEq(assetIn.collectedCashbacks, 0);
         assertEq(assetIn.collectedFees, 0.005999999999999999e18);
         assertEq(assetOut.collectedCashbacks, 0);
         assertEq(assetOut.collectedFees, 0.011881188118811881e18);
 
-        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.605999999999999998e18);
-        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 1.188118811881188117e18);
+        assertEq(tokenInBalanceBefore - tokens[1].balanceOf(users[0]), 0.605999999999999998e24);
+        assertEq(tokens[0].balanceOf(users[0]) - tokenOutBalanceBefore, 1.188118e6);
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.599999999999999999e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 1.199999999999999999e18);

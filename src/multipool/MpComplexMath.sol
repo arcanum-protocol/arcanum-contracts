@@ -63,7 +63,7 @@ library MpComplexMath {
 
     function mintRev(MpContext memory context, MpAsset memory asset, uint utilisableQuantity)
         internal
-        pure
+        view
         returns (uint suppliedQuantity)
     {
         suppliedQuantity = context.evalMint(asset, utilisableQuantity);

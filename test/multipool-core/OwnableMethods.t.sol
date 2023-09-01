@@ -4,6 +4,7 @@ import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {MpCommonMath} from "../../src/multipool/MpCommonMath.sol";
 
 contract MultipoolSingleAssetTest is Test {
     Multipool mp;
@@ -84,5 +85,28 @@ contract MultipoolSingleAssetTest is Test {
 
         vm.expectRevert();
         mpUpdatePrice(address(0), 10);
+    }
+
+    function test_Decimals() public {
+        MpAsset memory asset = MpAsset({
+            quantity: 55e18,
+            decimals: 24,
+            price: 10e18,
+            collectedFees: 0.0005e18,
+            collectedCashbacks: 0.0051875e18 - 0.0005e18,
+            share: 50e18
+        });
+        assertEq(asset.to18(10e24), 10e18);
+        assertEq(asset.toNative(10e18), 10e24);
+        asset = MpAsset({
+            quantity: 55e18,
+            decimals: 6,
+            price: 10e18,
+            collectedFees: 0.0005e18,
+            collectedCashbacks: 0.0051875e18 - 0.0005e18,
+            share: 50e18
+        });
+        assertEq(asset.to18(10e6), 10e18);
+        assertEq(asset.toNative(10e18), 10e6);
     }
 }

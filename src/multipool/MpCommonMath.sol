@@ -9,6 +9,7 @@ struct MpAsset {
     uint collectedFees;
     uint collectedCashbacks;
     uint share;
+    uint decimals;
 }
 
 struct MpContext {
@@ -23,14 +24,32 @@ struct MpContext {
 
 using {MpCommonMath.evalMint, MpCommonMath.evalBurn} for MpContext global;
 
+using {MpCommonMath.to18, MpCommonMath.toNative} for MpAsset global;
+
 library MpCommonMath {
     function abs(uint a, uint b) internal pure returns (uint c) {
         c = a > b ? a - b : b - a;
     }
 
+    function toNative(MpAsset memory asset, uint quantity) internal pure returns (uint scaled) {
+        if (asset.decimals > 18) {
+            scaled = quantity * (10 ** (asset.decimals - 18));
+        } else {
+            scaled = quantity / (10 ** (18 - asset.decimals));
+        }
+    }
+
+    function to18(MpAsset memory asset, uint quantity) internal pure returns (uint scaled) {
+        if (asset.decimals > 18) {
+            scaled = quantity / (10 ** (asset.decimals - 18));
+        } else {
+            scaled = quantity * (10 ** (18 - asset.decimals));
+        }
+    }
+
     function evalMint(MpContext memory context, MpAsset memory asset, uint utilisableQuantity)
         internal
-        pure
+        view
         returns (uint suppliedQuantity)
     {
         if (context.usdCap == 0) {
