@@ -7,7 +7,6 @@ import {MpAsset, MpContext} from "./MpCommonMath.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 contract Multipool is ERC20, Ownable {
-
     constructor(string memory mpName, string memory mpSymbol) ERC20(mpName, mpSymbol) {
         priceAuthority = msg.sender;
         targetShareAuthority = msg.sender;
@@ -106,7 +105,7 @@ contract Multipool is ERC20, Ownable {
     }
 
     function getTransferredAmount(MpAsset memory asset, address assetAddress) public view returns (uint amount) {
-        amount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity - asset.collectedFees
+        amount = asset.to18(IERC20(assetAddress).balanceOf(address(this))) - asset.quantity - asset.collectedFees
             - asset.collectedCashbacks;
     }
 
@@ -140,7 +139,7 @@ contract Multipool is ERC20, Ownable {
         assets[assetAddress] = asset;
         emit AssetQuantityChange(assetAddress, asset.quantity);
         if (returnAmount > 0) {
-            require(IERC20(assetAddress).transfer(to, returnAmount), "MULTIPOOL: TF");
+            require(IERC20(assetAddress).transfer(to, asset.toNative(returnAmount)), "MULTIPOOL: TF");
         }
     }
 
@@ -162,7 +161,7 @@ contract Multipool is ERC20, Ownable {
         assets[assetAddress] = asset;
         _transfer(address(this), to, balanceOf(address(this)));
         emit AssetQuantityChange(assetAddress, asset.quantity);
-        require(IERC20(assetAddress).transfer(to, amountOut + refund), "MULTIPOOL: TF");
+        require(IERC20(assetAddress).transfer(to, asset.toNative(amountOut + refund)), "MULTIPOOL: TF");
     }
 
     function swap(address assetInAddress, address assetOutAddress, uint share, address to)
@@ -207,10 +206,13 @@ contract Multipool is ERC20, Ownable {
         emit AssetQuantityChange(assetInAddress, assetIn.quantity);
         emit AssetQuantityChange(assetOutAddress, assetOut.quantity);
         if (amountOut + refundOut > 0) {
-            require(IERC20(assetOutAddress).transfer(to, (amountOut + refundOut)), "MULTIPOOL: TF");
+            require(IERC20(assetOutAddress).transfer(to, assetOut.toNative(amountOut + refundOut)), "MULTIPOOL: TF");
         }
         if (refundIn + (transferredAmount - amountIn) > 0) {
-            require(IERC20(assetInAddress).transfer(to, refundIn + (transferredAmount - amountIn)), "MULTIPOOL: TF");
+            require(
+                IERC20(assetInAddress).transfer(to, assetIn.toNative(refundIn + (transferredAmount - amountIn))),
+                "MULTIPOOL: TF"
+            );
         }
     }
 
@@ -250,12 +252,17 @@ contract Multipool is ERC20, Ownable {
         fees = asset.collectedFees;
         asset.collectedFees = 0;
         emit WithdrawFees(assetAddress, fees);
-        require(IERC20(assetAddress).transfer(to, fees), "MULTIPOOL: TF");
+        require(IERC20(assetAddress).transfer(to, asset.toNative(fees)), "MULTIPOOL: TF");
     }
 
     /**
      * ---------------- Owner ------------------
      */
+
+    function setTokenDecimals(address assetAddress, uint decimals) external onlyOwner {
+        MpAsset storage asset = assets[assetAddress];
+        asset.decimals = decimals;
+    }
 
     function setDeviationLimit(uint newDeviationLimit) external onlyOwner {
         deviationLimit = newDeviationLimit;

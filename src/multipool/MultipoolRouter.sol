@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
-import {MpAsset, MpContext} from "./MpCommonMath.sol";
+import {MpAsset, MpContext, MpCommonMath} from "./MpCommonMath.sol";
 import {MpComplexMath} from "./MpComplexMath.sol";
 
 uint constant DENOMINATOR = 1e18;
@@ -18,112 +18,71 @@ contract MultipoolRouter {
         MpComplexMath.burnTrace
     } for MpContext;
 
-    modifier ensure(uint deadline) {
-        require(deadline == 0 || deadline >= block.timestamp, "MULTIPOOL_ROUTER: DE");
-        _;
-    }
-
     constructor() {}
 
-    function mintWithSharesOut(
-        address poolAddress,
-        address assetAddress,
-        uint sharesOut,
-        uint amountInMax,
-        address to,
-        uint deadline
-    ) public ensure(deadline) returns (uint amount, uint refund) {
+    function mintWithSharesOut(address poolAddress, address assetAddress, uint sharesOut, uint amountInMax, address to)
+        public
+        returns (uint amount, uint refund)
+    {
+        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
         // Transfer all amount in in case the last part will return via multipool
         IERC20(assetAddress).transferFrom(msg.sender, poolAddress, amountInMax);
         // No need to check sleepage because contract will fail if there is no
         // enough funst been transfered
-        return Multipool(poolAddress).mint(assetAddress, sharesOut, to);
+        (uint _amount, uint _refund) = Multipool(poolAddress).mint(assetAddress, sharesOut, to);
+        amount = asset.toNative(_amount);
+        refund = asset.toNative(_refund);
     }
 
-    function burnWithSharesIn(
-        address poolAddress,
-        address assetAddress,
-        uint sharesIn,
-        uint amountOutMin,
-        address to,
-        uint deadline
-    ) public ensure(deadline) returns (uint amount, uint refund) {
+    function burnWithSharesIn(address poolAddress, address assetAddress, uint sharesIn, uint amountOutMin, address to)
+        public
+        returns (uint amount, uint refund)
+    {
+        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
         IERC20(poolAddress).transferFrom(msg.sender, poolAddress, sharesIn);
-        (uint amountOut, uint _refund) = Multipool(poolAddress).burn(assetAddress, sharesIn, to);
-        amount = amountOut;
-        refund = _refund;
+        (uint _amount, uint _refund) = Multipool(poolAddress).burn(assetAddress, sharesIn, to);
+        amount = asset.toNative(_amount);
+        refund = asset.toNative(_refund);
 
-        require(amountOut >= amountOutMin, "MULTIPOOL_ROUTER: SE");
+        require(amount >= amountOutMin, "MULTIPOOL_ROUTER: SE");
     }
 
-    function swap(
-        address poolAddress,
-        address assetInAddress,
-        address assetOutAddress,
-        uint amountInMax,
-        uint amountOutMin,
-        uint shares,
-        address to,
-        uint deadline
-    ) public ensure(deadline) {
-        // Transfer all amount in in case the last part will return via multipool
-        IERC20(poolAddress).transferFrom(msg.sender, poolAddress, amountInMax);
-        // No need to check sleepage because contract will fail if there is no
-        // enough funst been transfered
-        (uint amountIn, uint amountOut,,) = Multipool(poolAddress).swap(assetInAddress, assetOutAddress, shares, to);
-        require(amountOut >= amountOutMin, "MULTIPOOL_ROUTER: SE");
-        require(amountIn <= amountInMax, "MULTIPOOL_ROUTER: SE");
-    }
-
-    function mintWithAmountIn(
-        address poolAddress,
-        address assetAddress,
-        uint amountIn,
-        uint sharesOutMin,
-        address to,
-        uint deadline
-    ) public ensure(deadline) returns (uint shares, uint refund) {
+    function mintWithAmountIn(address poolAddress, address assetAddress, uint amountIn, uint sharesOutMin, address to)
+        public
+        returns (uint shares, uint refund)
+    {
+        (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+            Multipool(poolAddress).getMintData(assetAddress);
         {
-            {
-                (MpContext memory context, MpAsset memory asset, uint totalSupply) =
-                    Multipool(poolAddress).getMintData(assetAddress);
-                uint oldUsdCap = context.usdCap;
-
-                uint amountOut = context.mint(asset, amountIn);
-
-                shares = (amountOut * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
-                require(shares >= sharesOutMin, "MULTIPOOL_ROUTER: SE");
-            }
+            uint oldUsdCap = context.usdCap;
+            amountIn = asset.to18(amountIn);
+            uint amountOut = context.mint(asset, amountIn);
+            shares = (amountOut * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
+            require(shares >= sharesOutMin, "MULTIPOOL_ROUTER: SE");
         }
 
         IERC20(assetAddress).transferFrom(msg.sender, poolAddress, amountIn);
+
         (, uint _refund) = Multipool(poolAddress).mint(assetAddress, shares, to);
-        refund = _refund;
+        refund = asset.toNative(_refund);
     }
 
-    function burnWithAmountOut(
-        address poolAddress,
-        address assetAddress,
-        uint amountOut,
-        uint sharesInMax,
-        address to,
-        uint deadline
-    ) public ensure(deadline) returns (uint shares, uint refund) {
-        {
-            {
-                (MpContext memory context, MpAsset memory asset, uint totalSupply) =
-                    Multipool(poolAddress).getBurnData(assetAddress);
-                uint oldUsdCap = context.usdCap;
+    function burnWithAmountOut(address poolAddress, address assetAddress, uint amountOut, uint sharesInMax, address to)
+        public
+        returns (uint shares, uint refund)
+    {
+        (MpContext memory context, MpAsset memory asset, uint totalSupply) =
+            Multipool(poolAddress).getBurnData(assetAddress);
+        uint oldUsdCap = context.usdCap;
+        amountOut = asset.to18(amountOut);
 
-                uint requiredAmountIn = context.burnRev(asset, amountOut);
-                shares = requiredAmountIn * asset.price * totalSupply / DENOMINATOR / oldUsdCap;
-                require(shares <= sharesInMax, "MULTIPOOL_ROUTER: SE");
-            }
-        }
+        uint requiredAmountIn = context.burnRev(asset, amountOut);
+        shares = requiredAmountIn * asset.price * totalSupply / DENOMINATOR / oldUsdCap;
+        require(shares <= sharesInMax, "MULTIPOOL_ROUTER: SE");
 
         IERC20(poolAddress).transferFrom(msg.sender, poolAddress, shares);
         (, uint _refund) = Multipool(poolAddress).burn(assetAddress, shares, to);
-        refund = _refund;
+        refund = asset.toNative(_refund);
     }
 
     function swapWithAmountIn(
@@ -132,26 +91,32 @@ contract MultipoolRouter {
         address assetOutAddress,
         uint amountIn,
         uint amountOutMin,
-        address to,
-        uint deadline
-    ) public ensure(deadline) returns (uint amountOut, uint refundIn, uint refundOut) {
-        uint shares;
+        address to
+    ) public returns (uint amountOut, uint refundIn, uint refundOut) {
+        address[4] memory addresses = [poolAddress, assetInAddress, assetOutAddress, to];
+        uint[3] memory amounts = [amountIn, amountOutMin, 0]; // last is share
+        (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
+            Multipool(addresses[0]).getTradeData(addresses[1], addresses[2]);
         {
             {
-                (MpContext memory context, MpAsset memory assetIn,, uint totalSupply) =
-                    Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
-                uint oldUsdCap = context.usdCap;
-
-                uint mintAmountOut = context.mint(assetIn, amountIn);
-                shares = mintAmountOut * assetIn.price * totalSupply / DENOMINATOR / oldUsdCap;
+                uint _amountIn = assetIn.to18(amounts[0]);
+                // old usd cap
+                uint oldCap = context.usdCap;
+                uint mintAmountOut = context.mint(assetIn, _amountIn);
+                // we use this stuff as a share ***vitalic inrease stack pls
+                amounts[2] = mintAmountOut * assetIn.price * totalSupply / DENOMINATOR / oldCap;
             }
         }
 
-        IERC20(assetInAddress).transferFrom(msg.sender, poolAddress, amountIn);
+        IERC20(addresses[1]).transferFrom(msg.sender, addresses[0], amounts[0]);
         (, uint _amountOut, uint _refundIn, uint _refundOut) =
-            Multipool(poolAddress).swap(assetInAddress, assetOutAddress, shares, to);
+            Multipool(addresses[0]).swap(addresses[1], addresses[2], amounts[2], addresses[3]);
 
-        require(_amountOut >= amountOutMin, "MULTIPOOL_ROUTER: SE");
+        _amountOut = assetOut.toNative(_amountOut);
+        _refundIn = assetIn.toNative(_refundIn);
+        _refundOut = assetOut.toNative(_refundOut);
+
+        require(_amountOut >= amounts[1], "MULTIPOOL_ROUTER: SE");
         return (_amountOut, _refundIn, _refundOut);
     }
 
@@ -161,28 +126,26 @@ contract MultipoolRouter {
         address assetOutAddress,
         uint amountOut,
         uint amountInMax,
-        address to,
-        uint deadline
-    ) public ensure(deadline) returns (uint amountIn, uint refundIn, uint refundOut) {
-        uint shares;
-        {
-            {
-                address assetInAddr = assetInAddress;
-                address assetOutAddr = assetOutAddress;
-                address poolAddr = poolAddress;
-                uint _amountOut = amountOut;
-                (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
-                    Multipool(poolAddr).getTradeData(assetInAddr, assetOutAddr);
-                uint oldUsdCap = context.usdCap;
+        address to
+    ) public returns (uint amountIn, uint refundIn, uint refundOut) {
+        address[4] memory addresses = [poolAddress, assetInAddress, assetOutAddress, to];
+        uint[3] memory amounts = [amountOut, amountInMax, 0]; // last is share
 
-                (uint burnAmountIn,,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
-                shares = (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR / oldUsdCap;
-            }
+        (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
+            Multipool(addresses[0]).getTradeData(addresses[1], addresses[2]);
+        {
+            uint oldUsdCap = context.usdCap;
+            uint _amountOut = assetOut.to18(amountOut);
+            (uint burnAmountIn,,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
+            amounts[2] = (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR / oldUsdCap;
         }
 
-        IERC20(assetInAddress).transferFrom(msg.sender, poolAddress, amountInMax);
+        IERC20(addresses[1]).transferFrom(msg.sender, addresses[0], amounts[1]);
         (uint _amountIn,, uint _refundIn, uint _refundOut) =
-            Multipool(poolAddress).swap(assetInAddress, assetOutAddress, shares, to);
+            Multipool(addresses[0]).swap(addresses[1], addresses[2], amounts[2], addresses[3]);
+        _amountIn = assetIn.toNative(_amountIn);
+        _refundIn = assetIn.toNative(_refundIn);
+        _refundOut = assetOut.toNative(_refundOut);
         return (_amountIn, _refundIn, _refundOut);
     }
 
@@ -193,6 +156,7 @@ contract MultipoolRouter {
     {
         (MpContext memory context, MpAsset memory asset, uint totalSupply) =
             Multipool(poolAddress).getMintData(assetAddress);
+        amountIn = asset.to18(amountIn);
         uint oldUsdCap = context.usdCap;
 
         uint amountOut = context.mint(asset, amountIn);
@@ -200,7 +164,7 @@ contract MultipoolRouter {
         require(oldUsdCap != 0, "MULTIPOOL_ROUTER: NS");
         sharesOut = (amountOut * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
 
-        cashbackIn = context.userCashbackBalance;
+        cashbackIn = asset.toNative(context.userCashbackBalance);
 
         uint noFeeShareOut = (amountIn * asset.price * (totalSupply)) / DENOMINATOR / oldUsdCap;
         fee = noFeeShareOut * DENOMINATOR / sharesOut - 1e18;
@@ -218,11 +182,12 @@ contract MultipoolRouter {
         require(totalSupply != 0, "MULTIPOOL_ROUTER: NS");
         uint _amountIn = (sharesOut * oldUsdCap) * DENOMINATOR / asset.price / totalSupply;
 
-        amountIn = context.mintRev(asset, _amountIn);
-        cashbackIn = context.userCashbackBalance;
+        _amountIn = context.mintRev(asset, _amountIn);
+        amountIn = asset.toNative(_amountIn);
+        cashbackIn = asset.toNative(context.userCashbackBalance);
 
         uint noFeeAmountIn = sharesOut * oldUsdCap * DENOMINATOR / asset.price / totalSupply;
-        fee = noFeeAmountIn * DENOMINATOR / amountIn - 1e18;
+        fee = _amountIn * DENOMINATOR / noFeeAmountIn - 1e18;
     }
 
     function estimateBurnAmountOut(address poolAddress, address assetAddress, uint sharesIn)
@@ -236,10 +201,11 @@ contract MultipoolRouter {
 
         uint amountIn = (sharesIn * oldUsdCap * DENOMINATOR) / asset.price / totalSupply;
 
-        amountOut = context.burn(asset, amountIn);
+        uint _amountOut = context.burn(asset, amountIn);
+        amountOut = asset.toNative(_amountOut);
 
-        cashbackOut = context.userCashbackBalance;
-        uint noFeeSharesIn = (amountOut * asset.price * (totalSupply)) / oldUsdCap / DENOMINATOR;
+        cashbackOut = asset.toNative(context.userCashbackBalance);
+        uint noFeeSharesIn = (_amountOut * asset.price * (totalSupply)) / oldUsdCap / DENOMINATOR;
         fee = sharesIn * DENOMINATOR / noFeeSharesIn - 1e18;
     }
 
@@ -252,11 +218,12 @@ contract MultipoolRouter {
             Multipool(poolAddress).getBurnData(assetAddress);
         uint oldUsdCap = context.usdCap;
 
+        amountOut = asset.to18(amountOut);
         uint amountIn = context.burnRev(asset, amountOut);
 
         sharesIn = (amountIn * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
 
-        cashbackOut = context.userCashbackBalance;
+        cashbackOut = asset.toNative(context.userCashbackBalance);
         uint noFeeSharesIn = (amountOut * asset.price * (totalSupply)) / oldUsdCap / DENOMINATOR;
         fee = sharesIn * DENOMINATOR / noFeeSharesIn - 1e18;
     }
@@ -270,8 +237,9 @@ contract MultipoolRouter {
             Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
         uint oldUsdCap = context.usdCap;
 
+        amountIn = assetIn.to18(amountIn);
         uint mintAmountOut = context.mint(assetIn, amountIn);
-        cashbackIn = context.userCashbackBalance;
+        cashbackIn = assetIn.toNative(context.userCashbackBalance);
         context.userCashbackBalance = 0;
 
         shares = (mintAmountOut * assetIn.price * totalSupply) / DENOMINATOR / oldUsdCap;
@@ -279,9 +247,10 @@ contract MultipoolRouter {
         uint burnAmountIn = (shares * context.usdCap) * DENOMINATOR / assetOut.price / (totalSupply + shares);
 
         amountOut = context.burn(assetOut, burnAmountIn);
-        cashbackOut = context.userCashbackBalance;
+        cashbackOut = assetOut.toNative(context.userCashbackBalance);
 
         fee = amountIn * DENOMINATOR / ((amountOut * assetOut.price) / assetIn.price) - 1e18;
+        amountOut = assetOut.toNative(amountOut);
     }
 
     function estimateSwapAmountIn(address poolAddress, address assetInAddress, address assetOutAddress, uint amountOut)
@@ -296,9 +265,9 @@ contract MultipoolRouter {
         uint burnAmountIn;
         {
             {
-                uint _amountOut = amountOut;
+                uint _amountOut = assetOut.to18(amountOut);
                 (uint _burnAmountIn, uint burnCashback,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
-                cashbackOut = burnCashback;
+                cashbackOut = assetOut.toNative(burnCashback);
                 burnAmountIn = _burnAmountIn;
             }
         }
@@ -310,11 +279,12 @@ contract MultipoolRouter {
                 uint mintAmountOut = (shares * context.usdCap) * DENOMINATOR / assetIn.price / totalSupply;
 
                 amountIn = context.mintRev(assetIn, mintAmountOut);
-                cashbackIn = context.userCashbackBalance;
+                cashbackIn = assetIn.toNative(context.userCashbackBalance);
             }
         }
 
-        uint amoutInNoFees = amountOut * assetOut.price /  assetIn.price;
-        fee = amoutInNoFees * DENOMINATOR / amountIn - 1e18;
+        uint amoutInNoFees = assetOut.to18(amountOut) * assetOut.price / assetIn.price;
+        fee = amountIn * DENOMINATOR / amoutInNoFees - 1e18;
+        amountIn = assetIn.toNative(amountIn);
     }
 }
