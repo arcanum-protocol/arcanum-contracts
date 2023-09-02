@@ -87,6 +87,18 @@ contract MultipoolSingleAssetTest is Test {
         mpUpdatePrice(address(0), 10);
     }
 
+    function test_TogglePause() public {
+        mpUpdateTargetShare(address(0), 10);
+        mpUpdatePrice(address(0), 10);
+
+        mp.togglePause();
+
+        vm.expectRevert("MULTIPOOL: IP");
+        mpUpdateTargetShare(address(0), 10);
+        vm.expectRevert("MULTIPOOL: IP");
+        mpUpdatePrice(address(0), 10);
+    }
+
     function test_Decimals() public {
         MpAsset memory asset = MpAsset({
             quantity: 55e18,

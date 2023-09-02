@@ -28,6 +28,8 @@ This repository contains the source code for the [Multipool](https://arcanum.to/
 | WA | Withdraw authority only | This operation requires you to have withdrawal permissions | 
 | TF | Token transfer failed | This error occures if transfer of ERC20 token returns false | 
 | IA | Invalid authority | Occures if zero address is specified as an authority | 
+| IP | Is paused | Occures if contract is stopped | 
+| IA | Is audited | Occures if contract is marked as audited | 
 </details>
 <details>
     <summary> MULTIPOOL ROUTER </summary> All messages are in format "MULTIPOOL_ROUTER: error_code"

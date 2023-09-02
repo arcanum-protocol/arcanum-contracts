@@ -73,8 +73,16 @@ contract MultipoolCornerCases is Test {
         mp.setDepegBaseFee(0.6e18);
     }
 
+    function test_EmergencyWithdraw() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18]);
+        mp.emergencyWithdraw(address(tokens[0]), users[0]);
+        mp.setAudited();
+        vm.expectRevert("MULTIPOOL: IA");
+        mp.emergencyWithdraw(address(tokens[0]), users[0]);
+    }
     /// mint of 2 wei was requiring 0 tokens what in most cases is economically useless but
     /// better to restrict
+
     function test_MintWithSuperSmallShareCantProceedWithoutGettingTokens() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
