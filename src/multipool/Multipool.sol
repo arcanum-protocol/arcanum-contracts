@@ -3,11 +3,13 @@ pragma solidity ^0.8.0;
 // Multipool can't be understood by your mind, only heart
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {ERC20Permit} from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import {MpAsset, MpContext} from "./MpCommonMath.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
-contract Multipool is ERC20, Ownable {
-    constructor(string memory mpName, string memory mpSymbol) ERC20(mpName, mpSymbol) {
+/// @custom:security-contact badconfig@arcanum.to
+contract Multipool is ERC20, ERC20Permit, Ownable {
+    constructor(string memory mpName, string memory mpSymbol) ERC20(mpName, mpSymbol) ERC20Permit(mpName) {
         priceAuthority = msg.sender;
         targetShareAuthority = msg.sender;
         withdrawAuthority = msg.sender;
@@ -49,6 +51,14 @@ contract Multipool is ERC20, Ownable {
     address public priceAuthority;
     address public targetShareAuthority;
     address public withdrawAuthority;
+
+    bool public isPaused;
+    bool public audited;
+
+    modifier notPaused() {
+        require(!isPaused, "MULTIPOOL: IP");
+        _;
+    }
 
     /**
      * ---------------- Methods ------------------
@@ -117,7 +127,7 @@ contract Multipool is ERC20, Ownable {
         amount = (share * context.usdCap * DENOMINATOR) / mpTotalSupply / asset.price;
     }
 
-    function mint(address assetAddress, uint share, address to) public returns (uint amountIn, uint refund) {
+    function mint(address assetAddress, uint share, address to) public notPaused returns (uint amountIn, uint refund) {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: ZP");
@@ -145,7 +155,11 @@ contract Multipool is ERC20, Ownable {
 
     // share here needs to be specified and can't be taken by balance of because
     // if there is too much share you will be frozen by deviaiton limit overflow
-    function burn(address assetAddress, uint share, address to) public returns (uint amountOut, uint refund) {
+    function burn(address assetAddress, uint share, address to)
+        public
+        notPaused
+        returns (uint amountOut, uint refund)
+    {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: ZP");
@@ -166,6 +180,7 @@ contract Multipool is ERC20, Ownable {
 
     function swap(address assetInAddress, address assetOutAddress, uint share, address to)
         public
+        notPaused
         returns (uint amountIn, uint amountOut, uint refundIn, uint refundOut)
     {
         require(assetInAddress != assetOutAddress, "MULTIPOOL: SA");
@@ -216,7 +231,7 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    function increaseCashback(address assetAddress) public returns (uint amount) {
+    function increaseCashback(address assetAddress) public notPaused returns (uint amount) {
         MpAsset storage asset = assets[assetAddress];
         amount = getTransferredAmount(asset, assetAddress);
         asset.collectedCashbacks += amount;
@@ -226,7 +241,7 @@ contract Multipool is ERC20, Ownable {
      * ---------------- Authorities ------------------
      */
 
-    function updatePrices(address[] calldata assetAddresses, uint[] calldata prices) public {
+    function updatePrices(address[] calldata assetAddresses, uint[] calldata prices) public notPaused {
         require(priceAuthority == msg.sender, "MULTIPOOL: PA");
         for (uint a = 0; a < assetAddresses.length; a++) {
             MpAsset storage asset = assets[assetAddresses[a]];
@@ -236,7 +251,7 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public {
+    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public notPaused {
         require(targetShareAuthority == msg.sender, "MULTIPOOL: TA");
         for (uint a = 0; a < assetAddresses.length; a++) {
             MpAsset storage asset = assets[assetAddresses[a]];
@@ -246,7 +261,7 @@ contract Multipool is ERC20, Ownable {
         }
     }
 
-    function withdrawFees(address assetAddress, address to) public returns (uint fees) {
+    function withdrawFees(address assetAddress, address to) public notPaused returns (uint fees) {
         require(withdrawAuthority == msg.sender, "MULTIPOOL: WA");
         MpAsset storage asset = assets[assetAddress];
         fees = asset.collectedFees;
@@ -258,6 +273,20 @@ contract Multipool is ERC20, Ownable {
     /**
      * ---------------- Owner ------------------
      */
+
+    function togglePause() external onlyOwner {
+        isPaused = !isPaused;
+    }
+
+    function setAudited() external onlyOwner {
+        audited = true;
+    }
+
+    function emergencyWithdraw(address assetAddress, address to) public onlyOwner {
+        require(!audited, "MULTIPOOL: IA");
+        uint balance = IERC20(assetAddress).balanceOf(address(this));
+        require(IERC20(assetAddress).transfer(to, balance));
+    }
 
     function setTokenDecimals(address assetAddress, uint decimals) external onlyOwner {
         MpAsset storage asset = assets[assetAddress];
