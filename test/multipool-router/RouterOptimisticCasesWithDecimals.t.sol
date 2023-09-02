@@ -175,22 +175,24 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint sharesOut, uint fee, uint cashbackIn) =
+                (uint sharesOut, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateMintSharesOut(address(mp), address(tokens[0]), 0.8008e6);
 
                 assertEq(sharesOut, 2e18);
-                assertEq(fee, 0.001e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 4.761904761904761e18 / uint(1e12));
             }
         }
 
         {
             {
-                (uint amountIn, uint fee, uint cashbackIn) =
+                (uint amountIn, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateMintAmountIn(address(mp), address(tokens[0]), 2e18);
 
                 assertEq(amountIn, 0.8008e6);
-                assertEq(fee, 0.001e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 4.761904761904761e18 / uint(1e12));
             }
         }
@@ -251,22 +253,24 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint sharesOut, uint fee, uint cashbackIn) =
+                (uint sharesOut, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateBurnSharesIn(address(mp), address(tokens[0]), 0.724215971548658261e24);
 
                 assertEq(sharesOut, 2e18);
-                assertEq(fee, 0.104642857142857142e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 0);
             }
         }
 
         {
             {
-                (uint amountIn, uint fee, uint cashbackIn) =
+                (uint amountIn, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateBurnAmountOut(address(mp), address(tokens[0]), 2e18);
 
                 assertEq(amountIn, 0.724215971548658261e18 * uint(1e6));
-                assertEq(fee, 0.104642857142857142e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 0);
             }
         }
@@ -351,13 +355,15 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint shares, uint amountIn, uint fee, uint cashbackIn, uint cashbackOut) = router.estimateSwapAmountIn(
+                (uint shares, uint amountIn, uint assetInPrice, uint assetOutPrice, uint cashbackIn, uint cashbackOut) =
+                router.estimateSwapAmountIn(
                     address(mp), address(tokens[1]), address(tokens[0]), 1.188118811881188119e18 / uint(1e12)
                 );
 
                 assertEq(shares, 1.999998633333333333e18);
                 assertEq(amountIn, 0.605999585899999998e24);
-                assertEq(fee, 0.0201e18 - 4);
+                assertEq(assetInPrice, 20e18);
+                assertEq(assetOutPrice, 10e18);
                 assertEq(cashbackIn, 18.97231920511167762e24);
                 assertEq(cashbackOut, 5.25957e6);
             }
@@ -365,12 +371,13 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint shares, uint amountOut, uint fee, uint cashbackIn, uint cashbackOut) =
-                    router.estimateSwapAmountOut(address(mp), address(tokens[1]), address(tokens[0]), 0.606e24);
+                (uint shares, uint amountOut, uint assetInPrice, uint assetOutPrice, uint cashbackIn, uint cashbackOut)
+                = router.estimateSwapAmountOut(address(mp), address(tokens[1]), address(tokens[0]), 0.606e24);
 
                 assertEq(shares, 2e18);
                 assertEq(amountOut, 1.188118811881188117e18 / uint(1e12));
-                assertEq(fee, 0.0201e18 + 2);
+                assertEq(assetInPrice, 20e18);
+                assertEq(assetOutPrice, 10e18);
                 assertEq(cashbackIn, 18.97233201581027762e24);
                 assertEq(cashbackOut, 5.259574468085106133e18 / uint(1e12));
             }

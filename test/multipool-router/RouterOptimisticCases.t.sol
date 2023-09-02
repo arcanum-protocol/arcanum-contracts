@@ -133,22 +133,24 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint sharesOut, uint fee, uint cashbackIn) =
+                (uint sharesOut, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateMintSharesOut(address(mp), address(tokens[0]), 0.8008e18);
 
                 assertEq(sharesOut, 2e18);
-                assertEq(fee, 0.001e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 4.761904761904761e18);
             }
         }
 
         {
             {
-                (uint amountIn, uint fee, uint cashbackIn) =
+                (uint amountIn, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateMintAmountIn(address(mp), address(tokens[0]), 2e18);
 
                 assertEq(amountIn, 0.8008e18);
-                assertEq(fee, 0.001e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 4.761904761904761e18);
             }
         }
@@ -210,22 +212,24 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint sharesOut, uint fee, uint cashbackIn) =
+                (uint sharesOut, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateBurnSharesIn(address(mp), address(tokens[0]), 0.724215971548658261e18);
 
                 assertEq(sharesOut, 2e18);
-                assertEq(fee, 0.104642857142857142e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 0);
             }
         }
 
         {
             {
-                (uint amountIn, uint fee, uint cashbackIn) =
+                (uint amountIn, uint assetPrice, uint sharePrice, uint cashbackIn) =
                     router.estimateBurnAmountOut(address(mp), address(tokens[0]), 2e18);
 
                 assertEq(amountIn, 0.724215971548658261e18);
-                assertEq(fee, 0.104642857142857142e18);
+                assertEq(assetPrice, 10e18);
+                assertEq(sharePrice, 4e18);
                 assertEq(cashbackIn, 0);
             }
         }
@@ -348,13 +352,15 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint shares, uint amountIn, uint fee, uint cashbackIn, uint cashbackOut) = router.estimateSwapAmountIn(
+                (uint shares, uint amountIn, uint assetInPrice, uint assetOutPrice, uint cashbackIn, uint cashbackOut) =
+                router.estimateSwapAmountIn(
                     address(mp), address(tokens[1]), address(tokens[0]), 1.188118811881188119e18
                 );
 
                 assertEq(shares, 2e18);
                 assertEq(amountIn, 0.605999999999999998e18);
-                assertEq(fee, 0.0201e18 - 3);
+                assertEq(assetInPrice, 20e18);
+                assertEq(assetOutPrice, 10e18);
                 assertEq(cashbackIn, 18.97233201581027762e18);
                 assertEq(cashbackOut, 5.259574468085106133e18);
             }
@@ -362,16 +368,67 @@ contract MultipoolRouterCases is Test {
 
         {
             {
-                (uint shares, uint amountOut, uint fee, uint cashbackIn, uint cashbackOut) =
-                    router.estimateSwapAmountOut(address(mp), address(tokens[1]), address(tokens[0]), 0.606e18);
+                (uint shares, uint amountOut, uint assetInPrice, uint assetOutPrice, uint cashbackIn, uint cashbackOut)
+                = router.estimateSwapAmountOut(address(mp), address(tokens[1]), address(tokens[0]), 0.606e18);
 
                 assertEq(shares, 2e18);
                 assertEq(amountOut, 1.188118811881188117e18);
-                assertEq(fee, 0.0201e18 + 2);
+                assertEq(assetInPrice, 20e18);
+                assertEq(assetOutPrice, 10e18);
                 assertEq(cashbackIn, 18.97233201581027762e18);
                 assertEq(cashbackOut, 5.259574468085106133e18);
             }
         }
+    }
+
+    function test_Router_frontend_bug() public {
+        mp.setDeviationLimit(1e18); // 100%
+
+        address[] memory t = new address[](3);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+
+        uint[] memory s = new uint[](3);
+        s[0] = 50e18;
+        s[1] = 25e18;
+        s[2] = 25e18;
+
+        uint[] memory p = new uint[](3);
+        p[0] = 10e18;
+        p[1] = 20e18;
+        p[2] = 10e18;
+
+        mp.updatePrices(t, p);
+        mp.updateTargetShares(t, s);
+
+        mp.setTokenDecimals(address(tokens[0]), 18);
+        mp.setTokenDecimals(address(tokens[1]), 18);
+        mp.setTokenDecimals(address(tokens[2]), 18);
+
+        tokens[0].mint(address(mp), 400e18 / 10);
+        mp.mint(address(tokens[0]), 100e18, users[3]);
+
+        // tokens[1].mint(address(mp), shares[1] / 20);
+        // mp.mint(address(tokens[1]), 100e18 * shares[1] / shares[0], users[3]);
+
+        // tokens[2].mint(address(mp), shares[2] / 10);
+        // mp.mint(address(tokens[2]), 100e18 * shares[2] / shares[0], users[3]);
+
+        mp.setDeviationLimit(0.15e18); // 0.15
+        mp.setHalfDeviationFee(0.0003e18); // 0.0003
+        mp.setBaseTradeFee(0.01e18); // 0.01 1%
+        mp.setBaseMintFee(0.001e18); // 0.001 0.1%
+        mp.setBaseBurnFee(0.1e18); // 0.1 10%
+        mp.setDepegBaseFee(0.6e18);
+
+        (uint sharesOut, uint assetPrice, uint sharePrice, uint cashbackIn) =
+            router.estimateMintSharesOut(address(mp), address(tokens[1]), 0.8008e18);
+
+        assertEq(sharesOut, 4e18);
+        assertEq(assetPrice, 20e18);
+        assertEq(sharePrice, 4e18);
+        assertEq(cashbackIn, 0);
     }
 
     // function test_Router_Mint_HighterThanTarget_DeviationInRange_NoCashback() public {
