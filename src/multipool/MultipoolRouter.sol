@@ -152,7 +152,7 @@ contract MultipoolRouter {
     function estimateMintSharesOut(address poolAddress, address assetAddress, uint amountIn)
         public
         view
-        returns (uint sharesOut, uint fee, uint cashbackIn)
+        returns (uint sharesOut, uint assetPrice, uint sharePrice, uint cashbackIn)
     {
         (MpContext memory context, MpAsset memory asset, uint totalSupply) =
             Multipool(poolAddress).getMintData(assetAddress);
@@ -166,14 +166,14 @@ contract MultipoolRouter {
 
         cashbackIn = asset.toNative(context.userCashbackBalance);
 
-        uint noFeeShareOut = (amountIn * asset.price * (totalSupply)) / DENOMINATOR / oldUsdCap;
-        fee = noFeeShareOut * DENOMINATOR / sharesOut - 1e18;
+        assetPrice = asset.price;
+        sharePrice = oldUsdCap * DENOMINATOR / totalSupply;
     }
 
     function estimateMintAmountIn(address poolAddress, address assetAddress, uint sharesOut)
         public
         view
-        returns (uint amountIn, uint fee, uint cashbackIn)
+        returns (uint amountIn, uint assetPrice, uint sharePrice, uint cashbackIn)
     {
         (MpContext memory context, MpAsset memory asset, uint totalSupply) =
             Multipool(poolAddress).getMintData(assetAddress);
@@ -186,14 +186,14 @@ contract MultipoolRouter {
         amountIn = asset.toNative(_amountIn);
         cashbackIn = asset.toNative(context.userCashbackBalance);
 
-        uint noFeeAmountIn = sharesOut * oldUsdCap * DENOMINATOR / asset.price / totalSupply;
-        fee = _amountIn * DENOMINATOR / noFeeAmountIn - 1e18;
+        assetPrice = asset.price;
+        sharePrice = oldUsdCap * DENOMINATOR / totalSupply;
     }
 
     function estimateBurnAmountOut(address poolAddress, address assetAddress, uint sharesIn)
         public
         view
-        returns (uint amountOut, uint fee, uint cashbackOut)
+        returns (uint amountOut, uint assetPrice, uint sharePrice, uint cashbackOut)
     {
         (MpContext memory context, MpAsset memory asset, uint totalSupply) =
             Multipool(poolAddress).getBurnData(assetAddress);
@@ -205,14 +205,14 @@ contract MultipoolRouter {
         amountOut = asset.toNative(_amountOut);
 
         cashbackOut = asset.toNative(context.userCashbackBalance);
-        uint noFeeSharesIn = (_amountOut * asset.price * (totalSupply)) / oldUsdCap / DENOMINATOR;
-        fee = sharesIn * DENOMINATOR / noFeeSharesIn - 1e18;
+        assetPrice = asset.price;
+        sharePrice = oldUsdCap * DENOMINATOR / totalSupply;
     }
 
     function estimateBurnSharesIn(address poolAddress, address assetAddress, uint amountOut)
         public
         view
-        returns (uint sharesIn, uint fee, uint cashbackOut)
+        returns (uint sharesIn, uint assetPrice, uint sharePrice, uint cashbackOut)
     {
         (MpContext memory context, MpAsset memory asset, uint totalSupply) =
             Multipool(poolAddress).getBurnData(assetAddress);
@@ -224,14 +224,14 @@ contract MultipoolRouter {
         sharesIn = (amountIn * asset.price * totalSupply) / DENOMINATOR / oldUsdCap;
 
         cashbackOut = asset.toNative(context.userCashbackBalance);
-        uint noFeeSharesIn = (amountOut * asset.price * (totalSupply)) / oldUsdCap / DENOMINATOR;
-        fee = sharesIn * DENOMINATOR / noFeeSharesIn - 1e18;
+        assetPrice = asset.price;
+        sharePrice = oldUsdCap * DENOMINATOR / totalSupply;
     }
 
     function estimateSwapAmountOut(address poolAddress, address assetInAddress, address assetOutAddress, uint amountIn)
         public
         view
-        returns (uint shares, uint amountOut, uint fee, uint cashbackIn, uint cashbackOut)
+        returns (uint shares, uint amountOut, uint assetInPrice, uint assetOutPrice, uint cashbackIn, uint cashbackOut)
     {
         (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
             Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
@@ -243,48 +243,43 @@ contract MultipoolRouter {
         context.userCashbackBalance = 0;
 
         shares = (mintAmountOut * assetIn.price * totalSupply) / DENOMINATOR / oldUsdCap;
+        uint _shares = shares;
 
-        uint burnAmountIn = (shares * context.usdCap) * DENOMINATOR / assetOut.price / (totalSupply + shares);
+        uint burnAmountIn = (_shares * context.usdCap) * DENOMINATOR / assetOut.price / (totalSupply + shares);
 
         amountOut = context.burn(assetOut, burnAmountIn);
         cashbackOut = assetOut.toNative(context.userCashbackBalance);
 
-        fee = amountIn * DENOMINATOR / ((amountOut * assetOut.price) / assetIn.price) - 1e18;
         amountOut = assetOut.toNative(amountOut);
+        assetInPrice = assetIn.price;
+        assetOutPrice = assetOut.price;
     }
 
     function estimateSwapAmountIn(address poolAddress, address assetInAddress, address assetOutAddress, uint amountOut)
         public
         view
-        returns (uint shares, uint amountIn, uint fee, uint cashbackIn, uint cashbackOut)
+        returns (uint shares, uint amountIn, uint assetInPrice, uint assetOutPrice, uint cashbackIn, uint cashbackOut)
     {
         (MpContext memory context, MpAsset memory assetIn, MpAsset memory assetOut, uint totalSupply) =
             Multipool(poolAddress).getTradeData(assetInAddress, assetOutAddress);
+        assetInPrice = assetIn.price;
+        assetOutPrice = assetOut.price;
         uint oldUsdCap = context.usdCap;
 
         uint burnAmountIn;
         {
-            {
-                uint _amountOut = assetOut.to18(amountOut);
-                (uint _burnAmountIn, uint burnCashback,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
-                cashbackOut = assetOut.toNative(burnCashback);
-                burnAmountIn = _burnAmountIn;
-            }
+            uint _amountOut = assetOut.to18(amountOut);
+            (uint _burnAmountIn, uint burnCashback,) = context.burnTrace(assetOut, assetIn.price, _amountOut);
+            cashbackOut = assetOut.toNative(burnCashback);
+            burnAmountIn = _burnAmountIn;
         }
+        shares = (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR / oldUsdCap;
+        uint _shares = shares;
 
-        {
-            {
-                shares = (burnAmountIn * assetOut.price * totalSupply) / DENOMINATOR / oldUsdCap;
+        uint mintAmountOut = (_shares * context.usdCap) * DENOMINATOR / assetIn.price / totalSupply;
 
-                uint mintAmountOut = (shares * context.usdCap) * DENOMINATOR / assetIn.price / totalSupply;
-
-                amountIn = context.mintRev(assetIn, mintAmountOut);
-                cashbackIn = assetIn.toNative(context.userCashbackBalance);
-            }
-        }
-
-        uint amoutInNoFees = assetOut.to18(amountOut) * assetOut.price / assetIn.price;
-        fee = amountIn * DENOMINATOR / amoutInNoFees - 1e18;
+        amountIn = context.mintRev(assetIn, mintAmountOut);
+        cashbackIn = assetIn.toNative(context.userCashbackBalance);
         amountIn = assetIn.toNative(amountIn);
     }
 }
