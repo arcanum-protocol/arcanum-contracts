@@ -4,11 +4,12 @@ pragma solidity ^0.8.0;
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
+import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 import {MpAsset, MpContext} from "./MpCommonMath.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
-contract Multipool is ERC20, ERC20Permit, Ownable {
+contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
     constructor(string memory mpName, string memory mpSymbol) ERC20(mpName, mpSymbol) ERC20Permit(mpName) {
         priceAuthority = msg.sender;
         targetShareAuthority = msg.sender;
@@ -120,14 +121,19 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
     }
 
     function shareToAmount(uint share, MpContext memory context, MpAsset memory asset, uint mpTotalSupply)
-        public
+        internal
         pure
         returns (uint amount)
     {
         amount = (share * context.usdCap * DENOMINATOR) / mpTotalSupply / asset.price;
     }
 
-    function mint(address assetAddress, uint share, address to) public notPaused returns (uint amountIn, uint refund) {
+    function mint(address assetAddress, uint share, address to)
+        public
+        notPaused
+        nonReentrant
+        returns (uint amountIn, uint refund)
+    {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
         require(asset.price != 0, "MULTIPOOL: ZP");
@@ -138,6 +144,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
         uint amountOut = totalSupply() != 0 ? shareToAmount(share, context, asset, totalSupply()) : transferredAmount;
 
         amountIn = context.evalMint(asset, amountOut);
+        require(amountIn != 0, "MULTIPOOL: ZQ");
         require(amountIn <= transferredAmount, "MULTIPOOL: IQ");
 
         usdCap = context.usdCap;
@@ -158,6 +165,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
     function burn(address assetAddress, uint share, address to)
         public
         notPaused
+        nonReentrant
         returns (uint amountOut, uint refund)
     {
         require(share != 0, "MULTIPOOL: ZS");
@@ -167,6 +175,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
 
         uint amountIn = shareToAmount(share, context, asset, totalSupply());
         amountOut = context.evalBurn(asset, amountIn);
+        require(amountOut != 0, "MULTIPOOL: ZQ");
 
         usdCap = context.usdCap;
         refund = context.userCashbackBalance;
@@ -181,6 +190,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
     function swap(address assetInAddress, address assetOutAddress, uint share, address to)
         public
         notPaused
+        nonReentrant
         returns (uint amountIn, uint amountOut, uint refundIn, uint refundOut)
     {
         require(assetInAddress != assetOutAddress, "MULTIPOOL: SA");
@@ -190,7 +200,6 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
         require(assetIn.price != 0, "MULTIPOOL: ZP");
         require(assetIn.share != 0, "MULTIPOOL: ZT");
         require(assetOut.price != 0, "MULTIPOOL: ZP");
-        require(assetOut.share != 0, "MULTIPOOL: ZT");
         MpContext memory context = getContext(2);
 
         uint transferredAmount = getTransferredAmount(assetIn, assetInAddress);
@@ -198,6 +207,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
             {
                 uint _amountOut = shareToAmount(share, context, assetIn, totalSupply());
                 amountIn = context.evalMint(assetIn, _amountOut);
+                require(amountIn != 0, "MULTIPOOL: ZQ");
                 require(amountIn <= transferredAmount, "MULTIPOOL: IQ");
 
                 refundIn = context.userCashbackBalance;
@@ -231,7 +241,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable {
         }
     }
 
-    function increaseCashback(address assetAddress) public notPaused returns (uint amount) {
+    function increaseCashback(address assetAddress) public notPaused nonReentrant returns (uint amount) {
         MpAsset storage asset = assets[assetAddress];
         amount = getTransferredAmount(asset, assetAddress);
         asset.collectedCashbacks += amount;
