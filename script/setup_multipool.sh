@@ -23,8 +23,7 @@ xf0449a9e98fd9e88a908e9eac799afc5cc904f0c1417f29f8bacd66d3cd86c18 0x936154414520
 
 # set half deviation fee 
 cast send --rpc-url  https://sepolia-rollup.arbitrum.io/rpc --private-key 0
-xf0449a9e98fd9e88a908e9eac799afc5cc904f0c1417f29f8bacd66d3cd86c18 0x936154414520a1d925F15a2EE88A1cE31AE24C1E "setHalfDeviationFee(uint)" 30
-0000000000000
+xf0449a9e98fd9e88a908e9eac799afc5cc904f0c1417f29f8bacd66d3cd86c18 0x936154414520a1d925F15a2EE88A1cE31AE24C1E "setHalfDeviationFee(uint)" 300000000000000
 
 
 #mint
