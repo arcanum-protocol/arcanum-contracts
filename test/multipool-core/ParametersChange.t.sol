@@ -76,8 +76,8 @@ contract MultipoolCornerCases is Test {
     function test_Swap_ChangeParams() public {
         bootstrapTokens([uint(600e18), 200e18, 200e18]);
 
-        MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
         uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
@@ -86,8 +86,8 @@ contract MultipoolCornerCases is Test {
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
         assertEq(mp.balanceOf(users[0]), 0);
 
@@ -118,8 +118,8 @@ contract MultipoolCornerCases is Test {
 
         vm.startPrank(users[0]);
         {
-            MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
-            MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+            MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
+            MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
             uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
             uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
@@ -128,8 +128,8 @@ contract MultipoolCornerCases is Test {
             (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
                 mp.swap(address(tokens[1]), address(tokens[0]), 30e18, users[0]);
 
-            MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-            MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+            MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+            MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
             assertEq(mp.balanceOf(users[0]), 0);
 
@@ -171,7 +171,7 @@ contract MultipoolCornerCases is Test {
         changePrank(users[0]);
         (uint amount, uint refund) = mp.burn(address(tokens[0]), 10e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[0]));
+        MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
         assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + amount - 8e18);
         assertEq(refund, 0);
@@ -184,7 +184,7 @@ contract MultipoolCornerCases is Test {
         changePrank(users[0]);
         (uint amount2, uint refund2) = mp.burn(address(tokens[0]), 90e18, users[0]);
 
-        asset = mp.getAssets(address(tokens[0]));
+        asset = mp.getAsset(address(tokens[0]));
 
         assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + amount + amount2 - 8e18);
         assertEq(refund2, 0);
