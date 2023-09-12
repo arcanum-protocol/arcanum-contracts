@@ -90,7 +90,7 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         tokens[0].transfer(address(mp), 8e6);
         (uint amount, uint refund) = mp.mint(address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[0]));
+        MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
         assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e6);
         assertEq(refund, 0);
@@ -107,7 +107,7 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         tokens[1].transfer(address(mp), 1e24);
         (uint amount, uint refund) = mp.mint(address(tokens[1]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[1]));
+        MpAsset memory asset = mp.getAsset(address(tokens[1]));
 
         assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 0.4004e24 - 470588235294117 * 1e6);
         assertEq(refund, 0);
@@ -124,7 +124,7 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         tokens[0].transfer(address(mp), 1e6);
         (uint amount, uint refund) = mp.mint(address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[0]));
+        MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
         assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.1001e6);
         assertEq(refund, 0);
@@ -143,7 +143,7 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         vm.expectRevert("MULTIPOOL: DO");
         (uint amount, uint refund) = mp.mint(address(tokens[1]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[1]));
+        MpAsset memory asset = mp.getAsset(address(tokens[1]));
 
         assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 - 1000e24);
         assertEq(tokens[1].balanceOf(address(mp)), 1030e24);
@@ -160,7 +160,7 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         changePrank(users[0]);
         (uint amount, uint refund) = mp.burn(address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[0]));
+        MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
         assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 724215971548658261 / uint(1e12));
         assertEq(refund, 0);
@@ -174,14 +174,14 @@ contract MultipoolDeviationTestsWithDecimals is Test {
     function test_Burn_HighterThanTarget_DeviationInRange_NoCashback() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
-        MpAsset memory assetBefore = mp.getAssets(address(tokens[1]));
+        MpAsset memory assetBefore = mp.getAsset(address(tokens[1]));
         uint tokenBalanceBefore = tokens[1].balanceOf(users[0]);
         vm.startPrank(users[3]);
         mp.transfer(address(mp), 2e18);
         changePrank(users[0]);
         (uint amount, uint refund) = mp.burn(address(tokens[1]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[1]));
+        MpAsset memory asset = mp.getAsset(address(tokens[1]));
 
         assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 + 0.363636363636363636e24);
         assertEq(refund, 0);
@@ -206,14 +206,14 @@ contract MultipoolDeviationTestsWithDecimals is Test {
     function test_Burn_HighterThanTarget_DeviationOutOfRange_NoCashback() public {
         bootstrapTokens([uint(300e18), 600e18, 100e18]);
 
-        MpAsset memory assetBefore = mp.getAssets(address(tokens[1]));
+        MpAsset memory assetBefore = mp.getAsset(address(tokens[1]));
         uint tokenBalanceBefore = tokens[1].balanceOf(users[0]);
         vm.startPrank(users[3]);
         mp.transfer(address(mp), 2e18);
         changePrank(users[0]);
         (uint amount, uint refund) = mp.burn(address(tokens[1]), 2e18, users[0]);
 
-        MpAsset memory asset = mp.getAssets(address(tokens[1]));
+        MpAsset memory asset = mp.getAsset(address(tokens[1]));
 
         assertEq(tokens[1].balanceOf(users[0]), 10000000000e18 + 0.272727272727272726e24);
         assertEq(tokens[1].balanceOf(address(mp)), 29.727272727272727274e24);
@@ -227,8 +227,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
     function test_Swap_Increase_Increase_Cashback() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18]);
 
-        MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
         uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
@@ -237,8 +237,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
         assertEq(mp.balanceOf(users[0]), 0);
 
@@ -263,8 +263,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
     function test_Swap_Increase_Decrease_Cashback() public {
         bootstrapTokens([uint(600e18), 300e18, 100e18]);
 
-        MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
         uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
@@ -273,8 +273,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
         assertEq(mp.balanceOf(users[0]), 0);
 
@@ -299,8 +299,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
     function test_Swap_Decrease_Increase_Cashback() public {
         bootstrapTokens([uint(400e18), 200e18, 400e18]);
 
-        MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
         uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
@@ -309,8 +309,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
         assertEq(mp.balanceOf(users[0]), 0);
 
@@ -335,8 +335,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
     function test_Swap_Decrease_Decrease_Cashback() public {
         bootstrapTokens([uint(600e18), 200e18, 200e18]);
 
-        MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
         uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
 
@@ -345,8 +345,8 @@ contract MultipoolDeviationTestsWithDecimals is Test {
         (uint amountIn, uint amountOut, uint refundIn, uint refundOut) =
             mp.swap(address(tokens[1]), address(tokens[0]), 2e18, users[0]);
 
-        MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-        MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+        MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
         assertEq(mp.balanceOf(users[0]), 0);
 

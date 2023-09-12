@@ -65,7 +65,7 @@ contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
      * ---------------- Methods ------------------
      */
 
-    function getAssets(address assetAddress) public view returns (MpAsset memory asset) {
+    function getAsset(address assetAddress) public view returns (MpAsset memory asset) {
         asset = assets[assetAddress];
     }
 

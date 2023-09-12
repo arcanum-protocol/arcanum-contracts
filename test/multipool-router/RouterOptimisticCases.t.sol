@@ -99,7 +99,7 @@ contract MultipoolRouterCases is Test {
                 (uint amount, uint refund) =
                     router.mintWithSharesOut(address(mp), address(tokens[0]), 2e18, 0.8008e18, users[0]);
 
-                MpAsset memory asset = mp.getAssets(address(tokens[0]));
+                MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
                 assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18 + 4.761904761904761e18);
                 assertEq(refund, 4.761904761904761e18);
@@ -118,7 +118,7 @@ contract MultipoolRouterCases is Test {
                 (uint shares, uint refund) =
                     router.mintWithAmountIn(address(mp), address(tokens[0]), 0.8008e18, 2e18, users[0]);
 
-                MpAsset memory asset = mp.getAssets(address(tokens[0]));
+                MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
                 assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 - 0.8008e18 + 4.761904761904761e18);
                 assertEq(refund, 4.761904761904761e18);
@@ -176,7 +176,7 @@ contract MultipoolRouterCases is Test {
                 (uint amount, uint refund) =
                     router.burnWithSharesIn(address(mp), address(tokens[0]), 2e18, 0.724215971548658261e18, users[0]);
 
-                MpAsset memory asset = mp.getAssets(address(tokens[0]));
+                MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
                 assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 724215971548658261);
                 assertEq(refund, 0);
@@ -196,7 +196,7 @@ contract MultipoolRouterCases is Test {
                 (uint shares, uint refund) =
                     router.burnWithAmountOut(address(mp), address(tokens[0]), 0.724215971548658261e18, 2e18, users[0]);
 
-                MpAsset memory asset = mp.getAssets(address(tokens[0]));
+                MpAsset memory asset = mp.getAsset(address(tokens[0]));
 
                 assertEq(tokens[0].balanceOf(users[0]), 10000000000e18 + 724215971548658261);
                 assertEq(refund, 0);
@@ -248,9 +248,9 @@ contract MultipoolRouterCases is Test {
         cashback = mp.increaseCashback(address(tokens[0]));
         assertEq(cashback, 100e18);
 
-        MpAsset memory assetInBefore = mp.getAssets(address(tokens[1]));
+        MpAsset memory assetInBefore = mp.getAsset(address(tokens[1]));
         assertEq(assetInBefore.collectedCashbacks, 100e18);
-        MpAsset memory assetOutBefore = mp.getAssets(address(tokens[0]));
+        MpAsset memory assetOutBefore = mp.getAsset(address(tokens[0]));
         assertEq(assetOutBefore.collectedCashbacks, 100e18);
         uint tokenInBalanceBefore = tokens[1].balanceOf(users[0]);
         uint tokenOutBalanceBefore = tokens[0].balanceOf(users[0]);
@@ -264,8 +264,8 @@ contract MultipoolRouterCases is Test {
                     address(mp), address(tokens[1]), address(tokens[0]), 0.606e18, 1.188118811881188117e18, users[0]
                 );
 
-                MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-                MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+                MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+                MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
                 assertEq(mp.balanceOf(users[0]), 0);
                 assertEq(amountOut, 1.188118811881188117e18);
@@ -310,8 +310,8 @@ contract MultipoolRouterCases is Test {
                     address(mp), address(tokens[1]), address(tokens[0]), 1.188118811881188119e18, 0.606e18, users[0]
                 );
 
-                MpAsset memory assetIn = mp.getAssets(address(tokens[1]));
-                MpAsset memory assetOut = mp.getAssets(address(tokens[0]));
+                MpAsset memory assetIn = mp.getAsset(address(tokens[1]));
+                MpAsset memory assetOut = mp.getAsset(address(tokens[0]));
 
                 assertEq(mp.balanceOf(users[0]), 0);
                 assertEq(amountIn, 0.605999999999999998e18);

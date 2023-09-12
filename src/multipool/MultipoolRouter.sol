@@ -24,7 +24,7 @@ contract MultipoolRouter {
         public
         returns (uint amount, uint refund)
     {
-        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
+        MpAsset memory asset = Multipool(poolAddress).getAsset(assetAddress);
         // Transfer all amount in in case the last part will return via multipool
         IERC20(assetAddress).transferFrom(msg.sender, poolAddress, amountInMax);
         // No need to check sleepage because contract will fail if there is no
@@ -38,7 +38,7 @@ contract MultipoolRouter {
         public
         returns (uint amount, uint refund)
     {
-        MpAsset memory asset = Multipool(poolAddress).getAssets(assetAddress);
+        MpAsset memory asset = Multipool(poolAddress).getAsset(assetAddress);
         IERC20(poolAddress).transferFrom(msg.sender, poolAddress, sharesIn);
         (uint _amount, uint _refund) = Multipool(poolAddress).burn(assetAddress, sharesIn, to);
         amount = asset.toNative(_amount);
