@@ -128,6 +128,43 @@ contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
         amount = (share * context.usdCap * DENOMINATOR) / mpTotalSupply / asset.price;
     }
 
+    function massiveMint(
+        address[] calldata assetAddresses,
+        address to
+    )
+        public
+        notPaused
+        nonReentrant
+        returns (uint amountIn, uint refund)
+    {
+        MpAsset[] memory mintAssets = new MpAsset[](assetAddresses.length);
+        uint totalShares;
+        uint minShare;
+
+        for(uint i = 0; i < assetAddresses.length; i++) {
+             mintAssets[i] = assets[assetAddresses[i]];
+             totalShares += mintAssets[i].share;
+             uint transferredAmount = getTransferredAmount(mintAssets[i], assetAddresses[i]);
+             uint maxShareToMint = totalSupply() * transferredAmount / mintAssets[i].quantity;
+             if (minShare == 0 || maxShareToMint < minShare) {
+                 minShare = maxShareToMint;
+             }
+        }
+
+        require(totalShares == totalTargetShares);
+        uint mintFee = baseMintFee;
+
+        for(uint i = 0; i < assetAddresses.length; i++) {
+             uint quantity = mintAssets[i].quantity * minShare / totalSupply();
+             uint fees = quantity * mintFee / DENOMINATOR;
+             mintAssets[i].quantity += quantity - fees;
+             mintAssets[i].collectedFees += fees;
+             emit AssetQuantityChange(assetAddresses[i], mintAssets[i].quantity);
+             mintAssets[i] = assets[assetAddresses[i]];
+        }
+        _mint(to, minShare);
+    }
+
     function mint(address assetAddress, uint share, address to)
         public
         notPaused
