@@ -128,41 +128,41 @@ contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
         amount = (share * context.usdCap * DENOMINATOR) / mpTotalSupply / asset.price;
     }
 
-    function massiveMint(
-        address[] calldata assetAddresses,
-        address to
-    )
+    function massiveMint(address[] calldata assetAddresses, address to)
         public
         notPaused
         nonReentrant
-        returns (uint amountIn, uint refund)
+        returns (uint share)
     {
         MpAsset[] memory mintAssets = new MpAsset[](assetAddresses.length);
         uint totalShares;
         uint minShare;
 
-        for(uint i = 0; i < assetAddresses.length; i++) {
-             mintAssets[i] = assets[assetAddresses[i]];
-             totalShares += mintAssets[i].share;
-             uint transferredAmount = getTransferredAmount(mintAssets[i], assetAddresses[i]);
-             uint maxShareToMint = totalSupply() * transferredAmount / mintAssets[i].quantity;
-             if (minShare == 0 || maxShareToMint < minShare) {
-                 minShare = maxShareToMint;
-             }
+        for (uint i = 0; i < assetAddresses.length; i++) {
+            mintAssets[i] = assets[assetAddresses[i]];
+            totalShares += mintAssets[i].share;
+            require(mintAssets[i].share != 0, "MULTIPOOL: ZT");
+            uint transferredAmount = getTransferredAmount(mintAssets[i], assetAddresses[i]);
+            uint maxShareToMint = totalSupply() * transferredAmount / mintAssets[i].quantity;
+            if (minShare == 0 || maxShareToMint < minShare) {
+                minShare = maxShareToMint;
+            }
         }
 
-        require(totalShares == totalTargetShares);
+        require(totalShares == totalTargetShares, "MULTIPOOL: IL");
         uint mintFee = baseMintFee;
 
-        for(uint i = 0; i < assetAddresses.length; i++) {
-             uint quantity = mintAssets[i].quantity * minShare / totalSupply();
-             uint fees = quantity * mintFee / DENOMINATOR;
-             mintAssets[i].quantity += quantity - fees;
-             mintAssets[i].collectedFees += fees;
-             emit AssetQuantityChange(assetAddresses[i], mintAssets[i].quantity);
-             mintAssets[i] = assets[assetAddresses[i]];
+        for (uint i = 0; i < assetAddresses.length; i++) {
+            uint quantity = mintAssets[i].quantity * minShare / totalSupply();
+            uint fees = quantity * mintFee / DENOMINATOR;
+            mintAssets[i].quantity += quantity - fees;
+            mintAssets[i].collectedFees += fees;
+            emit AssetQuantityChange(assetAddresses[i], mintAssets[i].quantity);
+            assets[assetAddresses[i]] = mintAssets[i];
         }
+        require(minShare != 0, "MULTIPOOL: ZS");
         _mint(to, minShare);
+        return minShare;
     }
 
     function mint(address assetAddress, uint share, address to)
