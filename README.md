@@ -30,6 +30,7 @@ This repository contains the source code for the [Multipool](https://arcanum.to/
 | IA | Invalid authority | Occures if zero address is specified as an authority | 
 | IP | Is paused | Occures if contract is stopped | 
 | IA | Is audited | Occures if contract is marked as audited | 
+| IL | Insufficient assets list | Occures if provided assets array is not full | 
 </details>
 <details>
     <summary> MULTIPOOL ROUTER </summary> All messages are in format "MULTIPOOL_ROUTER: error_code"

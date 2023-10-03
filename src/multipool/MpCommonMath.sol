@@ -49,7 +49,7 @@ library MpCommonMath {
 
     function evalMint(MpContext memory context, MpAsset memory asset, uint utilisableQuantity)
         internal
-        view
+        pure
         returns (uint suppliedQuantity)
     {
         if (context.usdCap == 0) {
