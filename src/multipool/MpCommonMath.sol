@@ -84,8 +84,9 @@ library MpCommonMath {
 
         require(suppliedQuantity != 0, "MULTIPOOL: ZS");
 
+        context.usdCap -= (asset.quantity * asset.price) / DENOMINATOR;
         asset.quantity += utilisableQuantity;
-        context.usdCap += (utilisableQuantity * asset.price) / DENOMINATOR;
+        context.usdCap += (asset.quantity * asset.price) / DENOMINATOR;
         asset.collectedFees += (utilisableQuantity * context.operationBaseFee) / DENOMINATOR;
     }
 
@@ -127,8 +128,9 @@ library MpCommonMath {
             utilisableQuantity = (suppliedQuantity * DENOMINATOR) / (1e18 + context.operationBaseFee);
         }
 
+        context.usdCap -= (asset.quantity * asset.price) / DENOMINATOR;
         asset.quantity -= suppliedQuantity;
-        context.usdCap -= (suppliedQuantity * asset.price) / DENOMINATOR;
+        context.usdCap += (asset.quantity * asset.price) / DENOMINATOR;
         asset.collectedFees += (utilisableQuantity * context.operationBaseFee) / DENOMINATOR;
     }
 }

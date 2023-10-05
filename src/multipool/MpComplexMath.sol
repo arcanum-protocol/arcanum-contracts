@@ -156,8 +156,9 @@ library MpComplexMath {
             asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
         }
 
+        context.usdCap = context.usdCap - asset.quantity * asset.price / DENOMINATOR;
         asset.quantity = asset.quantity - suppliedQuantity;
-        context.usdCap = context.usdCap - suppliedQuantity * asset.price / DENOMINATOR;
+        context.usdCap = context.usdCap + asset.quantity * asset.price / DENOMINATOR;
         asset.collectedFees = asset.collectedFees + utilisableQuantity * context.operationBaseFee / DENOMINATOR;
     }
 
@@ -202,8 +203,9 @@ library MpComplexMath {
             asset.collectedFees = asset.collectedFees + collectedBaseDepegFee;
         }
 
+        context.usdCap = context.usdCap - asset.quantity * asset.price / DENOMINATOR;
         asset.quantity = asset.quantity + utilisableQuantity;
-        context.usdCap = context.usdCap + utilisableQuantity * asset.price / DENOMINATOR;
+        context.usdCap = context.usdCap + asset.quantity * asset.price / DENOMINATOR;
         asset.collectedFees = asset.collectedFees + utilisableQuantity * context.operationBaseFee / DENOMINATOR;
     }
 

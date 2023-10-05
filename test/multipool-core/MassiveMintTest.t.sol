@@ -245,17 +245,6 @@ contract MultipoolCornerCases is Test {
         tokens[1].transfer(address(mp), 15e18);
         tokens[2].transfer(address(mp), 30e18);
         tokens[3].transfer(address(mp), 30e18);
-        //tokens[4].transfer(address(mp), 30e18);
-
-        // uint oldTs = mp.totalSupply();
-        // address[] memory t = new address[](5);
-        // t[0] = address(tokens[0]);
-        // t[1] = address(tokens[1]);
-        // t[2] = address(tokens[2]);
-        // t[3] = address(tokens[3]);
-        // t[4] = address(tokens[4]);
-
-        // mp.massiveMint(t, users[0]);
 
         uint oldTs = mp.totalSupply();
         address[] memory t = new address[](4);
@@ -302,5 +291,66 @@ contract MultipoolCornerCases is Test {
         mp.massiveMint(t1, users[0]);
 
         assertEq(mp.totalSupply(), 649.675e18 + 75e18 + 362.156240620310155078e18);
+    }
+
+    function test_massiveMint_usdCapAccuracy() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 0e18]);
+
+        address[] memory t = new address[](5);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+        t[4] = address(tokens[4]);
+
+        uint[] memory p = new uint[](5);
+        p[0] = 1111111111;
+        p[1] = 20.000002e18;
+        p[2] = 10.000001e18;
+        p[3] = 10.000001e18;
+        p[4] = 10.000001e18;
+
+        mp.updatePrices(t, p);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 41);
+        tokens[1].transfer(address(mp), 150);
+        tokens[2].transfer(address(mp), 300);
+        tokens[3].transfer(address(mp), 300);
+
+        uint oldTs = mp.totalSupply();
+        t = new address[](4);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+
+        mp.massiveMint(t, users[0]);
+
+        uint preMintTs = mp.totalSupply();
+
+        tokens[0].transfer(address(mp), 40.000000000411111111e18);
+        tokens[1].transfer(address(mp), 15.00000000015e18);
+        tokens[2].transfer(address(mp), 30.0000000003e18);
+        tokens[3].transfer(address(mp), 30.0000000003e18);
+
+        console.log(
+            uint(909090909091687668) * uint(8940000000000000000) / uint(1e18)
+                + uint(6363636363646034826) * uint(719741000000000000) / uint(1e18)
+                + uint(10909090909093024797) * uint(3290000000000000000) / uint(1e18)
+                + uint(909090909090909230) * uint(467448143500000000) / uint(1e18)
+                + uint(1826295030239284775) * uint(38114302323000000000) / uint(1e18)
+        );
+        console.log(uint(118631265589462499816));
+
+        address[] memory t1 = new address[](4);
+        t1[0] = address(tokens[0]);
+        t1[1] = address(tokens[1]);
+        t1[2] = address(tokens[2]);
+        t1[3] = address(tokens[3]);
+
+        mp.massiveMint(t1, users[0]);
+
+        uint aftMintTs = mp.totalSupply();
     }
 }
