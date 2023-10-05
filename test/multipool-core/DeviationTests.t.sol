@@ -13,6 +13,14 @@ contract MultipoolCornerCases is Test {
     uint tokenNum;
     uint userNum;
 
+    function checkUsdCap() public {
+        uint acc;
+        for (uint i = 0; i < tokens.length; i++) {
+            acc += mp.getAsset(address(tokens[i])).quantity * mp.getAsset(address(tokens[i])).price / 1e18;
+        }
+        assertEq(acc, mp.usdCap());
+    }
+
     function setUp() public {
         tokenNum = 3;
         userNum = 4;
@@ -79,6 +87,7 @@ contract MultipoolCornerCases is Test {
         mp.setAudited();
         vm.expectRevert("MULTIPOOL: IA");
         mp.emergencyWithdraw(address(tokens[0]), users[0]);
+        checkUsdCap();
     }
     /// mint of 2 wei was requiring 0 tokens what in most cases is economically useless but
     /// better to restrict
@@ -89,6 +98,7 @@ contract MultipoolCornerCases is Test {
         vm.startPrank(users[0]);
         vm.expectRevert("MULTIPOOL: ZS");
         mp.mint(address(tokens[0]), 2, users[0]);
+        checkUsdCap();
     }
 
     function test_Mint_LowerThanTarget_DeviationInRange_NoCashback() public {
@@ -106,6 +116,7 @@ contract MultipoolCornerCases is Test {
         assertEq(asset.collectedCashbacks, 0);
         assertEq(asset.collectedFees, 0.0008e18);
         assertEq(mp.balanceOf(users[0]), 2e18);
+        checkUsdCap();
     }
 
     function test_Mint_HighterThanTarget_DeviationInRange_NoCashback() public {
@@ -123,6 +134,7 @@ contract MultipoolCornerCases is Test {
         assertEq(asset.collectedCashbacks, uint(470588235294117) * 2 / 5 + 1);
         assertEq(asset.collectedFees, uint(470588235294117) * 3 / 5 + 0.0004e18);
         assertEq(mp.balanceOf(users[0]), 2e18);
+        checkUsdCap();
     }
 
     function test_Mint_LowerThanTarget_DeviationOutOfRange_NoCashback() public {
@@ -140,6 +152,7 @@ contract MultipoolCornerCases is Test {
         assertEq(asset.collectedCashbacks, 0);
         assertEq(asset.collectedFees, 0.0001e18);
         assertEq(mp.balanceOf(users[0]), 2e18);
+        checkUsdCap();
     }
 
     function test_Mint_HighterThanTarget_DeviationOutOfRange_NoCashback() public {
@@ -158,6 +171,7 @@ contract MultipoolCornerCases is Test {
         assertEq(asset.collectedCashbacks, 0);
         assertEq(asset.collectedFees, 0);
         assertEq(mp.balanceOf(users[0]), 0);
+        checkUsdCap();
     }
 
     function test_Burn_LowerThanTarget_DeviationInRange_NoCashback() public {
@@ -177,6 +191,7 @@ contract MultipoolCornerCases is Test {
         assertEq(asset.collectedFees, 74439055932751373);
         assertEq(mp.balanceOf(users[0]), 0);
         assertEq(mp.balanceOf(address(mp)), 0);
+        checkUsdCap();
     }
 
     function test_Burn_HighterThanTarget_DeviationInRange_NoCashback() public {
@@ -199,6 +214,7 @@ contract MultipoolCornerCases is Test {
         assertEq(mp.balanceOf(users[0]), 0);
         assertEq(tokens[1].balanceOf(users[0]) - tokenBalanceBefore, 0.363636363636363636e18);
         assertEq(assetBefore.quantity - asset.quantity, 0.4e18);
+        checkUsdCap();
     }
 
     function test_Burn_LowerThanTarget_DeviationOutOfRange_NoCashback() public {
@@ -209,6 +225,7 @@ contract MultipoolCornerCases is Test {
         changePrank(users[0]);
         vm.expectRevert("MULTIPOOL: DO");
         (uint amount, uint refund) = mp.burn(address(tokens[0]), 2e18, users[0]);
+        checkUsdCap();
     }
 
     function test_Burn_HighterThanTarget_DeviationOutOfRange_NoCashback() public {
@@ -230,6 +247,7 @@ contract MultipoolCornerCases is Test {
         assertEq(mp.balanceOf(users[0]), 0);
         assertEq(tokens[1].balanceOf(users[0]) - tokenBalanceBefore, 0.272727272727272726e18);
         assertEq(assetBefore.quantity - asset.quantity, 0.299999999999999999e18);
+        checkUsdCap();
     }
 
     function test_Swap_Increase_Increase_Cashback() public {
@@ -266,6 +284,7 @@ contract MultipoolCornerCases is Test {
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.4e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 0.8e18);
+        checkUsdCap();
     }
 
     function test_Swap_Increase_Decrease_Cashback() public {
@@ -302,6 +321,7 @@ contract MultipoolCornerCases is Test {
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.599999999999999999e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 1.199999999999999999e18);
+        checkUsdCap();
     }
 
     function test_Swap_Decrease_Increase_Cashback() public {
@@ -338,6 +358,7 @@ contract MultipoolCornerCases is Test {
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.4e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 0.8e18);
+        checkUsdCap();
     }
 
     function test_Swap_Decrease_Decrease_Cashback() public {
@@ -374,5 +395,6 @@ contract MultipoolCornerCases is Test {
 
         assertEq(assetIn.quantity - assetInBefore.quantity, 0.599999999999999999e18);
         assertEq(assetOutBefore.quantity - assetOut.quantity, 1.199999999999999999e18);
+        checkUsdCap();
     }
 }

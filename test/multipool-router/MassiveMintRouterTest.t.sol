@@ -19,7 +19,7 @@ contract MockCallSomething is Test {
     }
 
     function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to) public {
-        for(uint i = 0; i < tokens.length; i++) {
+        for (uint i = 0; i < tokens.length; i++) {
             IERC20(tokens[i]).transfer(to, amounts[i]);
         }
     }
@@ -36,6 +36,14 @@ contract MultipoolRouterCases is Test {
     address[] users;
     uint tokenNum;
     uint userNum;
+
+    function checkUsdCap() public {
+        uint acc;
+        for (uint i = 0; i < tokens.length; i++) {
+            acc += mp.getAsset(address(tokens[i])).quantity * mp.getAsset(address(tokens[i])).price / 1e18;
+        }
+        assertEq(acc, mp.usdCap());
+    }
 
     function setUp() public {
         tokenNum = 3;
@@ -139,6 +147,7 @@ contract MultipoolRouterCases is Test {
         massiveRouter.massiveMint{value: 10}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
 
         assertEq(mp.balanceOf(users[0]), 249.75e18);
+        checkUsdCap();
     }
 
     function test_MassiveRouter_FailLackEth() public {
@@ -171,6 +180,7 @@ contract MultipoolRouterCases is Test {
 
         vm.expectRevert("MULTIPOOL_MASS_ROUTER: CF");
         massiveRouter.massiveMint{value: 1}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
+        checkUsdCap();
     }
 
     function test_MassiveRouter_FailFunctionRevert() public {
@@ -203,6 +213,7 @@ contract MultipoolRouterCases is Test {
 
         vm.expectRevert("MULTIPOOL_MASS_ROUTER: CF");
         massiveRouter.massiveMint{value: 10}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
+        checkUsdCap();
     }
 
     function test_MassiveRouter_GasExample() public {
@@ -226,10 +237,8 @@ contract MultipoolRouterCases is Test {
         amountsArg[0] = 15e18;
         amountsArg[1] = 30e18;
 
-        calls[1].targetData = abi.encodeCall(
-            MockCallSomething.mockTransferAllFunds, 
-            (amountsArg, tokensArg, address(mp))
-        );
+        calls[1].targetData =
+            abi.encodeCall(MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp)));
         calls[1].target = address(mocked);
         calls[1].ethValue = 0;
 
@@ -245,5 +254,6 @@ contract MultipoolRouterCases is Test {
 
         massiveRouter.massiveMint(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
         assertEq(mp.balanceOf(users[0]), 249.75e18);
+        checkUsdCap();
     }
 }
