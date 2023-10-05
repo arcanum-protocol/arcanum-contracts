@@ -18,6 +18,7 @@ This repository contains the source code for the [Multipool](https://arcanum.to/
 | DO | Deviation of asset overflows limit | Probably you are trying to perform an action that depegs pool too much | 
 | QE | Burn quantity exceeded | Your action tries to take out more quantity than multipoll has | 
 | ZS | Zero share | This error can appear if there is zero shares to mint by your action | 
+| ZQ | Zero quantity | This error can appear if there is zero quantity but method requires it to be non zero | 
 | CF | Curve calculation failed | This error is probably unreachable and means that there are no proper quantity on curve | 
 | ZP | Zero price | Prive of the asset that is used by the action is unset | 
 | ZT | Zero target share | Target share of the asset that is used by the action is unset or zero (reduced) | 

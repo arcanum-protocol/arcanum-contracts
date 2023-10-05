@@ -135,13 +135,13 @@ contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
         returns (uint share)
     {
         MpAsset[] memory mintAssets = new MpAsset[](assetAddresses.length);
-        uint totalShares;
+        uint totalUsd;
         uint minShare;
 
         for (uint i = 0; i < assetAddresses.length; i++) {
             mintAssets[i] = assets[assetAddresses[i]];
-            totalShares += mintAssets[i].share;
-            require(mintAssets[i].share != 0, "MULTIPOOL: ZT");
+            totalUsd += mintAssets[i].price * mintAssets[i].quantity / DENOMINATOR;
+            require(mintAssets[i].quantity != 0, "MULTIPOOL: IL");
             uint transferredAmount = getTransferredAmount(mintAssets[i], assetAddresses[i]);
             uint maxShareToMint = totalSupply() * transferredAmount / mintAssets[i].quantity;
             if (minShare == 0 || maxShareToMint < minShare) {
@@ -149,17 +149,23 @@ contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
             }
         }
 
-        require(totalShares == totalTargetShares, "MULTIPOOL: IL");
+        require(totalUsd == usdCap, "MULTIPOOL: IL");
         uint mintFee = baseMintFee;
+        uint newUsdCap = usdCap;
 
         for (uint i = 0; i < assetAddresses.length; i++) {
             uint quantity = mintAssets[i].quantity * minShare / totalSupply();
+            require(quantity != 0, "MULTIPOOL: ZQ");
             uint fees = quantity * mintFee / DENOMINATOR;
-            mintAssets[i].quantity += quantity - fees;
+            quantity = quantity - fees;
+            mintAssets[i].quantity += quantity;
             mintAssets[i].collectedFees += fees;
+            newUsdCap += quantity * mintAssets[i].price / DENOMINATOR;
             emit AssetQuantityChange(assetAddresses[i], mintAssets[i].quantity);
             assets[assetAddresses[i]] = mintAssets[i];
         }
+        usdCap = newUsdCap;
+        minShare = minShare - minShare * mintFee / DENOMINATOR;
         require(minShare != 0, "MULTIPOOL: ZS");
         _mint(to, minShare);
         return minShare;

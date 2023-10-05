@@ -64,20 +64,30 @@ contract MultipoolCornerCases is Test {
         mp.setTokenDecimals(address(tokens[3]), 18);
         mp.setTokenDecimals(address(tokens[4]), 18);
 
-        tokens[0].mint(address(mp), shares[0] / 10);
-        mp.mint(address(tokens[0]), 100e18, users[3]);
+        if (shares[0] / 10 != 0) {
+            tokens[0].mint(address(mp), shares[0] / 10);
+            mp.mint(address(tokens[0]), 100e18, users[3]);
+        }
 
-        tokens[1].mint(address(mp), shares[1] / 20);
-        mp.mint(address(tokens[1]), 100e18 * shares[1] / shares[0], users[3]);
+        if (shares[1] / 20 != 0) {
+            tokens[1].mint(address(mp), shares[1] / 20);
+            mp.mint(address(tokens[1]), 100e18 * shares[1] / shares[0], users[3]);
+        }
 
-        tokens[2].mint(address(mp), shares[2] / 10);
-        mp.mint(address(tokens[2]), 100e18 * shares[2] / shares[0], users[3]);
+        if (shares[2] / 10 != 0) {
+            tokens[2].mint(address(mp), shares[2] / 10);
+            mp.mint(address(tokens[2]), 100e18 * shares[2] / shares[0], users[3]);
+        }
 
-        tokens[3].mint(address(mp), shares[3] / 10);
-        mp.mint(address(tokens[3]), 100e18 * shares[3] / shares[0], users[3]);
+        if (shares[3] / 10 != 0) {
+            tokens[3].mint(address(mp), shares[3] / 10);
+            mp.mint(address(tokens[3]), 100e18 * shares[3] / shares[0], users[3]);
+        }
 
-        tokens[4].mint(address(mp), shares[4] / 10);
-        mp.mint(address(tokens[4]), 100e18 * shares[4] / shares[0], users[3]);
+        if (shares[4] / 10 != 0) {
+            tokens[4].mint(address(mp), shares[4] / 10);
+            mp.mint(address(tokens[4]), 100e18 * shares[4] / shares[0], users[3]);
+        }
 
         mp.setDeviationLimit(0.15e18); // 0.15
         mp.setHalfDeviationFee(0.0003e18); // 0.0003
@@ -124,7 +134,7 @@ contract MultipoolCornerCases is Test {
         t[4] = address(tokens[4]);
 
         mp.massiveMint(t, users[0]);
-        assertEq(mp.totalSupply(), oldTs * 2);
+        assertEq(mp.totalSupply(), oldTs + 399.6e18);
     }
 
     function test_massiveMint_zero() public {
@@ -144,7 +154,7 @@ contract MultipoolCornerCases is Test {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        vm.expectRevert("MULTIPOOL: ZS");
+        vm.expectRevert("MULTIPOOL: ZQ");
         mp.massiveMint(t, users[0]);
     }
 
@@ -186,8 +196,111 @@ contract MultipoolCornerCases is Test {
         t[4] = address(tokens[4]);
 
         mp.massiveMint(t, users[0]);
-        assertEq(mp.totalSupply(), oldTs * 2);
+        assertEq(mp.totalSupply(), oldTs + 399.6e18);
         assertEq(mp.getAsset(address(tokens[4])).quantity, 60e18 - 0.03e18);
         assertEq(mp.getAsset(address(tokens[4])).collectedFees, 0.03e18);
+        assertEq(mp.getAsset(address(tokens[4])).collectedCashbacks, 0e18);
+        assertEq(mp.getAsset(address(tokens[4])).share, 25e18);
+        assertEq(mp.getAsset(address(tokens[4])).price, 10e18);
+        assertEq(tokens[4].balanceOf(address(mp)), 1030e18);
+        assertEq(mp.balanceOf(users[0]), 399.6e18);
+        assertEq(mp.balanceOf(users[3]), 400e18);
+    }
+
+    function test_massiveMint_smallAmount() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 40);
+        tokens[1].transfer(address(mp), 15);
+        tokens[2].transfer(address(mp), 30);
+        tokens[3].transfer(address(mp), 30);
+        tokens[4].transfer(address(mp), 30);
+
+        uint oldTs = mp.totalSupply();
+        address[] memory t = new address[](5);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+        t[4] = address(tokens[4]);
+
+        mp.massiveMint(t, users[0]);
+        assertEq(mp.totalSupply(), oldTs + 400);
+        assertEq(mp.getAsset(address(tokens[4])).quantity, 30e18 + 30);
+        assertEq(mp.getAsset(address(tokens[4])).collectedFees, 0);
+        assertEq(mp.getAsset(address(tokens[4])).collectedCashbacks, 0e18);
+        assertEq(mp.getAsset(address(tokens[4])).share, 25e18);
+        assertEq(mp.getAsset(address(tokens[4])).price, 10e18);
+        assertEq(tokens[4].balanceOf(address(mp)), 30e18 + 30);
+        assertEq(mp.balanceOf(users[0]), 400);
+        assertEq(mp.balanceOf(users[3]), 400e18);
+    }
+
+    function test_massiveMint_addRemoveTokens() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 0e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 40e18);
+        tokens[1].transfer(address(mp), 15e18);
+        tokens[2].transfer(address(mp), 30e18);
+        tokens[3].transfer(address(mp), 30e18);
+        //tokens[4].transfer(address(mp), 30e18);
+
+        // uint oldTs = mp.totalSupply();
+        // address[] memory t = new address[](5);
+        // t[0] = address(tokens[0]);
+        // t[1] = address(tokens[1]);
+        // t[2] = address(tokens[2]);
+        // t[3] = address(tokens[3]);
+        // t[4] = address(tokens[4]);
+
+        // mp.massiveMint(t, users[0]);
+
+        uint oldTs = mp.totalSupply();
+        address[] memory t = new address[](4);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+
+        mp.massiveMint(t, users[0]);
+
+        assertEq(mp.totalSupply(), oldTs + 324.675e18);
+        assertEq(mp.getAsset(address(tokens[3])).quantity, 60e18 - 0.03e18);
+        assertEq(mp.getAsset(address(tokens[3])).collectedFees, 0.03e18);
+        assertEq(mp.getAsset(address(tokens[3])).collectedCashbacks, 0e18);
+        assertEq(mp.getAsset(address(tokens[3])).share, 25e18);
+        assertEq(mp.getAsset(address(tokens[3])).price, 10e18);
+        assertEq(tokens[3].balanceOf(address(mp)), 60e18);
+        assertEq(mp.balanceOf(users[0]), 324.675e18);
+        assertEq(mp.balanceOf(users[3]), 325e18);
+
+        uint preMintTs = mp.totalSupply();
+
+        assertEq(preMintTs, 649.675e18);
+
+        tokens[4].mint(address(mp), 600e18 / 10);
+        mp.mint(address(tokens[4]), 100e18 * 300e18 / 400e18, users[3]);
+
+        uint aftMintTs = mp.totalSupply();
+        assertEq(aftMintTs, 649.675e18 + 75e18);
+
+        tokens[0].transfer(address(mp), 40e18);
+        tokens[1].transfer(address(mp), 15e18);
+        tokens[2].transfer(address(mp), 30e18);
+        tokens[3].transfer(address(mp), 30e18);
+        tokens[4].transfer(address(mp), 30e18);
+
+        address[] memory t1 = new address[](5);
+        t1[0] = address(tokens[0]);
+        t1[1] = address(tokens[1]);
+        t1[2] = address(tokens[2]);
+        t1[3] = address(tokens[3]);
+        t1[4] = address(tokens[4]);
+
+        mp.massiveMint(t1, users[0]);
+
+        assertEq(mp.totalSupply(), 649.675e18 + 75e18 + 362.156240620310155078e18);
     }
 }
