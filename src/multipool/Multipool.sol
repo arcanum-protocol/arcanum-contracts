@@ -158,9 +158,10 @@ contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
             require(quantity != 0, "MULTIPOOL: ZQ");
             uint fees = quantity * mintFee / DENOMINATOR;
             quantity = quantity - fees;
+            newUsdCap -= mintAssets[i].quantity * mintAssets[i].price / DENOMINATOR;
             mintAssets[i].quantity += quantity;
             mintAssets[i].collectedFees += fees;
-            newUsdCap += quantity * mintAssets[i].price / DENOMINATOR;
+            newUsdCap += mintAssets[i].quantity * mintAssets[i].price / DENOMINATOR;
             emit AssetQuantityChange(assetAddresses[i], mintAssets[i].quantity);
             assets[assetAddresses[i]] = mintAssets[i];
         }
