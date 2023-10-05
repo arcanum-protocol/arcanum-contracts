@@ -4,22 +4,44 @@ pragma solidity ^0.8.0;
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
-import {IMetaAggregationRouterV2} from "../interfaces/KyberSwapRouter.sol";
+import {Ownable} from "openzeppelin/access/Ownable.sol";
+import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 
-contract MultipoolMassiveMintRouter {
+contract MultipoolMassiveMintRouter is Ownable, ReentrancyGuard {
     constructor() {}
+
+    mapping(address => bool) isContractAllowedToCall;
+
+    function approveToken(address token, address to) public onlyOwner {
+        IERC20(token).approve(to, type(uint).max);
+    }
+
+    function toggleContract(address addr) public onlyOwner {
+        isContractAllowedToCall[addr] = !isContractAllowedToCall[addr];
+    }
+
+    struct CallParams {
+        bytes targetData;
+        address target;
+        uint ethValue;
+    }
 
     function massiveMint(
         address poolAddress,
-        address swapRouterAddress,
-        IMetaAggregationRouterV2.SwapExecutionParams[] calldata paths,
+        address tokenFrom,
+        uint amount,
+        uint minShareOut,
+        CallParams[] calldata params,
         address[] calldata multipoolAddresses,
         address to
-    ) public {
-        for (uint i = 0; i < paths.length; i++) {
-            IMetaAggregationRouterV2(swapRouterAddress).swap(paths[i]);
+    ) public payable nonReentrant {
+        IERC20(tokenFrom).transferFrom(msg.sender, address(this), amount);
+        for (uint i = 0; i < params.length; i++) {
+            require(isContractAllowedToCall[params[i].target], "MULTIPOOL_MASS_ROUTER: IA");
+            (bool success,) = params[i].target.call{value: params[i].ethValue}(params[i].targetData);
+            require(success, "MULTIPOOL_MASS_ROUTER: CF");
         }
-
-        Multipool(poolAddress).massiveMint(multipoolAddresses, to);
+        uint share = Multipool(poolAddress).massiveMint(multipoolAddresses, to);
+        require(minShareOut <= share, "MULTIPOOL_MASS_ROUTER: SE");
     }
 }

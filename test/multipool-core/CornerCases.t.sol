@@ -101,6 +101,34 @@ contract MultipoolCornerCases is Test {
         mp.mint(address(tokens[0]), 10e18, users[0]);
     }
 
+    function test_massiveMintUnconfiguredContract() public {
+        vm.prank(users[0]);
+        tokens[0].transfer(address(mp), 40e18);
+        vm.prank(users[0]);
+        tokens[1].transfer(address(mp), 15e18);
+        vm.prank(users[0]);
+        tokens[2].transfer(address(mp), 30e18);
+
+        address[] memory t = new address[](3);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+
+        vm.expectRevert("MULTIPOOL: IL");
+        mp.massiveMint(t, users[0]);
+        mpUpdateTargetShares(address(tokens[0]), 10);
+        mpUpdatePrices(address(tokens[0]), 10);
+
+        mpUpdateTargetShares(address(tokens[1]), 10);
+        mpUpdatePrices(address(tokens[1]), 10);
+
+        mpUpdateTargetShares(address(tokens[2]), 10);
+        mpUpdatePrices(address(tokens[2]), 10);
+
+        vm.expectRevert("MULTIPOOL: IL");
+        mp.massiveMint(t, users[0]);
+    }
+
     function test_burnUnconfiguredContract() public {
         vm.prank(users[0]);
         vm.expectRevert("MULTIPOOL: ZP");
