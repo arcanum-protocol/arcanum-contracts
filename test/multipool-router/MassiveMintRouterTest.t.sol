@@ -17,6 +17,12 @@ contract MockCallSomething is Test {
     function callNoEther(uint amount, address token, address to) public {
         IERC20(token).transferFrom(msg.sender, to, amount);
     }
+
+    function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to) public {
+        for(uint i = 0; i < tokens.length; i++) {
+            IERC20(tokens[i]).transfer(to, amounts[i]);
+        }
+    }
 }
 
 contract MultipoolRouterCases is Test {
@@ -197,5 +203,47 @@ contract MultipoolRouterCases is Test {
 
         vm.expectRevert("MULTIPOOL_MASS_ROUTER: CF");
         massiveRouter.massiveMint{value: 10}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
+    }
+
+    function test_MassiveRouter_GasExample() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18]);
+
+        address[] memory t = new address[](3);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+
+        MultipoolMassiveMintRouter.CallParams[] memory calls = new MultipoolMassiveMintRouter.CallParams[](2);
+        calls[0].targetData = abi.encodeCall(MockCallSomething.callNoEther, (40e18, address(tokens[0]), address(mp)));
+        calls[0].target = address(mocked);
+        calls[0].ethValue = 0;
+
+        address[] memory tokensArg = new address[](2);
+        tokensArg[0] = address(tokens[1]);
+        tokensArg[1] = address(tokens[2]);
+
+        uint[] memory amountsArg = new uint[](2);
+        amountsArg[0] = 15e18;
+        amountsArg[1] = 30e18;
+
+        calls[1].targetData = abi.encodeCall(
+            MockCallSomething.mockTransferAllFunds, 
+            (amountsArg, tokensArg, address(mp))
+        );
+        calls[1].target = address(mocked);
+        calls[1].ethValue = 0;
+
+        massiveRouter.toggleContract(address(mocked));
+        massiveRouter.approveToken(address(tokens[0]), address(mocked));
+
+        tokens[1].mint(address(mocked), 15e18);
+        tokens[2].mint(address(mocked), 30e18);
+
+        vm.prank(users[0]);
+        tokens[0].approve(address(massiveRouter), 40e18);
+        vm.prank(users[0]);
+
+        massiveRouter.massiveMint(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
+        assertEq(mp.balanceOf(users[0]), 249.75e18);
     }
 }
