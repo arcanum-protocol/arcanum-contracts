@@ -6,6 +6,7 @@ import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
+import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MultipoolRouterCases is Test {
     Multipool mp;
@@ -23,11 +24,19 @@ contract MultipoolRouterCases is Test {
         assertEq(acc, mp.usdCap());
     }
 
+    function initMultipool() public {
+        Multipool mpImpl = new Multipool();
+        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
+        mp = Multipool(address(proxy));
+        mp.initialize('Name', 'SYMBOL', address(this));
+    }
+
     function setUp() public {
         tokenNum = 3;
         userNum = 4;
 
-        mp = new Multipool('Name', 'SYMBOL');
+        initMultipool();
+
         router = new MultipoolRouter();
         for (uint i; i < tokenNum; i++) {
             tokens.push(new MockERC20('token', 'token', 0));

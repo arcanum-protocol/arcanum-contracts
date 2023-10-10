@@ -29,7 +29,7 @@ contract LpFarm is Ownable {
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
 
-    constructor(IERC20 _rewardToken) {
+    constructor(IERC20 _rewardToken) Ownable(msg.sender) {
         rewardToken = _rewardToken;
     }
 
