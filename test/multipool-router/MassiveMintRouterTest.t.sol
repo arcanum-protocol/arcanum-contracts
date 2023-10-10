@@ -7,6 +7,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
 import {MultipoolMassiveMintRouter} from "../../src/multipool/MultipoolMassiveMintRouter.sol";
+import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockCallSomething is Test {
     function callWithEther(uint amount, address token, address to) public payable {
@@ -45,11 +46,19 @@ contract MultipoolRouterCases is Test {
         assertEq(acc, mp.usdCap());
     }
 
+    function initMultipool() public {
+        Multipool mpImpl = new Multipool();
+        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
+        mp = Multipool(address(proxy));
+        mp.initialize('Name', 'SYMBOL', address(this));
+    }
+
     function setUp() public {
         tokenNum = 3;
         userNum = 4;
 
-        mp = new Multipool('Name', 'SYMBOL');
+        initMultipool();
+
         router = new MultipoolRouter();
         massiveRouter = new MultipoolMassiveMintRouter();
         mocked = new MockCallSomething();

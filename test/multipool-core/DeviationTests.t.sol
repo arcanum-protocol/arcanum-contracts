@@ -5,6 +5,7 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MultipoolCornerCases is Test {
     Multipool mp;
@@ -12,6 +13,13 @@ contract MultipoolCornerCases is Test {
     address[] users;
     uint tokenNum;
     uint userNum;
+
+    function initMultipool() public {
+        Multipool mpImpl = new Multipool();
+        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
+        mp = Multipool(address(proxy));
+        mp.initialize('Name', 'SYMBOL', address(this));
+    }
 
     function checkUsdCap() public {
         uint acc;
@@ -25,7 +33,8 @@ contract MultipoolCornerCases is Test {
         tokenNum = 3;
         userNum = 4;
 
-        mp = new Multipool('Name', 'SYMBOL');
+        initMultipool();
+
         for (uint i; i < tokenNum; i++) {
             tokens.push(new MockERC20('token', 'token', 0));
         }

@@ -5,10 +5,10 @@ import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./M
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
-import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "openzeppelin/utils/ReentrancyGuard.sol";
 
 contract MultipoolMassiveMintRouter is Ownable, ReentrancyGuard {
-    constructor() {}
+    constructor() Ownable(msg.sender) {}
 
     mapping(address => bool) isContractAllowedToCall;
 

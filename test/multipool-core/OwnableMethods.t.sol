@@ -5,12 +5,16 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MpCommonMath} from "../../src/multipool/MpCommonMath.sol";
+import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MultipoolSingleAssetTest is Test {
     Multipool mp;
 
     function setUp() public {
-        mp = new Multipool('Name', 'SYMBOL');
+        Multipool mpImpl = new Multipool();
+        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
+        mp = Multipool(address(proxy));
+        mp.initialize('Name', 'SYMBOL', address(this));
     }
 
     function mpUpdateTargetShare(address token, uint share) internal {
