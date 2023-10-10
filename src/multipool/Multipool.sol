@@ -161,6 +161,7 @@ contract Multipool is
             require(mintAssets[i].quantity != 0, "MULTIPOOL: IL");
             uint transferredAmount = getTransferredAmount(mintAssets[i], assetAddresses[i]);
             uint maxShareToMint = totalSupply() * transferredAmount / mintAssets[i].quantity;
+            require(maxShareToMint != 0, "MULTIPOOL: IQ");
             if (minShare == 0 || maxShareToMint < minShare) {
                 minShare = maxShareToMint;
             }
