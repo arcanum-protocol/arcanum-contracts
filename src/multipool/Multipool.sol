@@ -3,18 +3,33 @@ pragma solidity ^0.8.0;
 // Multipool can't be understood by your mind, only heart
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-import {ERC20Permit} from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
-import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 import {MpAsset, MpContext} from "./MpCommonMath.sol";
-import {Ownable} from "openzeppelin/access/Ownable.sol";
+
+import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
+import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
+import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "oz-proxy/utils/ReentrancyGuardUpgradeable.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
-contract Multipool is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
-    constructor(string memory mpName, string memory mpSymbol) ERC20(mpName, mpSymbol) ERC20Permit(mpName) {
-        priceAuthority = msg.sender;
-        targetShareAuthority = msg.sender;
-        withdrawAuthority = msg.sender;
+contract Multipool is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
+
+    function initialize(string memory mpName, string memory mpSymbol, address initialOwner) initializer public {
+        __ERC20_init(mpName, mpSymbol);
+        __ERC20Permit_init(mpName);
+        __ReentrancyGuard_init();
+        __Ownable_init(initialOwner);
+        priceAuthority = initialOwner;
+        targetShareAuthority = initialOwner;
+        withdrawAuthority = initialOwner;
     }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
 
     event AssetTargetShareChange(address indexed asset, uint share);
     event AssetQuantityChange(address indexed asset, uint quantity);
