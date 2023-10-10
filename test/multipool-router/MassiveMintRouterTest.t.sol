@@ -50,7 +50,7 @@ contract MultipoolRouterCases is Test {
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
-        mp.initialize('Name', 'SYMBOL', address(this));
+        mp.initialize("Name", "SYMBOL", address(this));
     }
 
     function setUp() public {
