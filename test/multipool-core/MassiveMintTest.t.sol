@@ -146,7 +146,7 @@ contract MultipoolCornerCases is Test {
         assertEq(mp.totalSupply(), oldTs + 399.6e18);
     }
 
-    function test_massiveMint_zero() public {
+    function test_massiveMint_zeroWithZeroTokenQuantity() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
 
         vm.startPrank(users[0]);
@@ -163,11 +163,52 @@ contract MultipoolCornerCases is Test {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        vm.expectRevert("MULTIPOOL: ZQ");
+        vm.expectRevert("MULTIPOOL: IQ");
         mp.massiveMint(t, users[0]);
     }
 
+    function test_massiveMint_almostZeroAmount() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 40);
+        tokens[1].transfer(address(mp), 15);
+        tokens[2].transfer(address(mp), 30);
+        tokens[3].transfer(address(mp), 30);
+        tokens[4].transfer(address(mp), 10);
+
+        uint oldTs = mp.totalSupply();
+        address[] memory t = new address[](5);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+        t[4] = address(tokens[4]);
+
+        mp.massiveMint(t, users[0]);
+        assertEq(mp.totalSupply(), oldTs + 133);
+    }
+
     function test_massiveMint_skipToken() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 40e18);
+        tokens[1].transfer(address(mp), 15e18);
+        tokens[2].transfer(address(mp), 30e18);
+        tokens[4].transfer(address(mp), 10e18);
+
+        address[] memory t = new address[](4);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[4]);
+
+        vm.expectRevert("MULTIPOOL: IL");
+        mp.massiveMint(t, users[0]);
+    }
+
+    function test_massiveMint_skipTokenWithZeroQuantity() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
 
         vm.startPrank(users[0]);
@@ -182,7 +223,40 @@ contract MultipoolCornerCases is Test {
         t[2] = address(tokens[2]);
         t[3] = address(tokens[4]);
 
-        vm.expectRevert("MULTIPOOL: IL");
+        vm.expectRevert("MULTIPOOL: IQ");
+        mp.massiveMint(t, users[0]);
+    }
+
+    function test_massiveMint_tokensLeftWithSecondMint() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
+
+        vm.startPrank(users[0]);
+        tokens[0].transfer(address(mp), 40e18);
+        tokens[1].transfer(address(mp), 15e18);
+        tokens[2].transfer(address(mp), 30e18);
+        tokens[3].transfer(address(mp), 30e18);
+        tokens[4].transfer(address(mp), 1000e18);
+
+        uint oldTs = mp.totalSupply();
+        address[] memory t = new address[](5);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+        t[4] = address(tokens[4]);
+
+        mp.massiveMint(t, users[0]);
+        assertEq(mp.totalSupply(), oldTs + 399.6e18);
+        assertEq(mp.getAsset(address(tokens[4])).quantity, 60e18 - 0.03e18);
+        assertEq(mp.getAsset(address(tokens[4])).collectedFees, 0.03e18);
+        assertEq(mp.getAsset(address(tokens[4])).collectedCashbacks, 0e18);
+        assertEq(mp.getAsset(address(tokens[4])).share, 25e18);
+        assertEq(mp.getAsset(address(tokens[4])).price, 10e18);
+        assertEq(tokens[4].balanceOf(address(mp)), 1030e18);
+        assertEq(mp.balanceOf(users[0]), 399.6e18);
+        assertEq(mp.balanceOf(users[3]), 400e18);
+
+        vm.expectRevert("MULTIPOOL: IQ");
         mp.massiveMint(t, users[0]);
     }
 
