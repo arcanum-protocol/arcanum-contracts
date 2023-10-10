@@ -13,9 +13,15 @@ import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/utils/ReentrancyGuardUpgradeable.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
-contract Multipool is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
-
-    function initialize(string memory mpName, string memory mpSymbol, address initialOwner) initializer public {
+contract Multipool is
+    Initializable,
+    ERC20Upgradeable,
+    ERC20PermitUpgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    function initialize(string memory mpName, string memory mpSymbol, address initialOwner) public initializer {
         __ERC20_init(mpName, mpSymbol);
         __ERC20Permit_init(mpName);
         __ReentrancyGuard_init();
@@ -25,11 +31,7 @@ contract Multipool is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, O
         withdrawAuthority = initialOwner;
     }
 
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        onlyOwner
-        override
-    {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     event AssetTargetShareChange(address indexed asset, uint share);
     event AssetQuantityChange(address indexed asset, uint quantity);
