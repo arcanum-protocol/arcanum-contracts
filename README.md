@@ -42,6 +42,15 @@ This repository contains the source code for the [Multipool](https://arcanum.to/
 | DE | Deadline exceeded | Specified deadline exceeded | 
 | NS | No shares | Etf doesn't have any shares minted, router can't work with this, you need to make price initialising manually through multipool | 
 </details>
+<details>
+    <summary> MULTIPOOL MASSIVE MINT ROUTER </summary> All messages are in format "MULTIPOOL_MASS_ROUTER: error_code"
+
+| Error code | description | Reason |
+| --- | --- | --- |
+| IA | Insufficcient address | Adress from the list of calls is not permitted to be called | 
+| CF | Contract call failed | Contract call that was performed inside failed | 
+| SE | Min share exceeded | Share sleepage exceeded | 
+</details>
 
 # How to contribute
 
