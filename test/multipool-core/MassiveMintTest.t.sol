@@ -64,7 +64,11 @@ contract MultipoolCornerCases is Test {
         p[3] = 10e18;
         p[4] = 10e18;
 
-        mp.updatePrices(t, p);
+        mp.updatePrice(t[0], p[0], 0, address(0));
+        mp.updatePrice(t[1], p[1], 0, address(0));
+        mp.updatePrice(t[2], p[2], 0, address(0));
+        mp.updatePrice(address(mp), shares[0] / 100, 0, address(0));
+
         mp.updateTargetShares(t, s);
 
         mp.setTokenDecimals(address(tokens[0]), 18);
@@ -116,12 +120,7 @@ contract MultipoolCornerCases is Test {
     }
 
     function mpUpdatePrices(address token, uint price) internal {
-        address[] memory t = new address[](1);
-        t[0] = address(token);
-
-        uint[] memory p = new uint[](1);
-        p[0] = price;
-        mp.updatePrices(t, p);
+        mp.updatePrice(token, price, 0, address(0));
     }
 
     function test_massiveMint_simple() public {
@@ -393,7 +392,12 @@ contract MultipoolCornerCases is Test {
         p[3] = 10.000001e18;
         p[4] = 10.000001e18;
 
-        mp.updatePrices(t, p);
+        mp.updatePrice(t[0], p[0], 0, address(0));
+        mp.updatePrice(t[1], p[1], 0, address(0));
+        mp.updatePrice(t[2], p[2], 0, address(0));
+        mp.updatePrice(t[3], p[2], 0, address(0));
+        mp.updatePrice(t[4], p[2], 0, address(0));
+        mp.updatePrice(address(mp), 6e18, 0, address(0));
 
         vm.startPrank(users[0]);
         tokens[0].transfer(address(mp), 41);

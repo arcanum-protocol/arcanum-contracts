@@ -12,6 +12,10 @@ import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/utils/ReentrancyGuardUpgradeable.sol";
 
+import { IUniswapV3Pool } from "uniswapv3/interfaces/IUniswapV3Pool.sol";
+import { TickMath } from "uniswapv3/libraries/TickMath.sol";
+import { FixedPoint96 } from "uniswapv3/libraries/FixedPoint96.sol";
+
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
     Initializable,
@@ -76,7 +80,7 @@ contract Multipool is
     // added fields
     struct FeedInfo {
         uint fixedValue;
-        uint twapRange;
+        uint twapInterval;
         address v3Address;
     }
     mapping(address => FeedInfo) public prices;
@@ -153,26 +157,29 @@ contract Multipool is
         amount = (share * context.usdCap * DENOMINATOR) / mpTotalSupply / asset.price;
     }
 
-    function getSqrtTwapX96(address uniswapV3Pool, uint32 twapInterval) public view returns (uint160 sqrtPriceX96) {
+    function getPrice(address asset) internal view returns (uint price) {
+        FeedInfo memory pi = prices[asset];
+        if (pi.fixedValue != 0) return pi.fixedValue;
+        else return getTwapX96(pi.v3Address, pi.twapInterval);
+    }
+
+    function getTwapX96(address uniswapV3Pool, uint256 twapInterval) internal view returns (uint256 priceX96) {
         if (twapInterval == 0) {
             // return the current price if twapInterval == 0
-            (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
+            (priceX96, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
         } else {
             uint32[] memory secondsAgos = new uint32[](2);
-            secondsAgos[0] = twapInterval; // from (before)
+            secondsAgos[0] = uint32(twapInterval); // from (before)
             secondsAgos[1] = 0; // to (now)
 
             (int56[] memory tickCumulatives, ) = IUniswapV3Pool(uniswapV3Pool).observe(secondsAgos);
 
             // tick(imprecise as it's an integer) to price
-            sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
-                int24((tickCumulatives[1] - tickCumulatives[0]) / twapInterval)
+            priceX96 = TickMath.getSqrtRatioAtTick(
+                int24(int256(tickCumulatives[1] - tickCumulatives[0]) / int256(twapInterval))
             );
+            priceX96 = priceX96 * priceX96 / FixedPoint96.Q96;
         }
-    }
-
-    function getPriceX96FromSqrtPriceX96(uint160 sqrtPriceX96) public pure returns(uint256 priceX96) {
-        return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
     }
 
     function massiveMint(address[] calldata assetAddresses, address to)
@@ -228,6 +235,10 @@ contract Multipool is
     {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
+
+        asset.price = getPrice(assetAddress);
+        usdCap = totalSupply() * getPrice(address(this)) / DENOMINATOR;
+
         require(asset.price != 0, "MULTIPOOL: ZP");
         require(asset.share != 0, "MULTIPOOL: ZT");
         MpContext memory context = getContext(0);
@@ -262,6 +273,10 @@ contract Multipool is
     {
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory asset = assets[assetAddress];
+
+        asset.price = getPrice(assetAddress);
+        usdCap = totalSupply() * getPrice(address(this)) / DENOMINATOR;
+
         require(asset.price != 0, "MULTIPOOL: ZP");
         MpContext memory context = getContext(1);
 
@@ -289,6 +304,11 @@ contract Multipool is
         require(share != 0, "MULTIPOOL: ZS");
         MpAsset memory assetIn = assets[assetInAddress];
         MpAsset memory assetOut = assets[assetOutAddress];
+
+        assetIn.price = getPrice(assetInAddress);
+        assetOut.price = getPrice(assetOutAddress);
+        usdCap = totalSupply() * getPrice(address(this)) / DENOMINATOR;
+
         require(assetIn.price != 0, "MULTIPOOL: ZP");
         require(assetIn.share != 0, "MULTIPOOL: ZT");
         require(assetOut.price != 0, "MULTIPOOL: ZP");
@@ -343,14 +363,12 @@ contract Multipool is
      * ---------------- Authorities ------------------
      */
 
-    function updatePrices(address[] calldata assetAddresses, uint[] calldata prices) public notPaused {
-        require(priceAuthority == msg.sender, "MULTIPOOL: PA");
-        for (uint a = 0; a < assetAddresses.length; a++) {
-            MpAsset storage asset = assets[assetAddresses[a]];
-            usdCap = usdCap - (asset.quantity * asset.price) / DENOMINATOR + (asset.quantity * prices[a]) / DENOMINATOR;
-            asset.price = prices[a];
-            emit AssetPriceChange(assetAddresses[a], prices[a]);
-        }
+    function updatePrice(address assetAddress, uint fixedValue, uint twapInterval, address v3Address) public notPaused {
+        prices[assetAddress] = FeedInfo ({
+            fixedValue: fixedValue,
+            twapInterval: twapInterval,
+            v3Address: v3Address
+        });
     }
 
     function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public notPaused {

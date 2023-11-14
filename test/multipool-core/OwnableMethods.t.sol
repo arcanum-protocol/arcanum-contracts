@@ -27,12 +27,7 @@ contract MultipoolSingleAssetTest is Test {
     }
 
     function mpUpdatePrice(address token, uint price) internal {
-        address[] memory t = new address[](1);
-        t[0] = address(token);
-
-        uint[] memory p = new uint[](1);
-        p[0] = price;
-        mp.updatePrices(t, p);
+        mp.updatePrice(token, price, 0, address(0));
     }
 
     function test_OnlyOwnerCanChangeParams() public {
