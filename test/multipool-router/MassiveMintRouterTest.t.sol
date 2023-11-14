@@ -101,7 +101,11 @@ contract MultipoolRouterCases is Test {
         p[1] = 20e18;
         p[2] = 10e18;
 
-        mp.updatePrices(t, p);
+        mp.updatePrice(t[0], p[0], 0, address(0));
+        mp.updatePrice(t[1], p[1], 0, address(0));
+        mp.updatePrice(t[2], p[2], 0, address(0));
+        mp.updatePrice(address(mp), shares[0] / 100, 0, address(0));
+
         mp.updateTargetShares(t, s);
 
         mp.setTokenDecimals(address(tokens[0]), 18);

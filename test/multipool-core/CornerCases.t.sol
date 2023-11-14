@@ -58,7 +58,11 @@ contract MultipoolCornerCases is Test {
         p[1] = 20e18;
         p[2] = 10e18;
 
-        mp.updatePrices(t, p);
+        mp.updatePrice(t[0], p[0], 0, address(0));
+        mp.updatePrice(t[1], p[1], 0, address(0));
+        mp.updatePrice(t[2], p[2], 0, address(0));
+        mp.updatePrice(address(mp), shares[0] / 1000, 0, address(0));
+
         mp.updateTargetShares(t, s);
 
         mp.setTokenDecimals(address(tokens[0]), 18);
@@ -92,12 +96,7 @@ contract MultipoolCornerCases is Test {
     }
 
     function mpUpdatePrices(address token, uint price) internal {
-        address[] memory t = new address[](1);
-        t[0] = address(token);
-
-        uint[] memory p = new uint[](1);
-        p[0] = price;
-        mp.updatePrices(t, p);
+        mp.updatePrice(address(token), price, 0, address(0));
     }
 
     function test_mintUnconfiguredContract() public {
