@@ -12,6 +12,7 @@ import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/utils/ReentrancyGuardUpgradeable.sol";
+import { FixedPoint96 } from "uniswapv3/libraries/FixedPoint96.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
@@ -107,9 +108,9 @@ contract Multipool is
             pr[i] = price;
             require(selectedAssets[i].amount != 0, "ASSET AMOUNT EQ 0");
             if (selectedAssets[i].amount > 0) {
-                ctx.cummulativeInAmount += price * uint(selectedAssets[i].amount) / DENOMINATOR;
+                ctx.cummulativeInAmount += price * uint(selectedAssets[i].amount) / FixedPoint96.Q96;
             } else {
-                ctx.cummulativeOutAmount += price * uint(selectedAssets[i].amount) / DENOMINATOR;
+                ctx.cummulativeOutAmount += price * uint(selectedAssets[i].amount) / FixedPoint96.Q96;
             }
         }
     }
@@ -190,12 +191,10 @@ contract Multipool is
         asset.collectedCashbacks += amount;
     }
 
-    function updatePrice(address assetAddress, uint fixedValue, uint twapInterval, address origin) public notPaused {
+    function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData) public notPaused {
         prices[assetAddress] = FeedInfo ({
-            feedType: FeedType.FixedValue,
-            fixedValue: fixedValue,
-            twapInterval: twapInterval,
-            origin: origin
+            feedType: kind,
+            data: feedData
         });
     }
 
@@ -220,18 +219,15 @@ contract Multipool is
         isPaused = !isPaused;
     }
 
-    function setTokenDecimals(address assetAddress, uint decimals) external onlyOwner {
-        MpAsset storage asset = assets[assetAddress];
-        asset.decimals = decimals;
-    }
+   // function setTokenDecimals(address assetAddress, uint decimals) external onlyOwner {
+   //     MpAsset storage asset = assets[assetAddress];
+   //     asset.decimals = decimals;
+   // }
 
-    function setBaseFee(uint newBaseFee) external onlyOwner {
-        baseFee = newBaseFee;
-    }
-
-    function setCurveParams(uint newDeviationLimit, uint newHalfDeviationFee, uint newDepegBaseFee) external onlyOwner {
+    function setCurveParams(uint newDeviationLimit, uint newHalfDeviationFee, uint newDepegBaseFee, uint newBaseFee) external onlyOwner {
         deviationLimit = newDeviationLimit;
         halfDeviationFee = newHalfDeviationFee;
         depegBaseFee = newDepegBaseFee;
+        baseFee = newBaseFee;
     }
 }

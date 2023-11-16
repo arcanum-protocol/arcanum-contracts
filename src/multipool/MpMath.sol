@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import { FixedPoint96 } from "uniswapv3/libraries/FixedPoint96.sol";
 uint constant DENOMINATOR = 1e18;
 
 struct MpAsset {
@@ -48,7 +49,7 @@ library ContextMath {
     }
 
     function calculateFeesShareToken(MpContext memory ctx, int quantityDelta) internal pure {
-        uint fee = pos(quantityDelta) * ctx.sharePrice * ctx.baseFee / DENOMINATOR;
+        uint fee = pos(quantityDelta) * ctx.sharePrice / FixedPoint96.Q96 * ctx.baseFee / DENOMINATOR;
         ctx.feeDelta += int(fee); 
         ctx.feeToPay += int(fee);
     }
@@ -58,9 +59,9 @@ library ContextMath {
         uint newTotalSupply = ctx.totalSupplyDelta > 0 ? ctx.oldTotalSupply + uint(ctx.totalSupplyDelta) : ctx.oldTotalSupply - uint(-ctx.totalSupplyDelta);
         uint targetShare = asset.share * DENOMINATOR / ctx.totalTargetShares;
 
-        uint dOld = subAbs(asset.quantity * price / ctx.oldTotalSupply / ctx.sharePrice, targetShare);
-        uint dNew = subAbs(newQuantity * price / newTotalSupply / ctx.sharePrice, targetShare);
-        uint quotedDelta = pos(quantityDelta) * price;
+        uint dOld = subAbs(asset.quantity * price * DENOMINATOR / ctx.oldTotalSupply / ctx.sharePrice, targetShare);
+        uint dNew = subAbs(newQuantity * price * DENOMINATOR / newTotalSupply / ctx.sharePrice, targetShare);
+        uint quotedDelta = pos(quantityDelta) * price / FixedPoint96.Q96;
 
         ctx.collectedFees += ctx.baseFee * quotedDelta / DENOMINATOR;
         if (dNew > dOld) {
