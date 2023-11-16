@@ -8,15 +8,21 @@ import { FixedPoint96 } from "uniswapv3/libraries/FixedPoint96.sol";
 enum FeedType {
     Undefined,
     FixedValue,
-    YieldDerivative,
     UniV3
+   // YieldDerivative
 }
 
-struct FeedInfo {
-    FeedType feedType;
-    uint fixedValue;
-    address origin;
+struct UniV3Feed {
+    address oracle;
     uint twapInterval;
+}
+
+// any Price should have a 2^96 decimals
+// some unsafe shit here, generally feed type is a simple number and bytes that 
+//depend on feed type
+struct FeedInfo {
+    FeedType kind;
+    bytes data;
 }
 
 
@@ -25,8 +31,14 @@ using {MpPriceMath.getPrice} for FeedInfo global;
 library MpPriceMath {
 
     function getPrice(FeedInfo memory feed) internal view returns (uint price) {
-        if (feed.fixedValue != 0) return feed.fixedValue;
-        else return getTwapX96(feed.origin, feed.twapInterval);
+        if (feed.kind == FeedType.FixedValue) {
+            price = abi.decode(feed.data, (uint));
+        } else if (feed.kind == FeedType.UniV3) {
+            UniV3Feed memory data = abi.decode(feed.data, (UniV3Feed));
+            price = getTwapX96(data.oracle, data.twapInterval);
+        } else {
+            require(false, "No price origin set");
+        }
     }
 
     function getTwapX96(address uniswapV3Pool, uint256 twapInterval) internal view returns (uint256 priceX96) {
