@@ -4,34 +4,29 @@ pragma solidity ^0.8.0;
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
-import {MpAsset, MpContext, MpCommonMath} from "./MpCommonMath.sol";
-import {MpComplexMath} from "./MpComplexMath.sol";
+import {MpAsset, MpContext, Multipool} from "./Multipool.sol";
 
 uint constant DENOMINATOR = 1e18;
 
 contract MultipoolRouter {
-    using {
-        MpComplexMath.mintRev,
-        MpComplexMath.burnRev,
-        MpComplexMath.mint,
-        MpComplexMath.burn,
-        MpComplexMath.burnTrace
-    } for MpContext;
-
     constructor() {}
 
-    function mintWithSharesOut(address poolAddress, address assetAddress, uint sharesOut, uint amountInMax, address to)
+    function _swap(
+        address poolAddress,
+        Multipool.AssetArg[] calldata selectedAssets, 
+        bool isSleepageReverse,
+        address to
+    )
         public
         returns (uint amount, uint refund)
     {
         MpAsset memory asset = Multipool(poolAddress).getAsset(assetAddress);
         // Transfer all amount in in case the last part will return via multipool
-        IERC20(assetAddress).transferFrom(msg.sender, poolAddress, amountInMax);
-        // No need to check sleepage because contract will fail if there is no
-        // enough funst been transfered
-        (uint _amount, uint _refund) = Multipool(poolAddress).mint(assetAddress, sharesOut, to);
-        amount = asset.toNative(_amount);
-        refund = asset.toNative(_refund);
+        for ( uint i = 0; i < selectedAssets.lenght; i++ ) {
+            if (selectedAssets[i].amount > 0) {
+                IERC20(selectedAssets[i].addr).transferFrom(msg.sender, poolAddress, uint(selectedAssets[i].amount));
+            }
+        }
     }
 
     function burnWithSharesIn(address poolAddress, address assetAddress, uint sharesIn, uint amountOutMin, address to)
