@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "forge-std/Test.sol";
 import { FixedPoint96 } from "uniswapv3/libraries/FixedPoint96.sol";
 uint constant DENOMINATOR = 1e18;
 
@@ -54,13 +55,13 @@ library ContextMath {
         ctx.feeToPay += int(fee);
     }
 
-    function calculateFees(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal pure {
+    function calculateFees(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal view {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
-        uint newTotalSupply = ctx.totalSupplyDelta > 0 ? ctx.oldTotalSupply + uint(ctx.totalSupplyDelta) : ctx.oldTotalSupply - uint(-ctx.totalSupplyDelta);
+        uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
         uint targetShare = asset.share * DENOMINATOR / ctx.totalTargetShares;
 
-        uint dOld = subAbs(asset.quantity * price * DENOMINATOR / ctx.oldTotalSupply / ctx.sharePrice, targetShare);
-        uint dNew = subAbs(newQuantity * price * DENOMINATOR / newTotalSupply / ctx.sharePrice, targetShare);
+        uint dOld = subAbs(ctx.oldTotalSupply == 0 ? 0 : asset.quantity * price * DENOMINATOR / ctx.oldTotalSupply / ctx.sharePrice, targetShare);
+        uint dNew = subAbs(newTotalSupply == 0 ? 0 : newQuantity * price * DENOMINATOR / newTotalSupply / ctx.sharePrice, targetShare);
         uint quotedDelta = pos(quantityDelta) * price / FixedPoint96.Q96;
 
         ctx.collectedFees += ctx.baseFee * quotedDelta / DENOMINATOR;
@@ -79,6 +80,7 @@ library ContextMath {
 
             asset.collectedCashbacks -= cashback;
         }
+        asset.quantity = newQuantity;
     }
 
     function applyCollected(MpContext memory ctx) internal view {

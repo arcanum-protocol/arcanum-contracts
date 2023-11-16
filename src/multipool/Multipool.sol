@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 // Multipool can't be understood by your mind, only heart
 
+import "forge-std/Test.sol";
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MpAsset, MpContext} from "./MpMath.sol";
 import {FeedInfo, FeedType} from "./PriceMath.sol";
@@ -29,6 +30,7 @@ contract Multipool is
         __ReentrancyGuard_init();
         __Ownable_init(owner);
         initialSharePrice = sharePrice;
+        targetShareAuthority = owner;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -101,7 +103,7 @@ contract Multipool is
             uint price; 
             if (selectedAssets[i].addr == address(this)) { 
                 price = ctx.sharePrice;
-                ctx.totalSupplyDelta += selectedAssets[i].amount;
+                ctx.totalSupplyDelta -= selectedAssets[i].amount;
             } else {
                 price = prices[selectedAssets[i].addr].getPrice();
             }
@@ -110,7 +112,7 @@ contract Multipool is
             if (selectedAssets[i].amount > 0) {
                 ctx.cummulativeInAmount += price * uint(selectedAssets[i].amount) / FixedPoint96.Q96;
             } else {
-                ctx.cummulativeOutAmount += price * uint(selectedAssets[i].amount) / FixedPoint96.Q96;
+                ctx.cummulativeOutAmount += price * uint(-selectedAssets[i].amount) / FixedPoint96.Q96;
             }
         }
     }
@@ -134,7 +136,10 @@ contract Multipool is
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
 
         for (uint i = 0; i < selectedAssets.length; i++) {
-            MpAsset memory asset = assets[selectedAssets[i].addr];
+            MpAsset memory asset; 
+            if (selectedAssets[i].addr != address(this)) {
+                asset = assets[selectedAssets[i].addr];
+            }
             uint price = currentPrices[i]; 
             int deltaAmount = selectedAssets[i].amount;
             if (!isSleepageReverse) {
@@ -168,6 +173,7 @@ contract Multipool is
             }
             if (selectedAssets[i].addr != address(this)) {
                 ctx.calculateFees(asset, deltaAmount, price);
+                assets[selectedAssets[i].addr] = asset;
             } else {
                 ctx.calculateFeesShareToken(deltaAmount);
             }
@@ -193,7 +199,7 @@ contract Multipool is
 
     function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData) public notPaused {
         prices[assetAddress] = FeedInfo ({
-            feedType: kind,
+            kind: kind,
             data: feedData
         });
     }
