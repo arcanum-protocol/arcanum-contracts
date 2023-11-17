@@ -94,22 +94,11 @@ contract MultipoolCornerCases is Test {
             amount: -int((quoteSum << 96) / toX96(0.1e18))
         });
 
-        mp.swap(args, false, users[3]);
+        mp.swap(args, false, users[3], true, address(0));
         mp.setCurveParams(0.15e18, 0.0003e18, 0.6e18, 0.01e18);
     }
 
     function test_Bootstrap() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18]);
-        for(uint i = 0; i < 5; i++) {
-            MpAsset memory asset = mp.getAsset(address(tokens[i]));
-            console.log("index: ", i+1);
-            console.log("quantity: ", asset.quantity);
-            console.log("share: ", asset.share);
-        }
-            MpAsset memory asset = mp.getAsset(address(mp));
-            console.log("index: ", "multipool");
-            console.log("quantity: ", asset.quantity);
-            console.log("share: ", asset.share);
-            console.log("balance: ", mp.balanceOf(users[3]));
     }
 }

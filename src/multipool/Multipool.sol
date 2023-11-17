@@ -44,19 +44,19 @@ contract Multipool is
 
     uint internal totalTargetShares;
 
-    uint internal halfDeviationFee;
-    uint internal deviationLimit;
-    uint internal depegBaseFee;
-    uint internal baseFee;
+    uint64 internal halfDeviationFee;
+    uint64 internal deviationLimit;
+    uint64 internal depegBaseFee;
+    uint64 internal baseFee;
 
     uint internal constant DENOMINATOR = 1e18;
 
     address public targetShareAuthority;
+    bool public isPaused;
 
     uint internal totalCollectedCashbacks;
     uint internal collectedFees;
 
-    bool public isPaused;
     uint internal initialSharePrice;
 
     modifier notPaused() {
@@ -65,21 +65,29 @@ contract Multipool is
 
     // ---------------- Methods ------------------
 
+    function getFees() public view returns (uint64 _halfDeviationFee, uint64 _deviationLimit, uint64 _depegBaseFee, uint64 _baseFee) {
+        _halfDeviationFee = halfDeviationFee;
+        _deviationLimit = deviationLimit;
+        _depegBaseFee = depegBaseFee;
+        _baseFee = baseFee;
+    }
+
     function getAsset(address assetAddress) public view returns (MpAsset memory asset) {
         asset = assets[assetAddress];
     }
 
     function getContext() internal view returns (MpContext memory context) {
         uint ts = totalSupply();
+        (uint64 _halfDeviationFee, uint64 _deviationLimit, uint64 _depegBaseFee, uint64 _baseFee) = getFees();
         context = MpContext({
            sharePrice: ts == 0 ? initialSharePrice: prices[address(this)].getPrice(),
            oldTotalSupply: ts,
            totalSupplyDelta: 0,
            totalTargetShares: totalTargetShares,
-           deviationParam: halfDeviationFee * DENOMINATOR / deviationLimit,
-           deviationLimit: deviationLimit,
-           depegBaseFee: depegBaseFee,
-           baseFee: baseFee,
+           deviationParam: _halfDeviationFee * DENOMINATOR / _deviationLimit,
+           deviationLimit: _deviationLimit,
+           depegBaseFee: _depegBaseFee,
+           baseFee: _baseFee,
            feeToPay: 0,
            cashbackDelta: 0,
            feeDelta: 0,
@@ -98,8 +106,9 @@ contract Multipool is
         MpContext memory ctx, 
         AssetArg[] memory selectedAssets
     ) internal view returns (uint[] memory pr) {
-        pr = new uint[](selectedAssets.length);
-        for (uint i = 0; i < selectedAssets.length; i++) {
+        uint arrayLen = selectedAssets.length;
+        pr = new uint[](arrayLen);
+        for (uint i; i < arrayLen;) {
             uint price; 
             if (selectedAssets[i].addr == address(this)) { 
                 price = ctx.sharePrice;
@@ -110,10 +119,11 @@ contract Multipool is
             pr[i] = price;
             require(selectedAssets[i].amount != 0, "ASSET AMOUNT EQ 0");
             if (selectedAssets[i].amount > 0) {
-                ctx.cummulativeInAmount += price * uint(selectedAssets[i].amount) / FixedPoint96.Q96;
+                ctx.cummulativeInAmount += price * uint(selectedAssets[i].amount) >> FixedPoint96.RESOLUTION;
             } else {
-                ctx.cummulativeOutAmount += price * uint(-selectedAssets[i].amount) / FixedPoint96.Q96;
+                ctx.cummulativeOutAmount += price * uint(-selectedAssets[i].amount) >> FixedPoint96.RESOLUTION;
             }
+            unchecked { ++i; }
         }
     }
 
@@ -125,7 +135,9 @@ contract Multipool is
     function swap(
         AssetArg[] calldata selectedAssets, 
         bool isSleepageReverse,
-        address to
+        address to,
+        bool refundDust,
+        address refundTo
     )
         public
         payable
@@ -135,7 +147,7 @@ contract Multipool is
         MpContext memory ctx = getContext();
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
 
-        for (uint i = 0; i < selectedAssets.length; i++) {
+        for (uint i; i < selectedAssets.length;) {
             MpAsset memory asset; 
             if (selectedAssets[i].addr != address(this)) {
                 asset = assets[selectedAssets[i].addr];
@@ -146,12 +158,15 @@ contract Multipool is
                 if (selectedAssets[i].amount > 0) {
                     uint transferred = getTransferredAmount(asset, selectedAssets[i].addr);
                     require(transferred >= uint(selectedAssets[i].amount), "INSUFFICIENT TRANSFERRED");
+                    if (refundDust) {
+                        IERC20(selectedAssets[i].addr).transfer(to, transferred - uint(selectedAssets[i].amount));
+                    }
                 } else {
                     uint amount = ctx.cummulativeInAmount * uint(-selectedAssets[i].amount) / ctx.cummulativeOutAmount;
 
                     require(int(amount) >= selectedAssets[i].amount, "SLIPPAGE ON OUT");
                     if (selectedAssets[i].addr != address(this)) {
-                        IERC20(selectedAssets[i].addr).transfer(to, amount);
+                        IERC20(selectedAssets[i].addr).transfer(refundTo, amount);
                     }
 
                     deltaAmount = -int(amount);
@@ -163,6 +178,9 @@ contract Multipool is
                     uint transferred = getTransferredAmount(asset, selectedAssets[i].addr);
                     require(amount <= uint(selectedAssets[i].amount), "SLIPPAGE ON IN");
                     require(transferred >= amount, "INSUFFICIENT TRANSFERRED");
+                    if (refundDust) {
+                        IERC20(selectedAssets[i].addr).transfer(refundTo, transferred - amount);
+                    }
 
                     deltaAmount = int(amount);
                 } else {
@@ -177,6 +195,7 @@ contract Multipool is
             } else {
                 ctx.calculateFeesShareToken(deltaAmount);
             }
+            unchecked { ++i; }
         }
         ctx.applyCollected();
         if (ctx.totalSupplyDelta > 0) {
@@ -225,12 +244,7 @@ contract Multipool is
         isPaused = !isPaused;
     }
 
-   // function setTokenDecimals(address assetAddress, uint decimals) external onlyOwner {
-   //     MpAsset storage asset = assets[assetAddress];
-   //     asset.decimals = decimals;
-   // }
-
-    function setCurveParams(uint newDeviationLimit, uint newHalfDeviationFee, uint newDepegBaseFee, uint newBaseFee) external onlyOwner {
+    function setCurveParams(uint64 newDeviationLimit, uint64 newHalfDeviationFee, uint64 newDepegBaseFee, uint64 newBaseFee) external onlyOwner {
         deviationLimit = newDeviationLimit;
         halfDeviationFee = newHalfDeviationFee;
         depegBaseFee = newDepegBaseFee;

@@ -9,7 +9,6 @@ struct MpAsset {
     uint quantity;
     uint share;
     uint collectedCashbacks;
-    uint decimals;
 }
 
 struct MpContext {
@@ -50,7 +49,7 @@ library ContextMath {
     }
 
     function calculateFeesShareToken(MpContext memory ctx, int quantityDelta) internal pure {
-        uint fee = pos(quantityDelta) * ctx.sharePrice / FixedPoint96.Q96 * ctx.baseFee / DENOMINATOR;
+        uint fee = (pos(quantityDelta) * ctx.sharePrice) >> FixedPoint96.Q96 * ctx.baseFee / DENOMINATOR;
         ctx.feeDelta += int(fee); 
         ctx.feeToPay += int(fee);
     }
