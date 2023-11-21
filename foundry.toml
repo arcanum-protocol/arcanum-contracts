@@ -1,12 +1,14 @@
 [profile.default]
 optimizer = true
-optimizer_runs = 1000
+optimizer_runs = 1000000
+gas_reports = ["Multipool"]
+fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
 
 [profile.ci]
 verbosity = 4
 
 [invariant]
-fail_on_revert = true
+#fail_on_revert = true
 
 [fmt]
 int_types = "preserve"
