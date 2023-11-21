@@ -8,10 +8,6 @@ Here are 9 potential test cases for the Multipool ETF contract:
 
 3) Test swapping assets - call swap() and verify fee curve, input asset quantity decreases and output asset quantity increases.
 
-4) Test setting asset prices - call updatePrice() as owner and verify asset prices update. 
-
-5) Test setting asset percentages - call updateTargetShare() as owner and verify asset percentages update.
-
 6) Test collecting cashbacks - mint/burn/swap assets and verify cashback balances increase, then withdraw cashback throught swap and verify transfer.
 
 7) Test deviation limits - try to mint/burn amounts that would exceed deviation limit and verify that fee will be around 100%.
