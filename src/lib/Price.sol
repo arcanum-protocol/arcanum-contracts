@@ -13,6 +13,7 @@ enum FeedType {
 
 struct UniV3Feed {
     address oracle;
+    bool reversed;
     uint twapInterval;
 }
 
@@ -24,21 +25,25 @@ struct FeedInfo {
     bytes data;
 }
 
-using {MpPriceMath.getPrice} for FeedInfo global;
+using {PriceMath.getPrice} for FeedInfo global;
 
-library MpPriceMath {
+library PriceMath {
     function getPrice(FeedInfo memory feed) internal view returns (uint price) {
         if (feed.kind == FeedType.FixedValue) {
             price = abi.decode(feed.data, (uint));
         } else if (feed.kind == FeedType.UniV3) {
             UniV3Feed memory data = abi.decode(feed.data, (UniV3Feed));
-            price = getTwapX96(data.oracle, data.twapInterval);
+            price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
         } else {
             require(false, "No price origin set");
         }
     }
 
-    function getTwapX96(address uniswapV3Pool, uint256 twapInterval) internal view returns (uint256 priceX96) {
+    function getTwapX96(address uniswapV3Pool, bool reversed, uint256 twapInterval)
+        internal
+        view
+        returns (uint256 priceX96)
+    {
         if (twapInterval == 0) {
             // return the current price if twapInterval == 0
             (priceX96,,,,,,) = IUniswapV3Pool(uniswapV3Pool).slot0();
@@ -53,7 +58,12 @@ library MpPriceMath {
             priceX96 = TickMath.getSqrtRatioAtTick(
                 int24(int256(tickCumulatives[1] - tickCumulatives[0]) / int256(twapInterval))
             );
-            priceX96 = priceX96 * priceX96 / FixedPoint96.Q96;
+        }
+        if (reversed) {
+            priceX96 =
+                (((FixedPoint96.Q96 << FixedPoint96.RESOLUTION) / priceX96) << FixedPoint96.RESOLUTION) / priceX96;
+        } else {
+            priceX96 = (priceX96 * priceX96) >> FixedPoint96.RESOLUTION;
         }
     }
 }

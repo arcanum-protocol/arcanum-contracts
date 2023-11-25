@@ -36,7 +36,7 @@
     "user0": {
       "ethBalance": "0",
       "tokenBalance0": "10000000000000000000000000000",
-      "tokenBalanceMultipool": "0"
+      "tokenBalanceMultipool": "100000000000000000000"
     },
     "user1": {
       "ethBalance": "0",
@@ -57,7 +57,7 @@
       "tokenBalance1": "10000000000000000000000000000",
       "tokenBalance2": "10000000000000000000000000000",
       "tokenBalance3": "10000000000000000000000000000",
-      "tokenBalanceMultipool": "16100000000000000000000"
+      "tokenBalanceMultipool": "16000000000000000000000"
     }
   }
 }
