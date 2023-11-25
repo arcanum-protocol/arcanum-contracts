@@ -11,7 +11,6 @@ import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
-
     receive() external payable {}
 
     function test_MintFromAllAssetsWithEqualProportions() public {
@@ -45,12 +44,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         args[5] = Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
 
         SharePriceParams memory sp;
-        swap(
-            args,
-            1e18,
-            users[3],
-            sp
-        );
+        swap(args, 1e18, users[3], sp);
 
         snapMultipool("MintFromAllAssetsWithEqualProportions");
     }
@@ -67,10 +61,12 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         SharePriceParams memory sp;
         swap(
-            dynamic([
-                Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
-            ]),
+            dynamic(
+                [
+                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
+                    Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                ]
+            ),
             100e18,
             users[3],
             sp

@@ -15,8 +15,8 @@ import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/utils/ReentrancyGuardUpgradeable.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 
-import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
+import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
 error InvalidForcePushAuthoritySignature();
 error ForcePushedPriceExpired();
@@ -101,10 +101,12 @@ contract Multipool is
         uint price;
         if (fpSharePrice.thisAddress == address(this)) {
             bytes memory data = abi.encodePacked(fpSharePrice.thisAddress, fpSharePrice.timestamp, fpSharePrice.value);
-            if (!isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(fpSharePrice.signature)]) 
+            if (!isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(fpSharePrice.signature)]) {
                 revert InvalidForcePushAuthoritySignature();
-            if (block.timestamp - fpSharePrice.timestamp >= sharePriceTTL)
+            }
+            if (block.timestamp - fpSharePrice.timestamp >= sharePriceTTL) {
                 revert ForcePushedPriceExpired();
+            }
             price = fpSharePrice.value;
         } else {
             price = totSup == 0 ? initialSharePrice : prices[address(this)].getPrice();
@@ -258,8 +260,10 @@ contract Multipool is
         for (uint a; a < len;) {
             MpAsset storage asset = assets[assetAddresses[a]];
             totalTargetShares = totalTargetShares - asset.share + shares[a];
-            asset.share = uint128(shares[a]); 
-            unchecked { ++a; }
+            asset.share = uint128(shares[a]);
+            unchecked {
+                ++a;
+            }
         }
     }
 
@@ -268,7 +272,6 @@ contract Multipool is
         collectedFees = 0;
         payable(to).transfer(fees);
     }
-
 
     function togglePause() external onlyOwner {
         isPaused = !isPaused;
@@ -291,6 +294,49 @@ contract Multipool is
     }
 
     function toggleForcePushAuthority(address authority) external onlyOwner {
-         isPriceSetter[authority] = !isPriceSetter[authority];
+        isPriceSetter[authority] = !isPriceSetter[authority];
+    }
+
+    function checkSwap(
+        FPSharePriceArg calldata fpSharePrice,
+        AssetArg[] calldata selectedAssets,
+        bool isSleepageReverse
+    ) public view returns (int fee, int[] memory amounts) {
+        amounts = new int[](selectedAssets.length);
+        MpContext memory ctx = getContext(fpSharePrice);
+        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
+
+        for (uint i; i < selectedAssets.length;) {
+            address tokenAddress = selectedAssets[i].addr;
+            int suppliedAmount = selectedAssets[i].amount;
+            MpAsset memory asset;
+            if (selectedAssets[i].addr != address(this)) {
+                asset = assets[selectedAssets[i].addr];
+            }
+            uint price = currentPrices[i];
+            if (!isSleepageReverse) {
+                if (suppliedAmount < 0) {
+                    uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
+                    if (!(int(amount) >= suppliedAmount)) revert SleepageExceeded();
+                    suppliedAmount = -int(amount);
+                }
+            } else {
+                if (suppliedAmount > 0) {
+                    uint amount = ctx.cummulativeOutAmount * uint(suppliedAmount) / ctx.cummulativeInAmount;
+                    if (!(amount <= uint(suppliedAmount))) revert SleepageExceeded();
+                    suppliedAmount = int(amount);
+                }
+            }
+            amounts[i] = suppliedAmount;
+            if (tokenAddress != address(this)) {
+                ctx.calculateFees(asset, suppliedAmount, price);
+            } else {
+                ctx.calculateFeesShareToken(suppliedAmount);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        fee = -ctx.unusedEthBalance;
     }
 }

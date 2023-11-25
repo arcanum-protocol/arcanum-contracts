@@ -45,7 +45,7 @@ library ContextMath {
     }
 
     function calculateFeesShareToken(MpContext memory ctx, int quantityDelta) internal view {
-        uint fee = ((pos(quantityDelta) * ctx.sharePrice * ctx.baseFee) >> 32 ) >> FixedPoint96.RESOLUTION;
+        uint fee = ((pos(quantityDelta) * ctx.sharePrice * ctx.baseFee) >> 32) >> FixedPoint96.RESOLUTION;
         ctx.unusedEthBalance -= int(fee);
         ctx.collectedFees += fee;
     }
@@ -59,9 +59,8 @@ library ContextMath {
             ctx.oldTotalSupply == 0 ? 0 : (asset.quantity * price << 32) / ctx.oldTotalSupply / ctx.sharePrice,
             targetShare
         );
-        uint dNew = subAbs(
-            newTotalSupply == 0 ? 0 : (newQuantity * price << 32) / newTotalSupply / ctx.sharePrice, targetShare
-        );
+        uint dNew =
+            subAbs(newTotalSupply == 0 ? 0 : (newQuantity * price << 32) / newTotalSupply / ctx.sharePrice, targetShare);
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
         uint bf = (ctx.baseFee * quotedDelta) >> 32;

@@ -5,10 +5,9 @@ import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./M
 import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
 import {MpAsset, MpContext, Multipool} from "./Multipool.sol";
-import { ReentrancyGuard } from "openzeppelin/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "openzeppelin/utils/ReentrancyGuard.sol";
 
 contract MultipoolRouter is ReentrancyGuard {
-
     mapping(address => bool) isContractAllowedToCall;
 
     enum CallType {
@@ -40,24 +39,24 @@ contract MultipoolRouter is ReentrancyGuard {
         bytes data;
     }
 
-   // function massiveMint(
-   //     address poolAddress,
-   //     address tokenFrom,
-   //     uint amount,
-   //     uint minShareOut,
-   //     CallParams[] calldata params,
-   //     address[] calldata multipoolAddresses,
-   //     address to
-   // ) public payable nonReentrant {
-   //     IERC20(tokenFrom).transferFrom(msg.sender, address(this), amount);
-   //     for (uint i = 0; i < params.length; i++) {
-   //         require(isContractAllowedToCall[params[i].target], "MULTIPOOL_MASS_ROUTER: IA");
-   //         (bool success,) = params[i].target.call{value: params[i].ethValue}(params[i].targetData);
-   //         require(success, "MULTIPOOL_MASS_ROUTER: CF");
-   //     }
-   //     uint share = Multipool(poolAddress).massiveMint(multipoolAddresses, to);
-   //     require(minShareOut <= share, "MULTIPOOL_MASS_ROUTER: SE");
-   // }
+    // function massiveMint(
+    //     address poolAddress,
+    //     address tokenFrom,
+    //     uint amount,
+    //     uint minShareOut,
+    //     CallParams[] calldata params,
+    //     address[] calldata multipoolAddresses,
+    //     address to
+    // ) public payable nonReentrant {
+    //     IERC20(tokenFrom).transferFrom(msg.sender, address(this), amount);
+    //     for (uint i = 0; i < params.length; i++) {
+    //         require(isContractAllowedToCall[params[i].target], "MULTIPOOL_MASS_ROUTER: IA");
+    //         (bool success,) = params[i].target.call{value: params[i].ethValue}(params[i].targetData);
+    //         require(success, "MULTIPOOL_MASS_ROUTER: CF");
+    //     }
+    //     uint share = Multipool(poolAddress).massiveMint(multipoolAddresses, to);
+    //     require(minShareOut <= share, "MULTIPOOL_MASS_ROUTER: SE");
+    // }
 
     struct SwapArgs {
         Multipool.FPSharePriceArg fpSharePrice;
@@ -73,9 +72,7 @@ contract MultipoolRouter is ReentrancyGuard {
         SwapArgs calldata swapArgs,
         Call[] calldata paramsBefore,
         Call[] calldata paramsAfter
-    )
-        public
-    {
+    ) public {
         for (uint i; i < paramsBefore.length; ++i) {
             if (paramsBefore[i].callType == CallType.ANY) {
                 CallParams memory params = abi.decode(paramsBefore[i].data, (CallParams));
@@ -92,12 +89,21 @@ contract MultipoolRouter is ReentrancyGuard {
             }
         }
 
-        for ( uint i; i < swapArgs.selectedAssets.length; ++i) {
+        for (uint i; i < swapArgs.selectedAssets.length; ++i) {
             if (swapArgs.selectedAssets[i].amount > 0) {
-                IERC20(swapArgs.selectedAssets[i].addr).transferFrom(msg.sender, poolAddress, uint(swapArgs.selectedAssets[i].amount));
+                IERC20(swapArgs.selectedAssets[i].addr).transferFrom(
+                    msg.sender, poolAddress, uint(swapArgs.selectedAssets[i].amount)
+                );
             }
-        } 
-        Multipool(poolAddress).swap(swapArgs.fpSharePrice, swapArgs.selectedAssets, swapArgs.isSleepageReverse, swapArgs.to, swapArgs.refundDust, swapArgs.refundTo);
+        }
+        Multipool(poolAddress).swap(
+            swapArgs.fpSharePrice,
+            swapArgs.selectedAssets,
+            swapArgs.isSleepageReverse,
+            swapArgs.to,
+            swapArgs.refundDust,
+            swapArgs.refundTo
+        );
 
         for (uint i; i < paramsAfter.length; ++i) {
             if (paramsAfter[i].callType == CallType.ANY) {

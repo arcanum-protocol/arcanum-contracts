@@ -1,49 +1,80 @@
 # ETF TEST CASES
 
-Here are 9 potential test cases for the Multipool ETF contract:
+Try to input one positive token
+Try to input one negative token
 
-1) Test minting new shares - call mint() and verify share balance increases and asset quantity decreases.
+Try to input two negative token  
+Try to input two positive token 
 
-2) Test burning shares - call burn() and verify share balance decreases and asset quantity increases. 
+Try to input two negative token containing share 
+Try to input two positive token containing share 
 
-3) Test swapping assets - call swap() and verify fee curve, input asset quantity decreases and output asset quantity increases.
+Try to input more amount in that you have
 
-6) Test collecting cashbacks - mint/burn/swap assets and verify cashback balances increase, then withdraw cashback throught swap and verify transfer.
+Try to overflow sleepage in
+Try to overflow sleepage out
 
-7) Test deviation limits - try to mint/burn amounts that would exceed deviation limit and verify that fee will be around 100%.
+Try to swap with zero fees 
+Try to swap with zero half deviation fee 
+Try to swap with zero depeg base fee 
+Try to overflow swap on getting close to deviation limit
+Try to collect cashback with external adding it
+Try to collect cashback with increasing it previously
 
-8) Test fee ratios - update fee ratios and verify fees collected change as expected. 
+Try to increase deviation more than limit |---*--*->-|
+Try to decrease deviation less than limit |-<-*--*---|
 
-9) Test edge cases - call functions with zero shares, prices, assets etc and verify expected behavior.
-    
-    9.4) Make everything above with 0% target share, and 0% actual share, and 0$ price.
+Try to decrease deviation getting closer to limit  |---*--*-<-|
+Try to increase deviation getting closer to limit  |->-*--*---|
 
-10) Test adding tokens - add token to existing ETF then, mint/burn/swap, with it
+Try to set invalid params to share price force push
+Try to set invalid ttl to share price force push
+Try to update price fetching type
+Try to pause / unpause
 
-11) Test fees edge cases - set base fee to 0% then, mint/burn/swap.
+Try to swap with target share 0 and share out
+Try to swap with target share 0 and share in
+Try to swap with target share 0 and share in and out equal
+Try to swap with target share 0 and share in and out not equal
 
-12) Test deviation fee curve - randomly change deviation fee curve parametres.
+Try to swap with same assets on input and output and same quantities 
+Try to swap with asset that doesn't exist in pool
+Try to swap with asset that has 0 quantity as input
+Try to swap with asset that has 0 quantity as output
 
-    12.1) Test deviation changes - mint/burn token with +/- deviation, within deviation curve.
+Try to swap with fees exceedment 
+Try to swap with equal minting and burning
 
-    ```
-        for each scenario check refund works ok:
+Try to withdraw fees
+Try to change curve params on flowo
 
-        swap, change fee and curve, and deviation fee distribution than swap again 
-        mint, change all mint again
-        burn change all than burn again
+Try to swap with shareCap getting very big
+Try to swap with asset price getting very big
+Try to swap with shareCap getting very low
+Try to swap with asset price getting very low
 
-        check zero deviation fee distribution works 
-        check non zero deviation fee distribution works
+Try to swap all shares till zero and then mint new share
+Try to update target shares to place where deviation exceeds limit
 
-        check all update events suit
-        check all operation events suit
-    ```
+Try to send too much tokens and receive back dust
+Try to send too much ether and receive dust
 
+Try to send tokens contract itself and loop calls
+Try to overflow input amounts
 
+Try to supply amount that is zero
+Try to overflow cummulativeAmount
 
-13) Test base deviation fee shares - change params 
+Try to swap 100 tokens 
 
-14) Test removing tokens - set target share 0%, mint should not work, burn should work, swap should work as token out.
+Try to compare view method fee and existing fee
+Try to calculate estimate amounts in/out
 
-15) 
+Try to call ownable methods being not owner
+
+Try to swap with zero total target shares
+Try to swap with share cap getting smaller than numerator value
+
+Try to swap with not having asset price
+Try to swap with not having share price
+
