@@ -54,7 +54,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         uint newPrice = toX96(10e18);
         uint quoteSum = 10e18;
-        uint val = (10e18 << 96) / newPrice;
+        uint val = (quoteSum << 96) / newPrice;
 
         changePrice(address(tokens[0]), newPrice);
         tokens[0].mint(address(mp), val);
@@ -68,7 +68,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
                 ]
             ),
             100e18,
-            users[3],
+            users[0],
             sp
         );
 
