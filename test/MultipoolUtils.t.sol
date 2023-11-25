@@ -9,8 +9,8 @@ import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../src/lib/Price.sol";
 
-import { ECDSA } from "openzeppelin/utils/cryptography/ECDSA.sol";
-import { MessageHashUtils } from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
+import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
 function toX96(uint val) pure returns (uint valX96) {
     valX96 = (val << 96) / 1e18;
@@ -159,10 +159,10 @@ contract MultipoolUtils is Test {
     }
 
     struct Asset {
-       address addr;
-       uint collectedCashbacks;
-       uint share;
-       uint quantity;
+        address addr;
+        uint collectedCashbacks;
+        uint share;
+        uint quantity;
     }
 
     struct MpData {
@@ -179,7 +179,7 @@ contract MultipoolUtils is Test {
     }
 
     function jsonString(uint num) public pure returns (string memory str) {
-        str = string.concat("\"", vm.toString(num),"\"");
+        str = string.concat("\"", vm.toString(num), "\"");
     }
 
     function snapMultipool(string memory path) public {
@@ -201,12 +201,13 @@ contract MultipoolUtils is Test {
             }
             balances[tokens.length].token = address(mp);
             balances[tokens.length].balance = mp.balanceOf(users[i]);
-            string memory userJson = vm.serializeString("t", "tokenBalanceMultipool", jsonString(balances[tokens.length].balance));
+            string memory userJson =
+                vm.serializeString("t", "tokenBalanceMultipool", jsonString(balances[tokens.length].balance));
 
             usrs[i].balances = balances;
             usersJson = vm.serializeString("users", string.concat("user", vm.toString(i)), userJson);
         }
-         
+
         Asset[] memory assets = new Asset[](tokens.length);
         for (uint i; i < tokens.length; ++i) {
             assets[i].addr = address(tokens[i]);
@@ -248,7 +249,10 @@ contract MultipoolUtils is Test {
         vm.writeJson(snapJson, nfpath);
         string memory newJson = vm.readFile(nfpath);
 
-        if (keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson))) && vm.envBool("CHECK_SNAPS")) {
+        if (
+            keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson)))
+                && vm.envBool("CHECK_SNAPS")
+        ) {
             revert(string.concat("Snapshots are not equal for ", path));
         } else {
             vm.removeFile(nfpath);
@@ -257,26 +261,43 @@ contract MultipoolUtils is Test {
 
     function dynamic(Multipool.AssetArg[1] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
         dynarray = new Multipool.AssetArg[](assets.length);
-        for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
+        for (uint i; i < assets.length; ++i) {
+            dynarray[i] = assets[i];
+        }
     }
+
     function dynamic(Multipool.AssetArg[2] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
         dynarray = new Multipool.AssetArg[](assets.length);
-        for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
+        for (uint i; i < assets.length; ++i) {
+            dynarray[i] = assets[i];
+        }
     }
+
     function dynamic(Multipool.AssetArg[3] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
         dynarray = new Multipool.AssetArg[](assets.length);
-        for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
+        for (uint i; i < assets.length; ++i) {
+            dynarray[i] = assets[i];
+        }
     }
+
     function dynamic(Multipool.AssetArg[4] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
         dynarray = new Multipool.AssetArg[](assets.length);
-        for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
+        for (uint i; i < assets.length; ++i) {
+            dynarray[i] = assets[i];
+        }
     }
+
     function dynamic(Multipool.AssetArg[5] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
         dynarray = new Multipool.AssetArg[](assets.length);
-        for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
+        for (uint i; i < assets.length; ++i) {
+            dynarray[i] = assets[i];
+        }
     }
+
     function dynamic(Multipool.AssetArg[6] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
         dynarray = new Multipool.AssetArg[](assets.length);
-        for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
+        for (uint i; i < assets.length; ++i) {
+            dynarray[i] = assets[i];
+        }
     }
 }

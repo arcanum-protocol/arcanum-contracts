@@ -49,7 +49,7 @@
 //
 //        (owner, ownerPk) = makeAddrAndKey("Multipool owner");
 //        mp.transferOwnership(owner);
-//       
+//
 //        actors.push(owner);
 //
 //        for (uint i; i < tokenNum; i++) {
@@ -103,6 +103,6 @@
 //    }
 //
 //    function invariant_multipool() external {
-//        
+//
 //    }
 //}
