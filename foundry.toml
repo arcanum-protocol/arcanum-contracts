@@ -3,6 +3,16 @@ optimizer = true
 optimizer_runs = 1000000
 gas_reports = ["Multipool"]
 fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
+remappings = [
+    "ds-test/=lib/forge-std/lib/ds-test/src/",
+    "forge-std/=lib/forge-std/src/",
+    "openzeppelin/=lib/openzeppelin-contracts/contracts/",
+    "oz-proxy/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "prb-math/=lib/prb-math/src/",
+    "uniswapv3/=lib/v3-core/contracts/",
+]
+build_info = true
+extra_output = ["storageLayout"]
 
 [profile.ci]
 verbosity = 4
