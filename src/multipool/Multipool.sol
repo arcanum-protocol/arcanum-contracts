@@ -18,14 +18,6 @@ import {FixedPoint96} from "../lib/FixedPoint96.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
-error InvalidForcePushAuthoritySignature();
-error ForcePushedPriceExpired();
-error DeviationExceedsLimit();
-error FeeExceeded();
-error ZeroAmountSupplied();
-error InsuficcientBalance();
-error SleepageExceeded();
-error IsPaused();
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
@@ -52,9 +44,27 @@ contract Multipool is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    /**
-     * ---------------- Variables ------------------
-     */
+    //------------- Errors ------------
+
+    error InvalidForcePushAuthoritySignature();
+    error ForcePushedPriceExpired();
+    error ZeroAmountSupplied();
+    error InsuficcientBalance();
+    error SleepageExceeded();
+    error IsPaused();
+
+    //------------- Events ------------
+    
+    event AssetChange(address indexed token, uint quantity, uint128 share, uint128 collcectedCashback);
+    event FeesChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
+    event ShareChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
+    event FeedChange(address indexed token, FeedInfo feed);
+    event SharePriceChange(uint sharePriceTTL);
+    event PriceSetterToggled(address indexed setted, bool isPriceSetter);
+    event PauseChange(bool isPaused);
+    event CollectedFeesChange(uint fees);
+
+    //------------- Variables ------------
 
     mapping(address => MpAsset) internal assets;
     mapping(address => FeedInfo) internal prices;
@@ -75,12 +85,12 @@ contract Multipool is
 
     bool public isPaused;
 
+    // ---------------- Methods ------------------
+
     modifier notPaused() {
-        if (!isPaused) revert IsPaused();
+        if (isPaused) revert IsPaused();
         _;
     }
-
-    // ---------------- Methods ------------------
 
     function getPriceFeed(address asset)
         public
@@ -260,13 +270,54 @@ contract Multipool is
         collectedFees = ctx.collectedFees;
     }
 
+    function checkSwap(
+        FPSharePriceArg calldata fpSharePrice,
+        AssetArg[] calldata selectedAssets,
+        bool isSleepageReverse
+    ) public view returns (int fee, int[] memory amounts) {
+        amounts = new int[](selectedAssets.length);
+        MpContext memory ctx = getContext(fpSharePrice);
+        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
+
+        for (uint i; i < selectedAssets.length;) {
+            address tokenAddress = selectedAssets[i].addr;
+            int suppliedAmount = selectedAssets[i].amount;
+            MpAsset memory asset;
+            if (selectedAssets[i].addr != address(this)) {
+                asset = assets[selectedAssets[i].addr];
+            }
+            uint price = currentPrices[i];
+            if (!isSleepageReverse) {
+                if (suppliedAmount < 0) {
+                    uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
+                    suppliedAmount = -int(amount);
+                }
+            } else {
+                if (suppliedAmount > 0) {
+                    uint amount = ctx.cummulativeOutAmount * uint(suppliedAmount) / ctx.cummulativeInAmount;
+                    suppliedAmount = int(amount);
+                }
+            }
+            amounts[i] = suppliedAmount;
+            if (tokenAddress != address(this)) {
+                ctx.calculateFees(asset, suppliedAmount, price);
+            } else {
+                ctx.calculateFeesShareToken(suppliedAmount);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        fee = -ctx.unusedEthBalance;
+    }
+
     function increaseCashback(address assetAddress) public notPaused nonReentrant returns (uint amount) {
         MpAsset storage asset = assets[assetAddress];
         amount = getTransferredAmount(asset, assetAddress);
         asset.collectedCashbacks += uint128(amount);
     }
 
-    // ---------------- Owner ------------------
+    // ---------------- Owned ------------------
 
     function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData) public onlyOwner notPaused {
         prices[assetAddress] = FeedInfo({kind: kind, data: feedData});
@@ -314,46 +365,4 @@ contract Multipool is
         isPriceSetter[authority] = !isPriceSetter[authority];
     }
 
-    function checkSwap(
-        FPSharePriceArg calldata fpSharePrice,
-        AssetArg[] calldata selectedAssets,
-        bool isSleepageReverse
-    ) public view returns (int fee, int[] memory amounts) {
-        amounts = new int[](selectedAssets.length);
-        MpContext memory ctx = getContext(fpSharePrice);
-        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
-
-        for (uint i; i < selectedAssets.length;) {
-            address tokenAddress = selectedAssets[i].addr;
-            int suppliedAmount = selectedAssets[i].amount;
-            MpAsset memory asset;
-            if (selectedAssets[i].addr != address(this)) {
-                asset = assets[selectedAssets[i].addr];
-            }
-            uint price = currentPrices[i];
-            if (!isSleepageReverse) {
-                if (suppliedAmount < 0) {
-                    uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
-                    if (!(int(amount) >= suppliedAmount)) revert SleepageExceeded();
-                    suppliedAmount = -int(amount);
-                }
-            } else {
-                if (suppliedAmount > 0) {
-                    uint amount = ctx.cummulativeOutAmount * uint(suppliedAmount) / ctx.cummulativeInAmount;
-                    if (!(amount <= uint(suppliedAmount))) revert SleepageExceeded();
-                    suppliedAmount = int(amount);
-                }
-            }
-            amounts[i] = suppliedAmount;
-            if (tokenAddress != address(this)) {
-                ctx.calculateFees(asset, suppliedAmount, price);
-            } else {
-                ctx.calculateFeesShareToken(suppliedAmount);
-            }
-            unchecked {
-                ++i;
-            }
-        }
-        fee = -ctx.unusedEthBalance;
-    }
 }
