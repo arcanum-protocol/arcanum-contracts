@@ -25,6 +25,7 @@ error FeeExceeded();
 error ZeroAmountSupplied();
 error InsuficcientBalance();
 error SleepageExceeded();
+error IsPaused();
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
@@ -58,28 +59,44 @@ contract Multipool is
     mapping(address => MpAsset) internal assets;
     mapping(address => FeedInfo) internal prices;
 
-    uint public totalTargetShares;
-
     uint64 internal deviationParam;
     uint64 internal deviationLimit;
     uint64 internal depegBaseFee;
     uint64 internal baseFee;
 
-    bool public isPaused;
-
+    uint public totalTargetShares;
     uint public totalCollectedCashbacks;
     uint public collectedFees;
 
-    uint internal initialSharePrice;
-    uint internal sharePriceTTL;
+    uint public initialSharePrice;
+    uint public sharePriceTTL;
 
-    mapping(address => bool) internal isPriceSetter;
+    mapping(address => bool) public isPriceSetter;
+
+    bool public isPaused;
 
     modifier notPaused() {
+        if (!isPaused) revert IsPaused();
         _;
     }
 
     // ---------------- Methods ------------------
+
+    function getPriceFeed(address asset)
+        public
+        view
+        returns (FeedInfo memory f)
+    {
+        f = prices[asset];
+    }
+
+    function getPrice(address asset)
+        public
+        view
+        returns (uint price)
+    {
+        price = prices[asset].getPrice();
+    }
 
     function getFees()
         public

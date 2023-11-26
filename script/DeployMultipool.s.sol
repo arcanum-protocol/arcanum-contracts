@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "../src/multipool/Multipool.sol";
 import {MockERC20} from "../src/mocks/erc20.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestnet is Script {
     function run() external {
@@ -25,9 +25,15 @@ contract DeployTestnet is Script {
             tokens[i].mint(deployerPublicKey, 100e18);
             uint price = (i + 1) * 0.01e18;
             mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(price));
-            console.log("token", i, " address: ", address(mp));
+            address[] memory tk = new address[](1);
+            tk[0] = address(tokens[i]);
+            uint[] memory am = new uint[](1);
+            am[0] = 10e18;
+            mp.updateTargetShares(tk, am);
+            console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);
         }
+        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.0001e18));
         vm.stopBroadcast();
     }
 }
