@@ -3,7 +3,7 @@
     "totalCashback": "0",
     "totalFees": "999999977648258204",
     "totalShares": "50000000000000000000",
-    "totalSupply": "16500000000000000000000"
+    "totalSupply": "16500000000000000000020"
   },
   "tokens": {
     "token0": {
@@ -57,7 +57,7 @@
       "tokenBalance1": "10000000000000000000000000000",
       "tokenBalance2": "10000000000000000000000000000",
       "tokenBalance3": "10000000000000000000000000000",
-      "tokenBalanceMultipool": "16500000000000000000000"
+      "tokenBalanceMultipool": "16500000000000000000020"
     }
   }
 }

@@ -18,7 +18,6 @@ import {FixedPoint96} from "../lib/FixedPoint96.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
-
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
     Initializable,
@@ -166,7 +165,6 @@ contract Multipool is
             uint price;
             if (selectedAssets[i].addr == address(this)) {
                 price = ctx.sharePrice;
-                ctx.totalSupplyDelta -= selectedAssets[i].amount;
             } else {
                 price = prices[selectedAssets[i].addr].getPrice();
             }
@@ -197,7 +195,7 @@ contract Multipool is
 
     function swap(
         FPSharePriceArg calldata fpSharePrice,
-        AssetArg[] calldata selectedAssets,
+        AssetArg[] memory selectedAssets,
         bool isSleepageReverse,
         address to,
         bool refundDust,
@@ -205,6 +203,7 @@ contract Multipool is
     ) public payable notPaused nonReentrant {
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
+        MpAsset[] memory assetsData = new MpAsset[](selectedAssets.length);
 
         for (uint i; i < selectedAssets.length;) {
             address tokenAddress = selectedAssets[i].addr;
@@ -212,6 +211,7 @@ contract Multipool is
             MpAsset memory asset;
             if (selectedAssets[i].addr != address(this)) {
                 asset = assets[selectedAssets[i].addr];
+                assetsData[i] = asset;
             }
             uint price = currentPrices[i];
             if (!isSleepageReverse) {
@@ -249,6 +249,19 @@ contract Multipool is
                     }
                 }
             }
+            if (tokenAddress == address(this)) {
+                ctx.totalSupplyDelta -= suppliedAmount;
+            }
+            selectedAssets[i].amount = suppliedAmount;
+            unchecked {
+                ++i;
+            }
+        }
+        for (uint i; i < selectedAssets.length;) {
+            address tokenAddress = selectedAssets[i].addr;
+            int suppliedAmount = selectedAssets[i].amount;
+            uint price = currentPrices[i];
+            MpAsset memory asset = assetsData[i];
             if (tokenAddress != address(this)) {
                 ctx.calculateFees(asset, suppliedAmount, price);
                 assets[tokenAddress] = asset;

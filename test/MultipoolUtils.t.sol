@@ -135,6 +135,24 @@ contract MultipoolUtils is Test {
         mp.swap{value: ethValue}(fp, assets, false, to, true, address(0));
     }
 
+    function checkSwap(
+        Multipool.AssetArg[] memory assets, 
+        bool isSleepageReverse,
+        SharePriceParams memory sp
+    ) public view returns (int fee, int[] memory amounts) {
+        Multipool.FPSharePriceArg memory fp;
+        if (sp.send) {
+            fp.thisAddress = owner;
+            fp.timestamp = sp.ts;
+            fp.value = sp.value;
+            bytes32 message = keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
+            bytes memory signature = abi.encodePacked(r, s, v);
+            fp.signature = signature;
+        }
+        (fee, amounts) = mp.checkSwap(fp, assets, isSleepageReverse);
+    }
+
     function changePrice(address asset, uint price) public {
         vm.startPrank(owner);
         mp.updatePrice(asset, FeedType.FixedValue, abi.encode(price));
