@@ -74,4 +74,49 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         snapMultipool("MintFromSignleAssetWithDeviation");
     }
+
+    function test_SwapHappyPath() public {
+        bootstrapTokens([uint(400e18), 400e18, 300e18, 300e18, 300e18], users[3]);
+
+        uint newPrice = toX96(10e18);
+        uint quoteSum = 10e18;
+        uint val = (quoteSum << 96) / newPrice;
+
+        changePrice(address(tokens[0]), newPrice);
+        tokens[0].mint(address(mp), val);
+
+        // swap 2 tokens for 2 tokens
+        SharePriceParams memory sp;
+        swap(
+            dynamic(
+                [
+                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)}),
+                    Multipool.AssetArg({addr: address(tokens[2]), amount: int(0.5e18)}),
+                    Multipool.AssetArg({addr: address(tokens[1]), amount: int(-1e18)}),
+                    Multipool.AssetArg({addr: address(tokens[3]), amount: int(0.5e18)})
+                ]
+            ),
+            100e18,
+            users[0],
+            sp
+        );
+
+        snapMultipool("SwapHappyPath1");
+
+        // burn everything
+        swap(
+            dynamic(
+                [
+                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
+                    Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                ]
+            ),
+            100e18,
+            users[0],
+            sp
+        );
+        snapMultipool("SwapHappyPath2");
+
+        // bootstrap new
+    }
 }

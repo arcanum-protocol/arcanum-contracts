@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "forge-std/Test.sol";
 import {FixedPoint96} from "./FixedPoint96.sol";
 import "../multipool/Multipool.sol";
 
@@ -47,13 +48,14 @@ library ContextMath {
         c = b > 0 ? a + uint(b) : a - uint(-b);
     }
 
-    function calculateFeesShareToken(MpContext memory ctx, int quantityDelta) internal pure {
+    function calculateFeesShareToken(MpContext memory ctx, int quantityDelta) internal view {
         uint fee = ((pos(quantityDelta) * ctx.sharePrice * ctx.baseFee) >> 32) >> FixedPoint96.RESOLUTION;
+        console.log("AM: ", pos(quantityDelta));
         ctx.unusedEthBalance -= int(fee);
         ctx.collectedFees += fee;
     }
 
-    function calculateFees(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal pure {
+    function calculateFees(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal view {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
         uint targetShare = (asset.share << 32) / ctx.totalTargetShares;
