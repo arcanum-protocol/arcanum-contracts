@@ -109,8 +109,10 @@ contract MultipoolUtils is Test {
 
         args[5] = Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
 
+        args = sort(args);
+
         Multipool.FPSharePriceArg memory fp;
-        mp.swap(fp, args, false, to, true, address(0));
+        mp.swap(fp, args, true, to, true, address(0));
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
         vm.stopPrank();
     }
@@ -132,7 +134,7 @@ contract MultipoolUtils is Test {
             bytes memory signature = abi.encodePacked(r, s, v);
             fp.signature = signature;
         }
-        mp.swap{value: ethValue}(fp, assets, false, to, true, address(0));
+        mp.swap{value: ethValue}(fp, assets, true, to, false, address(0));
     }
 
     function checkSwap(
@@ -270,11 +272,27 @@ contract MultipoolUtils is Test {
         if (
             keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson)))
                 && vm.envBool("CHECK_SNAPS")
-        ) {
+        ) 
             revert(string.concat("Snapshots are not equal for ", path));
-        } else {
+        if (keccak256(abi.encodePacked((oldJson))) == keccak256(abi.encodePacked((newJson)))) 
             vm.removeFile(nfpath);
+    }
+
+      function sort(Multipool.AssetArg[] memory arr) public pure returns (Multipool.AssetArg[] memory a) {
+        uint i;
+        Multipool.AssetArg memory key;
+        uint j;
+
+        for(i = 1; i < arr.length; i++ ) {
+          key = arr[i];
+
+          for(j = i; j > 0 && arr[j-1].addr > key.addr; j-- ) {
+            arr[j] = arr[j-1];
+          }
+
+          arr[j] = key;
         }
+        a = arr;
     }
 
     function dynamic(Multipool.AssetArg[1] memory assets) public pure returns (Multipool.AssetArg[] memory dynarray) {
