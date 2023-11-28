@@ -28,7 +28,7 @@ struct MpContext {
 }
 
 using {
-    ContextMath.calculateFees, ContextMath.calculateFeesShareToken, ContextMath.applyCollected
+    ContextMath.calculateDeviationFee, ContextMath.calculateBaseFee, ContextMath.calculateTotalSupplyDelta, ContextMath.applyCollected
 } for MpContext global;
 
 library ContextMath {
@@ -48,29 +48,37 @@ library ContextMath {
         c = b > 0 ? a + uint(b) : a - uint(-b);
     }
 
-    function calculateFeesShareToken(MpContext memory ctx, int quantityDelta) internal view {
-        uint fee = ((pos(quantityDelta) * ctx.sharePrice * ctx.baseFee) >> 32) >> FixedPoint96.RESOLUTION;
-        console.log("AM: ", pos(quantityDelta));
+    function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal view {
+        int delta = ctx.totalSupplyDelta; 
+        if (delta > 0) {
+            if (!isExactInput) ctx.totalSupplyDelta = int(ctx.cummulativeOutAmount * uint(delta) / ctx.cummulativeInAmount);
+        } else {
+            if (isExactInput) ctx.totalSupplyDelta = -int(ctx.cummulativeInAmount * uint(-delta) / ctx.cummulativeOutAmount);
+        }
+    }
+
+    function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal view {
+        uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
+        uint fee = (quoteValue * ctx.baseFee) >> 32;
         ctx.unusedEthBalance -= int(fee);
         ctx.collectedFees += fee;
     }
 
-    function calculateFees(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal view {
+    function calculateDeviationFee(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal view {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
         uint targetShare = (asset.share << 32) / ctx.totalTargetShares;
 
-        uint dOld = subAbs(
-            ctx.oldTotalSupply == 0 ? 0 : (asset.quantity * price << 32) / ctx.oldTotalSupply / ctx.sharePrice,
+        uint dOld = ctx.oldTotalSupply == 0 ? 0 : subAbs(
+            (asset.quantity * price << 32) / ctx.oldTotalSupply / ctx.sharePrice,
             targetShare
         );
-        uint dNew =
-            subAbs(newTotalSupply == 0 ? 0 : (newQuantity * price << 32) / newTotalSupply / ctx.sharePrice, targetShare);
+        uint dNew = newTotalSupply == 0 ? 0 : subAbs(
+            (newQuantity * price << 32) / newTotalSupply / ctx.sharePrice, 
+            targetShare
+        );
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
-        uint bf = (ctx.baseFee * quotedDelta) >> 32;
-        ctx.collectedFees += bf;
-        ctx.unusedEthBalance -= int(bf);
         if (dNew > dOld) {
             if (!(ctx.deviationLimit >= dNew)) revert DeviationExceedsLimit();
             uint deviationFee = (ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)) >> 32;

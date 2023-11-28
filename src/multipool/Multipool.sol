@@ -50,6 +50,7 @@ contract Multipool is
     error ZeroAmountSupplied();
     error InsuficcientBalance();
     error SleepageExceeded();
+    error AssetsNotSortedOrNotUnique();
     error IsPaused();
 
     //------------- Events ------------
@@ -160,23 +161,28 @@ contract Multipool is
         returns (uint[] memory pr)
     {
         uint arrayLen = selectedAssets.length;
+        address prevAddress = address(0);
         pr = new uint[](arrayLen);
-        for (uint i; i < arrayLen;) {
+        for (uint i; i < arrayLen;++i) {
+            address currentAddress = selectedAssets[i].addr;
+            int amount = selectedAssets[i].amount;
+
+            if (prevAddress >= currentAddress) revert AssetsNotSortedOrNotUnique();
+            prevAddress = currentAddress;
+
             uint price;
-            if (selectedAssets[i].addr == address(this)) {
+            if (currentAddress == address(this)) {
                 price = ctx.sharePrice;
+                ctx.totalSupplyDelta = -amount;
             } else {
-                price = prices[selectedAssets[i].addr].getPrice();
+                price = prices[currentAddress].getPrice();
             }
             pr[i] = price;
-            if (selectedAssets[i].amount == 0) revert ZeroAmountSupplied();
-            if (selectedAssets[i].amount > 0) {
-                ctx.cummulativeInAmount += price * uint(selectedAssets[i].amount) >> FixedPoint96.RESOLUTION;
+            if (amount == 0) revert ZeroAmountSupplied();
+            if (amount > 0) {
+                ctx.cummulativeInAmount += price * uint(amount) >> FixedPoint96.RESOLUTION;
             } else {
-                ctx.cummulativeOutAmount += price * uint(-selectedAssets[i].amount) >> FixedPoint96.RESOLUTION;
-            }
-            unchecked {
-                ++i;
+                ctx.cummulativeOutAmount += price * uint(-amount) >> FixedPoint96.RESOLUTION;
             }
         }
     }
@@ -195,32 +201,35 @@ contract Multipool is
 
     function swap(
         FPSharePriceArg calldata fpSharePrice,
-        AssetArg[] memory selectedAssets,
-        bool isSleepageReverse,
+        AssetArg[] calldata selectedAssets,
+        bool isExactInput,
         address to,
         bool refundDust,
         address refundTo
     ) public payable notPaused nonReentrant {
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
-        MpAsset[] memory assetsData = new MpAsset[](selectedAssets.length);
 
-        for (uint i; i < selectedAssets.length;) {
+        ctx.calculateTotalSupplyDelta(isExactInput);
+
+        for (uint i; i < selectedAssets.length;++i) {
             address tokenAddress = selectedAssets[i].addr;
             int suppliedAmount = selectedAssets[i].amount;
+            uint price = currentPrices[i];
+
             MpAsset memory asset;
             if (selectedAssets[i].addr != address(this)) {
                 asset = assets[selectedAssets[i].addr];
-                assetsData[i] = asset;
             }
-            uint price = currentPrices[i];
-            if (!isSleepageReverse) {
+            if (isExactInput) {
                 if (suppliedAmount > 0) {
                     uint transferred = getTransferredAmount(asset, tokenAddress);
+
                     if (!(transferred >= uint(suppliedAmount))) revert InsuficcientBalance();
                     if (refundDust && (transferred - uint(suppliedAmount)) > 0) {
                         IERC20(tokenAddress).transfer(refundTo, transferred - uint(suppliedAmount));
                     }
+
                 } else {
                     uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
 
@@ -241,7 +250,6 @@ contract Multipool is
                     if (refundDust && (transferred - amount) > 0) {
                         IERC20(tokenAddress).transfer(refundTo, transferred - amount);
                     }
-
                     suppliedAmount = int(amount);
                 } else {
                     if (tokenAddress != address(this)) {
@@ -249,29 +257,14 @@ contract Multipool is
                     }
                 }
             }
-            if (tokenAddress == address(this)) {
-                ctx.totalSupplyDelta -= suppliedAmount;
-            }
-            selectedAssets[i].amount = suppliedAmount;
-            unchecked {
-                ++i;
-            }
-        }
-        for (uint i; i < selectedAssets.length;) {
-            address tokenAddress = selectedAssets[i].addr;
-            int suppliedAmount = selectedAssets[i].amount;
-            uint price = currentPrices[i];
-            MpAsset memory asset = assetsData[i];
             if (tokenAddress != address(this)) {
-                ctx.calculateFees(asset, suppliedAmount, price);
+                ctx.calculateDeviationFee(asset, suppliedAmount, price);
                 assets[tokenAddress] = asset;
-            } else {
-                ctx.calculateFeesShareToken(suppliedAmount);
-            }
-            unchecked {
-                ++i;
             }
         }
+
+        ctx.calculateBaseFee(isExactInput);
+
         ctx.applyCollected(payable(refundTo));
         if (ctx.totalSupplyDelta > 0) {
             _mint(to, uint(ctx.totalSupplyDelta));
@@ -286,13 +279,13 @@ contract Multipool is
     function checkSwap(
         FPSharePriceArg calldata fpSharePrice,
         AssetArg[] calldata selectedAssets,
-        bool isSleepageReverse
+        bool isExactInput
     ) public view returns (int fee, int[] memory amounts) {
         amounts = new int[](selectedAssets.length);
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
 
-        for (uint i; i < selectedAssets.length;) {
+        for (uint i; i < selectedAssets.length;++i) {
             address tokenAddress = selectedAssets[i].addr;
             int suppliedAmount = selectedAssets[i].amount;
             MpAsset memory asset;
@@ -300,7 +293,7 @@ contract Multipool is
                 asset = assets[selectedAssets[i].addr];
             }
             uint price = currentPrices[i];
-            if (!isSleepageReverse) {
+            if (!isExactInput) {
                 if (suppliedAmount < 0) {
                     uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
                     suppliedAmount = -int(amount);
@@ -312,15 +305,11 @@ contract Multipool is
                 }
             }
             amounts[i] = suppliedAmount;
-            if (tokenAddress != address(this)) {
-                ctx.calculateFees(asset, suppliedAmount, price);
-            } else {
-                ctx.calculateFeesShareToken(suppliedAmount);
-            }
-            unchecked {
-                ++i;
-            }
+            if (tokenAddress != address(this)) 
+                ctx.calculateDeviationFee(asset, suppliedAmount, price);
         }
+
+        ctx.calculateBaseFee(isExactInput);
         fee = -ctx.unusedEthBalance;
     }
 
