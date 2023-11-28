@@ -22,14 +22,8 @@ contract MintMultipool is Script {
         MpAsset memory asset = mp.getAsset(token);
 
         Multipool.AssetArg[] memory a = new Multipool.AssetArg[](2);
-        a[0] = Multipool.AssetArg({
-            addr: address(t),
-            amount: 10e18
-        });
-        a[1] = Multipool.AssetArg({
-            addr: address(t),
-            amount: -10e18
-        });
+        a[0] = Multipool.AssetArg({addr: address(t), amount: 10e18});
+        a[1] = Multipool.AssetArg({addr: address(t), amount: -10e18});
 
         t.mint(multipool, 10e18);
         //mp.swap(a);

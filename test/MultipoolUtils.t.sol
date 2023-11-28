@@ -62,7 +62,7 @@ contract MultipoolUtils is Test {
         }
         for (uint u; u < userNum; u++) {
             for (uint t; t < tokenNum; t++) {
-                tokens[t].mint(users[u], 10000000000e18);
+                tokens[t].mint(users[u], 100e18);
             }
         }
     }
@@ -112,7 +112,7 @@ contract MultipoolUtils is Test {
         args = sort(args);
 
         Multipool.FPSharePriceArg memory fp;
-        mp.swap(fp, args, true, to, true, address(0));
+        mp.swap(fp, args, true, to, users[3]);
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
         vm.stopPrank();
     }
@@ -134,14 +134,14 @@ contract MultipoolUtils is Test {
             bytes memory signature = abi.encodePacked(r, s, v);
             fp.signature = signature;
         }
-        mp.swap{value: ethValue}(fp, assets, true, to, false, address(0));
+        mp.swap{value: ethValue}(fp, assets, true, to, users[3]);
     }
 
-    function checkSwap(
-        Multipool.AssetArg[] memory assets, 
-        bool isSleepageReverse,
-        SharePriceParams memory sp
-    ) public view returns (int fee, int[] memory amounts) {
+    function checkSwap(Multipool.AssetArg[] memory assets, bool isSleepageReverse, SharePriceParams memory sp)
+        public
+        view
+        returns (int fee, int[] memory amounts)
+    {
         Multipool.FPSharePriceArg memory fp;
         if (sp.send) {
             fp.thisAddress = owner;
@@ -203,63 +203,55 @@ contract MultipoolUtils is Test {
     }
 
     function snapMultipool(string memory path) public {
-        User[] memory usrs = new User[](users.length+1);
-
         string memory usersJson;
         string memory tokenJson;
         string memory mpJson;
 
+        address[] memory userAddresses = new address[](users.length+1);
         for (uint i; i < users.length; ++i) {
-            usrs[i].addr = users[i];
-            usrs[i].ethBalance = address(users[i]).balance;
-            vm.serializeString("t", "ethBalance", jsonString(usrs[i].ethBalance));
+            userAddresses[i] = users[i];
+        }
+        userAddresses[users.length] = address(mp);
+
+        for (uint i; i < userAddresses.length; ++i) {
+            address user = userAddresses[i];
+            uint ethBalance = address(user).balance;
+            vm.serializeString("t", "ethBalance", jsonString(ethBalance));
             TokenBalance[] memory balances = new TokenBalance[](tokens.length+1);
             for (uint j; j < tokens.length; ++j) {
                 balances[j].token = address(tokens[j]);
-                balances[j].balance = tokens[j].balanceOf(users[i]);
-                vm.serializeString("t", string.concat("tokenBalance", vm.toString(i)), jsonString(balances[j].balance));
+                balances[j].balance = tokens[j].balanceOf(user);
+                vm.serializeString("t", string.concat("tokenBalance", vm.toString(j)), jsonString(balances[j].balance));
             }
             balances[tokens.length].token = address(mp);
-            balances[tokens.length].balance = mp.balanceOf(users[i]);
+            balances[tokens.length].balance = mp.balanceOf(user);
             string memory userJson =
                 vm.serializeString("t", "tokenBalanceMultipool", jsonString(balances[tokens.length].balance));
 
-            usrs[i].balances = balances;
-            usersJson = vm.serializeString("users", string.concat("user", vm.toString(i)), userJson);
+            if (user == address(mp)) {
+                usersJson = vm.serializeString("users", "multipool", userJson);
+            } else {
+                usersJson = vm.serializeString("users", string.concat("user", vm.toString(i)), userJson);
+            }
         }
 
-        Asset[] memory assets = new Asset[](tokens.length);
         for (uint i; i < tokens.length; ++i) {
-            assets[i].addr = address(tokens[i]);
             MpAsset memory a = mp.getAsset(address(tokens[i]));
-            assets[i].collectedCashbacks = a.collectedCashbacks;
-            vm.serializeString("tk", "cashbacks", jsonString(assets[i].collectedCashbacks));
-            assets[i].share = a.share;
-            vm.serializeString("tk", "share", jsonString(assets[i].share));
-            assets[i].quantity = a.quantity;
-            string memory token = vm.serializeString("tk", "quantity", jsonString(assets[i].quantity));
+            vm.serializeString("tk", "cashbacks", jsonString(a.collectedCashbacks));
+            vm.serializeString("tk", "share", jsonString(a.share));
+            string memory token = vm.serializeString("tk", "quantity", jsonString(a.quantity));
             tokenJson = vm.serializeString("token", string.concat("token", vm.toString(i)), token);
         }
 
-        MpData memory data;
-        data.totalSupply = mp.totalSupply();
-        vm.serializeString("multipool", "totalSupply", jsonString(data.totalSupply));
-        data.totalCashback = mp.totalCollectedCashbacks();
-        vm.serializeString("multipool", "totalCashback", jsonString(data.totalCashback));
-        data.totalCollectedFees = mp.collectedFees();
-        vm.serializeString("multipool", "totalFees", jsonString(data.totalCollectedFees));
-        data.totalShares = mp.totalTargetShares();
-        mpJson = vm.serializeString("multipool", "totalShares", jsonString(data.totalShares));
+        vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
+        vm.serializeString("multipool", "totalCashback", jsonString(mp.totalCollectedCashbacks()));
+        vm.serializeString("multipool", "totalFees", jsonString(mp.collectedFees()));
+        mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.totalTargetShares()));
 
         string memory snapJson;
         vm.serializeString("snap", "users", usersJson);
         vm.serializeString("snap", "tokens", tokenJson);
         snapJson = vm.serializeString("snap", "multipool", mpJson);
-
-        Snapshot memory snap;
-        snap.assets = assets;
-        snap.users = usrs;
-        snap.multipool = data;
 
         string memory oldJson;
         string memory fpath = string.concat("test/snapshots/", string.concat(path, ".json"));
@@ -272,25 +264,27 @@ contract MultipoolUtils is Test {
         if (
             keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson)))
                 && vm.envBool("CHECK_SNAPS")
-        ) 
+        ) {
             revert(string.concat("Snapshots are not equal for ", path));
-        if (keccak256(abi.encodePacked((oldJson))) == keccak256(abi.encodePacked((newJson)))) 
+        }
+        if (keccak256(abi.encodePacked((oldJson))) == keccak256(abi.encodePacked((newJson)))) {
             vm.removeFile(nfpath);
+        }
     }
 
-      function sort(Multipool.AssetArg[] memory arr) public pure returns (Multipool.AssetArg[] memory a) {
+    function sort(Multipool.AssetArg[] memory arr) public pure returns (Multipool.AssetArg[] memory a) {
         uint i;
         Multipool.AssetArg memory key;
         uint j;
 
-        for(i = 1; i < arr.length; i++ ) {
-          key = arr[i];
+        for (i = 1; i < arr.length; i++) {
+            key = arr[i];
 
-          for(j = i; j > 0 && arr[j-1].addr > key.addr; j-- ) {
-            arr[j] = arr[j-1];
-          }
+            for (j = i; j > 0 && arr[j - 1].addr > key.addr; j--) {
+                arr[j] = arr[j - 1];
+            }
 
-          arr[j] = key;
+            arr[j] = key;
         }
         a = arr;
     }
