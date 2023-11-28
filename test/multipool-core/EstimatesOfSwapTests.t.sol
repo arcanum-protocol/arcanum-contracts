@@ -23,13 +23,16 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         changePrice(address(tokens[0]), newPrice);
         tokens[0].mint(address(mp), val);
 
+        console.log("Here: ", val);
         SharePriceParams memory sp;
         (int expectedFee, int[] memory amounts) = checkSwap(
-            dynamic(
-                [
-                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                    Multipool.AssetArg({addr: address(mp), amount: -1e18})
-                ]
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArg({addr: address(mp), amount: -1e18})
+                    ]
+                )
             ),
             false,
             sp
@@ -37,15 +40,18 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
 
         assertEq(expectedFee, 211999993285785121);
         assertEq(amounts.length, 2);
-        assertEq(amounts[0], int(val));
-        assertEq(amounts[1], -int(100e18 + 1000));
-        
+        assertEq(amounts[1], int(val));
+        assertEq(amounts[0], -int(100e18 + 1000));
+
+        console.log("Here");
         swap(
-            dynamic(
-                [
-                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                    Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
-                ]
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                    ]
+                )
             ),
             100e18,
             users[0],

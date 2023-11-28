@@ -1,7 +1,7 @@
 {
   "multipool": {
     "totalCashback": "0",
-    "totalFees": "999999977648258204",
+    "totalFees": "499999988824129104",
     "totalShares": "50000000000000000000",
     "totalSupply": "16500000000000000000020"
   },
@@ -33,30 +33,49 @@
     }
   },
   "users": {
+    "multipool": {
+      "ethBalance": "499999988824129104",
+      "tokenBalance0": "41000000000000000000",
+      "tokenBalance1": "15500000000000000000",
+      "tokenBalance2": "62000000000000000000",
+      "tokenBalance3": "124000000000000000000",
+      "tokenBalance4": "31000000000000000000",
+      "tokenBalanceMultipool": "0"
+    },
     "user0": {
       "ethBalance": "0",
-      "tokenBalance0": "10000000000000000000000000000",
+      "tokenBalance0": "100000000000000000000",
+      "tokenBalance1": "100000000000000000000",
+      "tokenBalance2": "100000000000000000000",
+      "tokenBalance3": "100000000000000000000",
+      "tokenBalance4": "100000000000000000000",
       "tokenBalanceMultipool": "0"
     },
     "user1": {
       "ethBalance": "0",
-      "tokenBalance0": "10000000000000000000000000000",
-      "tokenBalance1": "10000000000000000000000000000",
+      "tokenBalance0": "100000000000000000000",
+      "tokenBalance1": "100000000000000000000",
+      "tokenBalance2": "100000000000000000000",
+      "tokenBalance3": "100000000000000000000",
+      "tokenBalance4": "100000000000000000000",
       "tokenBalanceMultipool": "0"
     },
     "user2": {
       "ethBalance": "0",
-      "tokenBalance0": "10000000000000000000000000000",
-      "tokenBalance1": "10000000000000000000000000000",
-      "tokenBalance2": "10000000000000000000000000000",
+      "tokenBalance0": "100000000000000000000",
+      "tokenBalance1": "100000000000000000000",
+      "tokenBalance2": "100000000000000000000",
+      "tokenBalance3": "100000000000000000000",
+      "tokenBalance4": "100000000000000000000",
       "tokenBalanceMultipool": "0"
     },
     "user3": {
-      "ethBalance": "0",
-      "tokenBalance0": "10000000000000000000000000000",
-      "tokenBalance1": "10000000000000000000000000000",
-      "tokenBalance2": "10000000000000000000000000000",
-      "tokenBalance3": "10000000000000000000000000000",
+      "ethBalance": "500000011175870896",
+      "tokenBalance0": "100000000000000000000",
+      "tokenBalance1": "100000000000000000000",
+      "tokenBalance2": "100000000000000000000",
+      "tokenBalance3": "100000000000000000000",
+      "tokenBalance4": "100000000000000000000",
       "tokenBalanceMultipool": "16500000000000000000020"
     }
   }

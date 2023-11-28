@@ -44,7 +44,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         args[5] = Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
 
         SharePriceParams memory sp;
-        swap(args, 1e18, users[3], sp);
+        swap(sort(args), 1e18, users[3], sp);
 
         snapMultipool("MintFromAllAssetsWithEqualProportions");
     }
@@ -61,11 +61,13 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         SharePriceParams memory sp;
         swap(
-            dynamic(
-                [
-                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                    Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
-                ]
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                    ]
+                )
             ),
             100e18,
             users[0],
@@ -106,18 +108,19 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         tokens[0].mint(address(mp), 1e18);
         tokens[1].mint(address(mp), 0.5e18);
 
-        console.log("HERE");
         // swap 2 tokens for 2 tokens
         SharePriceParams memory sp;
         swap(
-            sort(dynamic(
-                [
-                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)}),
-                    Multipool.AssetArg({addr: address(tokens[1]), amount: int(0.5e18)}),
-                    Multipool.AssetArg({addr: address(tokens[2]), amount: int(-2e18)}),
-                    Multipool.AssetArg({addr: address(tokens[3]), amount: int(-4e18)})
-                ]
-            )),
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)}),
+                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(0.5e18)}),
+                        Multipool.AssetArg({addr: address(tokens[2]), amount: int(-2e18)}),
+                        Multipool.AssetArg({addr: address(tokens[3]), amount: int(-4e18)})
+                    ]
+                )
+            ),
             100e18,
             users[0],
             sp
@@ -127,26 +130,26 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         vm.prank(users[3]);
         mp.transfer(address(mp), 17000000000000000000010);
-        console.log("HERE");
         // burn everything
         swap(
             sort(
                 dynamic(
-                [
-                    Multipool.AssetArg({addr: address(mp), amount: int(17000000000000000000010)}),
-                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(-41e18)}),
-                    Multipool.AssetArg({addr: address(tokens[1]), amount: int(-15.5e18)}),
-                    Multipool.AssetArg({addr: address(tokens[2]), amount: int(-78e18)}),
-                    Multipool.AssetArg({addr: address(tokens[3]), amount: int(-116e18)}),
-                    Multipool.AssetArg({addr: address(tokens[4]), amount: int(-30e18)})
-                ]
-            )),
+                    [
+                        Multipool.AssetArg({addr: address(mp), amount: int(17000000000000000000010)}),
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(-41e18)}),
+                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(-15.5e18)}),
+                        Multipool.AssetArg({addr: address(tokens[2]), amount: int(-78e18)}),
+                        Multipool.AssetArg({addr: address(tokens[3]), amount: int(-116e18)}),
+                        Multipool.AssetArg({addr: address(tokens[4]), amount: int(-30e18)})
+                    ]
+                )
+            ),
             100e18,
             users[0],
             sp
         );
         snapMultipool("SwapHappyPath2");
 
-       // // bootstrap new
+        // // bootstrap new
     }
 }

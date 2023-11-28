@@ -48,7 +48,6 @@ contract MultipoolRouter is ReentrancyGuard {
         Multipool.AssetArg[] selectedAssets;
         bool isSleepageReverse;
         address to;
-        bool refundDust;
         address refundTo;
     }
 
@@ -65,14 +64,10 @@ contract MultipoolRouter is ReentrancyGuard {
                 if (!isContractAllowedToCall[params.target]) revert ContractCallNotAllowed(params.target);
                 (bool success,) = params.target.call{value: params.ethValue}(params.targetData);
                 if (!success) revert PredecessingCallFailed(i);
-
             } else if (paramsBefore[i].callType == CallType.ERC20Transfer) {
-
                 TokenTransferParams memory params = abi.decode(paramsBefore[i].data, (TokenTransferParams));
                 IERC20(params.token).transferFrom(msg.sender, params.targetOrOrigin, params.amount);
-
             } else if (paramsBefore[i].callType == CallType.ERC20Approve) {
-
                 RouterApproveParams memory params = abi.decode(paramsBefore[i].data, (RouterApproveParams));
                 if (!isContractAllowedToCall[params.target]) revert ContractCallNotAllowed(params.target);
                 IERC20(params.token).approve(params.target, params.amount);
@@ -87,12 +82,7 @@ contract MultipoolRouter is ReentrancyGuard {
             }
         }
         Multipool(poolAddress).swap(
-            swapArgs.fpSharePrice,
-            swapArgs.selectedAssets,
-            swapArgs.isSleepageReverse,
-            swapArgs.to,
-            swapArgs.refundDust,
-            swapArgs.refundTo
+            swapArgs.fpSharePrice, swapArgs.selectedAssets, swapArgs.isSleepageReverse, swapArgs.to, swapArgs.refundTo
         );
 
         for (uint i; i < paramsAfter.length; ++i) {
@@ -102,9 +92,7 @@ contract MultipoolRouter is ReentrancyGuard {
                 if (!isContractAllowedToCall[params.target]) revert ContractCallNotAllowed(params.target);
                 (bool success,) = params.target.call{value: params.ethValue}(params.targetData);
                 if (!success) revert SubsequentCallFailed(i);
-
             } else if (paramsAfter[i].callType == CallType.ERC20Transfer) {
-
                 TokenTransferParams memory params = abi.decode(paramsAfter[i].data, (TokenTransferParams));
                 IERC20(params.token).transferFrom(address(this), params.targetOrOrigin, params.amount);
             }

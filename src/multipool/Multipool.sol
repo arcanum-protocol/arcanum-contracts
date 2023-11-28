@@ -54,7 +54,7 @@ contract Multipool is
     error IsPaused();
 
     //------------- Events ------------
-    
+
     event AssetChange(address indexed token, uint quantity, uint128 share, uint128 collcectedCashback);
     event FeesChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
     event ShareChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
@@ -92,19 +92,11 @@ contract Multipool is
         _;
     }
 
-    function getPriceFeed(address asset)
-        public
-        view
-        returns (FeedInfo memory f)
-    {
+    function getPriceFeed(address asset) public view returns (FeedInfo memory f) {
         f = prices[asset];
     }
 
-    function getPrice(address asset)
-        public
-        view
-        returns (uint price)
-    {
+    function getPrice(address asset) public view returns (uint price) {
         price = prices[asset].getPrice();
     }
 
@@ -151,10 +143,6 @@ contract Multipool is
         ctx.unusedEthBalance = int(address(this).balance - ctx.totalCollectedCashbacks - ctx.collectedFees);
     }
 
-    function getTransferredAmount(MpAsset memory asset, address assetAddress) internal view returns (uint amount) {
-        amount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
-    }
-
     function getPricesAndSumQuotes(MpContext memory ctx, AssetArg[] memory selectedAssets)
         internal
         view
@@ -163,7 +151,7 @@ contract Multipool is
         uint arrayLen = selectedAssets.length;
         address prevAddress = address(0);
         pr = new uint[](arrayLen);
-        for (uint i; i < arrayLen;++i) {
+        for (uint i; i < arrayLen; ++i) {
             address currentAddress = selectedAssets[i].addr;
             int amount = selectedAssets[i].amount;
 
@@ -187,6 +175,36 @@ contract Multipool is
         }
     }
 
+    function transferAsset(address asset, uint quantity, address to) internal {
+        if (asset != address(this)) {
+            IERC20(asset).transfer(to, quantity);
+        } else {
+            _mint(to, quantity);
+        }
+    }
+
+    function receiveAsset(MpAsset memory asset, address assetAddress, uint requiredAmount, address refundAddress)
+        internal
+    {
+        uint unusedAmount;
+        if (assetAddress != address(this)) {
+            unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
+            if (unusedAmount < requiredAmount) revert InsuficcientBalance();
+
+            uint left = unusedAmount - requiredAmount;
+            if (refundAddress != address(0) && left > 0) {
+                IERC20(assetAddress).transfer(refundAddress, left);
+            }
+        } else {
+            _burn(address(this), requiredAmount);
+
+            uint left = balanceOf(address(this));
+            if (refundAddress != address(0) && left > 0) {
+                transfer(refundAddress, left);
+            }
+        }
+    }
+
     struct AssetArg {
         address addr;
         int amount;
@@ -204,7 +222,6 @@ contract Multipool is
         AssetArg[] calldata selectedAssets,
         bool isExactInput,
         address to,
-        bool refundDust,
         address refundTo
     ) public payable notPaused nonReentrant {
         MpContext memory ctx = getContext(fpSharePrice);
@@ -212,7 +229,7 @@ contract Multipool is
 
         ctx.calculateTotalSupplyDelta(isExactInput);
 
-        for (uint i; i < selectedAssets.length;++i) {
+        for (uint i; i < selectedAssets.length; ++i) {
             address tokenAddress = selectedAssets[i].addr;
             int suppliedAmount = selectedAssets[i].amount;
             uint price = currentPrices[i];
@@ -221,101 +238,74 @@ contract Multipool is
             if (selectedAssets[i].addr != address(this)) {
                 asset = assets[selectedAssets[i].addr];
             }
-            if (isExactInput) {
-                if (suppliedAmount > 0) {
-                    uint transferred = getTransferredAmount(asset, tokenAddress);
 
-                    if (!(transferred >= uint(suppliedAmount))) revert InsuficcientBalance();
-                    if (refundDust && (transferred - uint(suppliedAmount)) > 0) {
-                        IERC20(tokenAddress).transfer(refundTo, transferred - uint(suppliedAmount));
-                    }
-
-                } else {
-                    uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
-
-                    if (!(int(amount) >= suppliedAmount)) revert SleepageExceeded();
-                    if (tokenAddress != address(this)) {
-                        IERC20(tokenAddress).transfer(to, amount);
-                    }
-
-                    suppliedAmount = -int(amount);
-                }
-            } else {
-                if (suppliedAmount > 0) {
-                    uint amount = ctx.cummulativeOutAmount * uint(suppliedAmount) / ctx.cummulativeInAmount;
-
-                    uint transferred = getTransferredAmount(asset, tokenAddress);
-                    if (!(amount <= uint(suppliedAmount))) revert SleepageExceeded();
-                    if (!(transferred >= amount)) revert InsuficcientBalance();
-                    if (refundDust && (transferred - amount) > 0) {
-                        IERC20(tokenAddress).transfer(refundTo, transferred - amount);
-                    }
-                    suppliedAmount = int(amount);
-                } else {
-                    if (tokenAddress != address(this)) {
-                        IERC20(tokenAddress).transfer(to, uint(-suppliedAmount));
-                    }
-                }
+            if (isExactInput && suppliedAmount < 0) {
+                int amount = int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
+                if (amount > suppliedAmount) revert SleepageExceeded();
+                suppliedAmount = amount;
+            } else if (!isExactInput && suppliedAmount > 0) {
+                int amount = int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
+                if (amount > suppliedAmount) revert SleepageExceeded();
+                suppliedAmount = amount;
             }
+
+            if (suppliedAmount > 0) {
+                receiveAsset(asset, tokenAddress, uint(suppliedAmount), refundTo);
+            } else {
+                transferAsset(tokenAddress, uint(-suppliedAmount), to);
+            }
+
             if (tokenAddress != address(this)) {
                 ctx.calculateDeviationFee(asset, suppliedAmount, price);
                 assets[tokenAddress] = asset;
             }
         }
-
         ctx.calculateBaseFee(isExactInput);
-
         ctx.applyCollected(payable(refundTo));
-        if (ctx.totalSupplyDelta > 0) {
-            _mint(to, uint(ctx.totalSupplyDelta));
-        } else if (ctx.totalSupplyDelta < 0) {
-            _burn(address(this), uint(-ctx.totalSupplyDelta));
-        }
-
         totalCollectedCashbacks = ctx.totalCollectedCashbacks;
         collectedFees = ctx.collectedFees;
     }
 
-    function checkSwap(
-        FPSharePriceArg calldata fpSharePrice,
-        AssetArg[] calldata selectedAssets,
-        bool isExactInput
-    ) public view returns (int fee, int[] memory amounts) {
-        amounts = new int[](selectedAssets.length);
+    function checkSwap(FPSharePriceArg calldata fpSharePrice, AssetArg[] calldata selectedAssets, bool isExactInput)
+        public
+        view
+        returns (int fee, int[] memory amounts)
+    {
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
+        amounts = new int[](selectedAssets.length);
+        ctx.calculateTotalSupplyDelta(isExactInput);
 
-        for (uint i; i < selectedAssets.length;++i) {
+        for (uint i; i < selectedAssets.length; ++i) {
             address tokenAddress = selectedAssets[i].addr;
             int suppliedAmount = selectedAssets[i].amount;
+            uint price = currentPrices[i];
+
             MpAsset memory asset;
             if (selectedAssets[i].addr != address(this)) {
                 asset = assets[selectedAssets[i].addr];
             }
-            uint price = currentPrices[i];
-            if (!isExactInput) {
-                if (suppliedAmount < 0) {
-                    uint amount = ctx.cummulativeInAmount * uint(-suppliedAmount) / ctx.cummulativeOutAmount;
-                    suppliedAmount = -int(amount);
-                }
-            } else {
-                if (suppliedAmount > 0) {
-                    uint amount = ctx.cummulativeOutAmount * uint(suppliedAmount) / ctx.cummulativeInAmount;
-                    suppliedAmount = int(amount);
-                }
+
+            if (isExactInput && suppliedAmount < 0) {
+                int amount = int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
+                suppliedAmount = amount;
+            } else if (!isExactInput && suppliedAmount > 0) {
+                int amount = int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
+                suppliedAmount = amount;
+            }
+
+            if (tokenAddress != address(this)) {
+                ctx.calculateDeviationFee(asset, suppliedAmount, price);
             }
             amounts[i] = suppliedAmount;
-            if (tokenAddress != address(this)) 
-                ctx.calculateDeviationFee(asset, suppliedAmount, price);
         }
-
         ctx.calculateBaseFee(isExactInput);
         fee = -ctx.unusedEthBalance;
     }
 
     function increaseCashback(address assetAddress) public notPaused nonReentrant returns (uint amount) {
         MpAsset storage asset = assets[assetAddress];
-        amount = getTransferredAmount(asset, assetAddress);
+        amount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
         asset.collectedCashbacks += uint128(amount);
     }
 
@@ -366,5 +356,4 @@ contract Multipool is
     function toggleForcePushAuthority(address authority) external onlyOwner {
         isPriceSetter[authority] = !isPriceSetter[authority];
     }
-
 }

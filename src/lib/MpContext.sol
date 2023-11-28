@@ -28,11 +28,13 @@ struct MpContext {
 }
 
 using {
-    ContextMath.calculateDeviationFee, ContextMath.calculateBaseFee, ContextMath.calculateTotalSupplyDelta, ContextMath.applyCollected
+    ContextMath.calculateDeviationFee,
+    ContextMath.calculateBaseFee,
+    ContextMath.calculateTotalSupplyDelta,
+    ContextMath.applyCollected
 } for MpContext global;
 
 library ContextMath {
-
     error FeeExceeded();
     error DeviationExceedsLimit();
 
@@ -49,11 +51,15 @@ library ContextMath {
     }
 
     function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal view {
-        int delta = ctx.totalSupplyDelta; 
+        int delta = ctx.totalSupplyDelta;
         if (delta > 0) {
-            if (!isExactInput) ctx.totalSupplyDelta = int(ctx.cummulativeOutAmount * uint(delta) / ctx.cummulativeInAmount);
+            if (!isExactInput) {
+                ctx.totalSupplyDelta = int(ctx.cummulativeOutAmount * uint(delta) / ctx.cummulativeInAmount);
+            }
         } else {
-            if (isExactInput) ctx.totalSupplyDelta = -int(ctx.cummulativeInAmount * uint(-delta) / ctx.cummulativeOutAmount);
+            if (isExactInput) {
+                ctx.totalSupplyDelta = -int(ctx.cummulativeInAmount * uint(-delta) / ctx.cummulativeOutAmount);
+            }
         }
     }
 
@@ -64,22 +70,24 @@ library ContextMath {
         ctx.collectedFees += fee;
     }
 
-    function calculateDeviationFee(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price) internal view {
+    function calculateDeviationFee(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price)
+        internal
+        view
+    {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
         uint targetShare = (asset.share << 32) / ctx.totalTargetShares;
 
-        uint dOld = ctx.oldTotalSupply == 0 ? 0 : subAbs(
-            (asset.quantity * price << 32) / ctx.oldTotalSupply / ctx.sharePrice,
-            targetShare
-        );
-        uint dNew = newTotalSupply == 0 ? 0 : subAbs(
-            (newQuantity * price << 32) / newTotalSupply / ctx.sharePrice, 
-            targetShare
-        );
+        uint dOld = ctx.oldTotalSupply == 0
+            ? 0
+            : subAbs((asset.quantity * price << 32) / ctx.oldTotalSupply / ctx.sharePrice, targetShare);
+        uint dNew =
+            newTotalSupply == 0 ? 0 : subAbs((newQuantity * price << 32) / newTotalSupply / ctx.sharePrice, targetShare);
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
         if (dNew > dOld) {
+            console.log("DEV: ", dNew);
+            console.log("DELTA: ", uint(quotedDelta));
             if (!(ctx.deviationLimit >= dNew)) revert DeviationExceedsLimit();
             uint deviationFee = (ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)) >> 32;
             uint basePart = (deviationFee * ctx.depegBaseFee) >> 32;
