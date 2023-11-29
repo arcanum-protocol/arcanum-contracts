@@ -28,7 +28,6 @@ struct FeedInfo {
 using {PriceMath.getPrice} for FeedInfo global;
 
 library PriceMath {
-
     error NoPriceOriginSet();
 
     function getPrice(FeedInfo memory feed) internal view returns (uint price) {

@@ -124,6 +124,18 @@ contract MultipoolUtils is Test {
     }
 
     function swap(Multipool.AssetArg[] memory assets, uint ethValue, address to, SharePriceParams memory sp) public {
+        swapExt(assets, ethValue, to, sp, users[3], true, abi.encode(0));
+    }
+
+    function swapExt(
+        Multipool.AssetArg[] memory assets,
+        uint ethValue,
+        address to,
+        SharePriceParams memory sp,
+        address refundTo,
+        bool isExactInput,
+        bytes memory error
+    ) public {
         Multipool.FPSharePriceArg memory fp;
         if (sp.send) {
             fp.thisAddress = owner;
@@ -134,7 +146,10 @@ contract MultipoolUtils is Test {
             bytes memory signature = abi.encodePacked(r, s, v);
             fp.signature = signature;
         }
-        mp.swap{value: ethValue}(fp, assets, true, to, users[3]);
+        if (keccak256(error) != keccak256(abi.encode(0))) {
+            vm.expectRevert(error);
+        }
+        mp.swap{value: ethValue}(fp, assets, isExactInput, to, refundTo);
     }
 
     function checkSwap(Multipool.AssetArg[] memory assets, bool isExactInput, SharePriceParams memory sp)

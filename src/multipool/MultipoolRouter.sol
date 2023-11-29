@@ -73,14 +73,16 @@ contract MultipoolRouter is ReentrancyGuard {
         Call[] calldata paramsBefore,
         Call[] calldata paramsAfter
     ) public payable {
-        for (uint i; i < paramsBefore.length; ++i) 
+        for (uint i; i < paramsBefore.length; ++i) {
             processCall(paramsBefore[i], i);
+        }
 
         Multipool(poolAddress).swap(
             swapArgs.fpSharePrice, swapArgs.selectedAssets, swapArgs.isSleepageReverse, swapArgs.to, swapArgs.refundTo
         );
 
-        for (uint i; i < paramsAfter.length; ++i) 
+        for (uint i; i < paramsAfter.length; ++i) {
             processCall(paramsAfter[i], i);
+        }
     }
 }
