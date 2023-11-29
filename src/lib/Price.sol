@@ -28,6 +28,9 @@ struct FeedInfo {
 using {PriceMath.getPrice} for FeedInfo global;
 
 library PriceMath {
+
+    error NoPriceOriginSet();
+
     function getPrice(FeedInfo memory feed) internal view returns (uint price) {
         if (feed.kind == FeedType.FixedValue) {
             price = abi.decode(feed.data, (uint));
@@ -35,7 +38,7 @@ library PriceMath {
             UniV3Feed memory data = abi.decode(feed.data, (UniV3Feed));
             price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
         } else {
-            require(false, "No price origin set");
+            revert NoPriceOriginSet();
         }
     }
 

@@ -52,13 +52,13 @@ library ContextMath {
 
     function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal view {
         int delta = ctx.totalSupplyDelta;
-        if (delta > 0) {
+        if (delta < 0) {
             if (!isExactInput) {
-                ctx.totalSupplyDelta = int(ctx.cummulativeOutAmount * uint(delta) / ctx.cummulativeInAmount);
+                ctx.totalSupplyDelta = int(ctx.cummulativeOutAmount) * delta / int(ctx.cummulativeInAmount);
             }
         } else {
             if (isExactInput) {
-                ctx.totalSupplyDelta = -int(ctx.cummulativeInAmount * uint(-delta) / ctx.cummulativeOutAmount);
+                ctx.totalSupplyDelta = int(ctx.cummulativeInAmount) * delta / int(ctx.cummulativeOutAmount);
             }
         }
     }
@@ -86,8 +86,6 @@ library ContextMath {
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
         if (dNew > dOld) {
-            console.log("DEV: ", dNew);
-            console.log("DELTA: ", uint(quotedDelta));
             if (!(ctx.deviationLimit >= dNew)) revert DeviationExceedsLimit();
             uint deviationFee = (ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)) >> 32;
             uint basePart = (deviationFee * ctx.depegBaseFee) >> 32;

@@ -6,7 +6,6 @@
 //import {MockERC20} from "../../src/mocks/erc20.sol";
 //import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 //import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
-//import {MultipoolMassiveMintRouter} from "../../src/multipool/MultipoolMassiveMintRouter.sol";
 //import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 //
 //contract MockCallSomething is Test {
@@ -29,7 +28,6 @@
 //contract MultipoolRouterCases is Test {
 //    Multipool mp;
 //    MultipoolRouter router;
-//    MultipoolMassiveMintRouter massiveRouter;
 //
 //    MockCallSomething mocked;
 //

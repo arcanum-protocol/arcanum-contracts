@@ -137,7 +137,7 @@ contract MultipoolUtils is Test {
         mp.swap{value: ethValue}(fp, assets, true, to, users[3]);
     }
 
-    function checkSwap(Multipool.AssetArg[] memory assets, bool isSleepageReverse, SharePriceParams memory sp)
+    function checkSwap(Multipool.AssetArg[] memory assets, bool isExactInput, SharePriceParams memory sp)
         public
         view
         returns (int fee, int[] memory amounts)
@@ -152,7 +152,7 @@ contract MultipoolUtils is Test {
             bytes memory signature = abi.encodePacked(r, s, v);
             fp.signature = signature;
         }
-        (fee, amounts) = mp.checkSwap(fp, assets, isSleepageReverse);
+        (fee, amounts) = mp.checkSwap(fp, assets, isExactInput);
     }
 
     function changePrice(address asset, uint price) public {
@@ -263,7 +263,7 @@ contract MultipoolUtils is Test {
 
         if (
             keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson)))
-                && vm.envBool("CHECK_SNAPS")
+                && vm.envOr("CHECK_SNAPS", true)
         ) {
             revert(string.concat("Snapshots are not equal for ", path));
         }
