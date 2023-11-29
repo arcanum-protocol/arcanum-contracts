@@ -226,7 +226,6 @@ contract Multipool is
     ) public payable notPaused nonReentrant {
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
-
         ctx.calculateTotalSupplyDelta(isExactInput);
 
         for (uint i; i < selectedAssets.length; ++i) {
@@ -249,11 +248,8 @@ contract Multipool is
                 suppliedAmount = amount;
             }
 
-            if (suppliedAmount > 0) {
-                receiveAsset(asset, tokenAddress, uint(suppliedAmount), refundTo);
-            } else {
-                transferAsset(tokenAddress, uint(-suppliedAmount), to);
-            }
+            if (suppliedAmount > 0) receiveAsset(asset, tokenAddress, uint(suppliedAmount), refundTo);
+            else transferAsset(tokenAddress, uint(-suppliedAmount), to);
 
             if (tokenAddress != address(this)) {
                 ctx.calculateDeviationFee(asset, suppliedAmount, price);
