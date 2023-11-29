@@ -62,6 +62,5 @@ contract MultipoolPriceFetching is Test {
         ethPool.withdraw(address(weth), 10e18, address(this));
 
         console.log("A balance: ", aaveETH.balanceOf(address(this)));
-
     }
 }
