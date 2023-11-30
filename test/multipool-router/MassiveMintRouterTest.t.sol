@@ -1,270 +1,179 @@
-//pragma solidity >=0.8.19;
-//
-//import "forge-std/Test.sol";
-//import "openzeppelin/token/ERC20/ERC20.sol";
-//import "openzeppelin/access/Ownable.sol";
-//import {MockERC20} from "../../src/mocks/erc20.sol";
-//import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-//import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
-//import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-//
-//contract MockCallSomething is Test {
-//    function callWithEther(uint amount, address token, address to) public payable {
-//        require(msg.value != 0, "fail");
-//        IERC20(token).transferFrom(msg.sender, to, amount);
-//    }
-//
-//    function callNoEther(uint amount, address token, address to) public {
-//        IERC20(token).transferFrom(msg.sender, to, amount);
-//    }
-//
-//    function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to) public {
-//        for (uint i = 0; i < tokens.length; i++) {
-//            IERC20(tokens[i]).transfer(to, amounts[i]);
-//        }
-//    }
-//}
-//
-//contract MultipoolRouterCases is Test {
-//    Multipool mp;
-//    MultipoolRouter router;
-//
-//    MockCallSomething mocked;
-//
-//    MockERC20[] tokens;
-//    address[] users;
-//    uint tokenNum;
-//    uint userNum;
-//
-//    function checkUsdCap() public {
-//        uint acc;
-//        for (uint i = 0; i < tokens.length; i++) {
-//            acc += mp.getAsset(address(tokens[i])).quantity * mp.getAsset(address(tokens[i])).price / 1e18;
-//        }
-//        assertEq(acc, mp.usdCap());
-//    }
-//
-//    function initMultipool() public {
-//        Multipool mpImpl = new Multipool();
-//        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
-//        mp = Multipool(address(proxy));
-//        mp.initialize("Name", "SYMBOL", address(this));
-//    }
-//
-//    function setUp() public {
-//        tokenNum = 3;
-//        userNum = 4;
-//
-//        initMultipool();
-//
-//        router = new MultipoolRouter();
-//        massiveRouter = new MultipoolMassiveMintRouter();
-//        mocked = new MockCallSomething();
-//
-//        for (uint i; i < tokenNum; i++) {
-//            tokens.push(new MockERC20('token', 'token', 0));
-//        }
-//        for (uint i; i < userNum; i++) {
-//            users.push(makeAddr(string(abi.encode(i, "router"))));
-//        }
-//        for (uint u; u < userNum; u++) {
-//            for (uint t; t < tokenNum; t++) {
-//                tokens[t].mint(users[u], 10000000000e18);
-//            }
-//        }
-//        for (uint i; i < tokenNum; i++) {
-//            for (uint u; u < userNum; u++) {
-//                vm.startPrank(users[u]);
-//                tokens[i].approve(address(router), 10000000000e18);
-//                vm.stopPrank();
-//            }
-//        }
-//    }
-//
-//    function bootstrapTokens(uint[3] memory shares) private {
-//        mp.setDeviationLimit(1e18); // 100%
-//
-//        address[] memory t = new address[](3);
-//        t[0] = address(tokens[0]);
-//        t[1] = address(tokens[1]);
-//        t[2] = address(tokens[2]);
-//
-//        uint[] memory s = new uint[](3);
-//        s[0] = 50e18;
-//        s[1] = 25e18;
-//        s[2] = 25e18;
-//
-//        uint[] memory p = new uint[](3);
-//        p[0] = 10e18;
-//        p[1] = 20e18;
-//        p[2] = 10e18;
-//
-//        mp.updatePrice(t[0], p[0], 0, address(0));
-//        mp.updatePrice(t[1], p[1], 0, address(0));
-//        mp.updatePrice(t[2], p[2], 0, address(0));
-//        mp.updatePrice(address(mp), shares[0] / 100, 0, address(0));
-//
-//        mp.updateTargetShares(t, s);
-//
-//        mp.setTokenDecimals(address(tokens[0]), 18);
-//        mp.setTokenDecimals(address(tokens[1]), 18);
-//        mp.setTokenDecimals(address(tokens[2]), 18);
-//
-//        tokens[0].mint(address(mp), shares[0] / 10);
-//        mp.mint(address(tokens[0]), 100e18, users[3]);
-//
-//        tokens[1].mint(address(mp), shares[1] / 20);
-//        mp.mint(address(tokens[1]), 100e18 * shares[1] / shares[0], users[3]);
-//
-//        tokens[2].mint(address(mp), shares[2] / 10);
-//        mp.mint(address(tokens[2]), 100e18 * shares[2] / shares[0], users[3]);
-//
-//        mp.setDeviationLimit(0.15e18); // 0.15
-//        mp.setHalfDeviationFee(0.0003e18); // 0.0003
-//        mp.setBaseTradeFee(0.01e18); // 0.01 1%
-//        mp.setBaseMintFee(0.001e18); // 0.001 0.1%
-//        mp.setBaseBurnFee(0.1e18); // 0.1 10%
-//        mp.setDepegBaseFee(0.6e18);
-//    }
-//
-//    function test_MassiveRouter_Mint() public {
-//        bootstrapTokens([uint(400e18), 300e18, 300e18]);
-//
-//        address[] memory t = new address[](3);
-//        t[0] = address(tokens[0]);
-//        t[1] = address(tokens[1]);
-//        t[2] = address(tokens[2]);
-//
-//        MultipoolMassiveMintRouter.CallParams[] memory calls = new MultipoolMassiveMintRouter.CallParams[](2);
-//        calls[0].targetData = abi.encodeCall(MockCallSomething.callNoEther, (20e18, address(tokens[0]), address(mp)));
-//        calls[0].target = address(mocked);
-//        calls[0].ethValue = 0;
-//
-//        calls[1].targetData = abi.encodeCall(MockCallSomething.callWithEther, (20e18, address(tokens[0]), address(mp)));
-//        calls[1].target = address(mocked);
-//        calls[1].ethValue = 10;
-//
-//        massiveRouter.toggleContract(address(mocked));
-//        massiveRouter.approveToken(address(tokens[0]), address(mocked));
-//
-//        tokens[1].mint(address(mp), 15e18);
-//        tokens[2].mint(address(mp), 30e18);
-//
-//        vm.prank(users[0]);
-//        tokens[0].approve(address(massiveRouter), 40e18);
-//        vm.deal(users[0], 1 ether);
-//        vm.prank(users[0]);
-//
-//        massiveRouter.massiveMint{value: 10}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
-//
-//        assertEq(mp.balanceOf(users[0]), 249.75e18);
-//        checkUsdCap();
-//    }
-//
-//    function test_MassiveRouter_FailLackEth() public {
-//        bootstrapTokens([uint(400e18), 300e18, 300e18]);
-//
-//        address[] memory t = new address[](3);
-//        t[0] = address(tokens[0]);
-//        t[1] = address(tokens[1]);
-//        t[2] = address(tokens[2]);
-//
-//        MultipoolMassiveMintRouter.CallParams[] memory calls = new MultipoolMassiveMintRouter.CallParams[](2);
-//        calls[0].targetData = abi.encodeCall(MockCallSomething.callNoEther, (20e18, address(tokens[0]), address(mp)));
-//        calls[0].target = address(mocked);
-//        calls[0].ethValue = 0;
-//
-//        calls[1].targetData = abi.encodeCall(MockCallSomething.callWithEther, (20e18, address(tokens[0]), address(mp)));
-//        calls[1].target = address(mocked);
-//        calls[1].ethValue = 10;
-//
-//        massiveRouter.toggleContract(address(mocked));
-//        massiveRouter.approveToken(address(tokens[0]), address(mocked));
-//
-//        tokens[1].mint(address(mp), 15e18);
-//        tokens[2].mint(address(mp), 30e18);
-//
-//        vm.prank(users[0]);
-//        tokens[0].approve(address(massiveRouter), 40e18);
-//        vm.deal(users[0], 1 ether);
-//        vm.prank(users[0]);
-//
-//        vm.expectRevert("MULTIPOOL_MASS_ROUTER: CF");
-//        massiveRouter.massiveMint{value: 1}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
-//        checkUsdCap();
-//    }
-//
-//    function test_MassiveRouter_FailFunctionRevert() public {
-//        bootstrapTokens([uint(400e18), 300e18, 300e18]);
-//
-//        address[] memory t = new address[](3);
-//        t[0] = address(tokens[0]);
-//        t[1] = address(tokens[1]);
-//        t[2] = address(tokens[2]);
-//
-//        MultipoolMassiveMintRouter.CallParams[] memory calls = new MultipoolMassiveMintRouter.CallParams[](2);
-//        calls[0].targetData = abi.encodeCall(MockCallSomething.callNoEther, (20e18, address(tokens[0]), address(mp)));
-//        calls[0].target = address(mocked);
-//        calls[0].ethValue = 0;
-//
-//        calls[1].targetData = abi.encodeCall(MockCallSomething.callWithEther, (20e18, address(tokens[0]), address(mp)));
-//        calls[1].target = address(mocked);
-//        calls[1].ethValue = 0;
-//
-//        massiveRouter.toggleContract(address(mocked));
-//        massiveRouter.approveToken(address(tokens[0]), address(mocked));
-//
-//        tokens[1].mint(address(mp), 15e18);
-//        tokens[2].mint(address(mp), 30e18);
-//
-//        vm.prank(users[0]);
-//        tokens[0].approve(address(massiveRouter), 40e18);
-//        vm.deal(users[0], 1 ether);
-//        vm.prank(users[0]);
-//
-//        vm.expectRevert("MULTIPOOL_MASS_ROUTER: CF");
-//        massiveRouter.massiveMint{value: 10}(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
-//        checkUsdCap();
-//    }
-//
-//    function test_MassiveRouter_GasExample() public {
-//        bootstrapTokens([uint(400e18), 300e18, 300e18]);
-//
-//        address[] memory t = new address[](3);
-//        t[0] = address(tokens[0]);
-//        t[1] = address(tokens[1]);
-//        t[2] = address(tokens[2]);
-//
-//        MultipoolMassiveMintRouter.CallParams[] memory calls = new MultipoolMassiveMintRouter.CallParams[](2);
-//        calls[0].targetData = abi.encodeCall(MockCallSomething.callNoEther, (40e18, address(tokens[0]), address(mp)));
-//        calls[0].target = address(mocked);
-//        calls[0].ethValue = 0;
-//
-//        address[] memory tokensArg = new address[](2);
-//        tokensArg[0] = address(tokens[1]);
-//        tokensArg[1] = address(tokens[2]);
-//
-//        uint[] memory amountsArg = new uint[](2);
-//        amountsArg[0] = 15e18;
-//        amountsArg[1] = 30e18;
-//
-//        calls[1].targetData =
-//            abi.encodeCall(MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp)));
-//        calls[1].target = address(mocked);
-//        calls[1].ethValue = 0;
-//
-//        massiveRouter.toggleContract(address(mocked));
-//        massiveRouter.approveToken(address(tokens[0]), address(mocked));
-//
-//        tokens[1].mint(address(mocked), 15e18);
-//        tokens[2].mint(address(mocked), 30e18);
-//
-//        vm.prank(users[0]);
-//        tokens[0].approve(address(massiveRouter), 40e18);
-//        vm.prank(users[0]);
-//
-//        massiveRouter.massiveMint(address(mp), address(tokens[0]), 40e18, 0, calls, t, users[0]);
-//        assertEq(mp.balanceOf(users[0]), 249.75e18);
-//        checkUsdCap();
-//    }
-//}
+pragma solidity >=0.8.19;
+
+import "forge-std/Test.sol";
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "openzeppelin/access/Ownable.sol";
+import {MockERC20} from "../../src/mocks/erc20.sol";
+import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
+import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
+
+contract MockCallSomething is Test {
+    function callWithEther(uint amount, address token, address to) public payable {
+        require(msg.value != 20e18, "fail");
+        IERC20(token).transfer(to, amount);
+    }
+
+    function callNoEther(uint amount, address token, address to) public {
+        IERC20(token).transferFrom(msg.sender, to, amount);
+    }
+
+    function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to) public {
+        for (uint i = 0; i < tokens.length; i++) {
+            IERC20(tokens[i]).transfer(to, amounts[i]);
+        }
+    }
+}
+
+contract MultipoolRouterCases is Test, MultipoolUtils {
+    MockCallSomething mocked;
+
+    function test_MassiveRouter_GasExample() public {
+        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+        mocked = new MockCallSomething();
+
+        Multipool.AssetArg[] memory assetArgs = sort(
+            dynamic(
+                [
+                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)}),
+                    Multipool.AssetArg({addr: address(tokens[1]), amount: int(0.5e18)}),
+                    Multipool.AssetArg({addr: address(tokens[2]), amount: int(-2e18)}),
+                    Multipool.AssetArg({addr: address(tokens[3]), amount: int(-4e18)})
+                ]
+            )
+        );
+        MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
+            fpSharePrice: Multipool.FPSharePriceArg({
+                thisAddress: address(0),
+                timestamp: 0,
+                value: 0,
+                signature: abi.encode(0)
+            }),
+            selectedAssets: assetArgs,
+            isExactInput: true,
+            to: users[0],
+            refundTo: users[0],
+            ethValue: 5e18
+        });
+
+        MultipoolRouter.Call[] memory calls = new MultipoolRouter.Call[](7);
+        calls[0] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ERC20Transfer,
+            data: abi.encode(
+                MultipoolRouter.TokenTransferParams({
+                    token: address(tokens[0]),
+                    targetOrOrigin: address(mocked),
+                    amount: 0.5e18
+                })
+                )
+        });
+
+        calls[1] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ERC20Approve,
+            data: abi.encode(
+                MultipoolRouter.RouterApproveParams({token: address(tokens[0]), target: address(mocked), amount: 0.5e18})
+                )
+        });
+
+        calls[2] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ANY,
+            data: abi.encode(
+                MultipoolRouter.CallParams({
+                    targetData: abi.encodeCall(MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))),
+                    target: address(mocked),
+                    ethValue: 20e18
+                })
+                )
+        });
+
+        address[] memory tokensArg = new address[](2);
+        tokensArg[0] = address(tokens[0]);
+        tokensArg[1] = address(tokens[1]);
+
+        uint[] memory amountsArg = new uint[](2);
+        amountsArg[0] = 0.5e18;
+        amountsArg[1] = 0.25e18;
+
+        calls[3] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ERC20Transfer,
+            data: abi.encode(
+                MultipoolRouter.TokenTransferParams({
+                    token: address(tokens[0]),
+                    targetOrOrigin: address(mocked),
+                    amount: 0.5e18
+                })
+                )
+        });
+
+        calls[4] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ERC20Transfer,
+            data: abi.encode(
+                MultipoolRouter.TokenTransferParams({
+                    token: address(tokens[1]),
+                    targetOrOrigin: address(mocked),
+                    amount: 0.25e18
+                })
+                )
+        });
+
+        calls[5] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ANY,
+            data: abi.encode(
+                MultipoolRouter.CallParams({
+                    targetData: abi.encodeCall(MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))),
+                    target: address(mocked),
+                    ethValue: 0
+                })
+                )
+        });
+
+        calls[6] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ERC20Transfer,
+            data: abi.encode(
+                MultipoolRouter.TokenTransferParams({
+                    token: address(tokens[1]),
+                    targetOrOrigin: address(mp),
+                    amount: 0.25e18
+                })
+                )
+        });
+
+        MultipoolRouter.Call[] memory callsAfter;
+
+        router.toggleContract(address(mocked));
+
+        vm.deal(users[0], 100 ether);
+
+        vm.prank(users[0]);
+        tokens[0].approve(address(router), 1e18);
+        vm.prank(users[0]);
+        tokens[1].approve(address(router), 1e18);
+
+        vm.prank(users[0]);
+        vm.expectRevert(abi.encodeWithSelector(MultipoolRouter.InsufficientEthBalance.selector, 2, true));
+        router.swap(address(mp), sa, calls, callsAfter);
+
+        vm.prank(users[0]);
+        vm.expectRevert(abi.encodeWithSelector(MultipoolRouter.InsufficientEthBalance.selector, 2, true));
+        router.swap{value: 1}(address(mp), sa, calls, callsAfter);
+
+        vm.prank(users[0]);
+        vm.expectRevert(abi.encodeWithSelector(MultipoolRouter.CallFailed.selector, 2, true));
+        router.swap{value: 20e18}(address(mp), sa, calls, callsAfter);
+
+        calls[2] = MultipoolRouter.Call({
+            callType: MultipoolRouter.CallType.ANY,
+            data: abi.encode(
+                MultipoolRouter.CallParams({
+                    targetData: abi.encodeCall(MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))),
+                    target: address(mocked),
+                    ethValue: 1e18
+                })
+                )
+        });
+
+        vm.prank(users[0]);
+        router.swap{value: 10e18}(address(mp), sa, calls, callsAfter);
+    }
+}

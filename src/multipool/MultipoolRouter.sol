@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "forge-std/Test.sol";
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
-import "../interfaces/IUniswapV2Pair.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
 import {MpAsset, MpContext, Multipool} from "./Multipool.sol";
 import {ReentrancyGuard} from "openzeppelin/utils/ReentrancyGuard.sol";
+import {Ownable} from "openzeppelin/access/Ownable.sol";
 
-contract MultipoolRouter is ReentrancyGuard {
+contract MultipoolRouter is Ownable {
+    constructor() Ownable(msg.sender) {}
+
     mapping(address => bool) isContractAllowedToCall;
+
+    function toggleContract(address contractAddress) public onlyOwner {
+        isContractAllowedToCall[contractAddress] = !isContractAllowedToCall[contractAddress];
+    }
 
     enum CallType {
         ERC20Transfer,
@@ -39,24 +46,27 @@ contract MultipoolRouter is ReentrancyGuard {
         bytes data;
     }
 
-    error PredecessingCallFailed(uint callNumber);
-    error SubsequentCallFailed(uint callNumber);
+    error CallFailed(uint callNumber, bool isPredecessing);
+    error InsufficientEthBalance(uint callNumber, bool isPredecessing);
+    error InsufficientEthBalanceCallingSwap();
     error ContractCallNotAllowed(address target);
 
     struct SwapArgs {
         Multipool.FPSharePriceArg fpSharePrice;
         Multipool.AssetArg[] selectedAssets;
-        bool isSleepageReverse;
+        bool isExactInput;
         address to;
         address refundTo;
+        uint ethValue;
     }
 
-    function processCall(Call memory call, uint index) internal {
+    function processCall(Call memory call, uint index, bool isPredecessing) internal {
         if (call.callType == CallType.ANY) {
             CallParams memory params = abi.decode(call.data, (CallParams));
             if (!isContractAllowedToCall[params.target]) revert ContractCallNotAllowed(params.target);
+            if (address(this).balance < params.ethValue) revert InsufficientEthBalance(index, isPredecessing);
             (bool success,) = params.target.call{value: params.ethValue}(params.targetData);
-            if (!success) revert PredecessingCallFailed(index);
+            if (!success) revert CallFailed(index, isPredecessing);
         } else if (call.callType == CallType.ERC20Transfer) {
             TokenTransferParams memory params = abi.decode(call.data, (TokenTransferParams));
             IERC20(params.token).transferFrom(msg.sender, params.targetOrOrigin, params.amount);
@@ -74,15 +84,16 @@ contract MultipoolRouter is ReentrancyGuard {
         Call[] calldata paramsAfter
     ) public payable {
         for (uint i; i < paramsBefore.length; ++i) {
-            processCall(paramsBefore[i], i);
+            processCall(paramsBefore[i], i, true);
         }
 
-        Multipool(poolAddress).swap(
-            swapArgs.fpSharePrice, swapArgs.selectedAssets, swapArgs.isSleepageReverse, swapArgs.to, swapArgs.refundTo
+        if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
+        Multipool(poolAddress).swap{value: swapArgs.ethValue}(
+            swapArgs.fpSharePrice, swapArgs.selectedAssets, swapArgs.isExactInput, swapArgs.to, swapArgs.refundTo
         );
 
         for (uint i; i < paramsAfter.length; ++i) {
-            processCall(paramsAfter[i], i);
+            processCall(paramsAfter[i], i, false);
         }
     }
 }

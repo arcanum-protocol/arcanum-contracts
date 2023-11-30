@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 import "../src/multipool/Multipool.sol";
+import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20} from "../src/mocks/erc20.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {toX96, toX32} from "../test/MultipoolUtils.t.sol";
@@ -19,11 +20,12 @@ contract DeployTestnet is Script {
         mp.initialize("Exchange tradable fund", "ETF", deployerPublicKey, toX96(0.1e18));
         console.log("multipool address: ", address(mp));
 
+        mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         MockERC20[] memory tokens = new MockERC20[](5);
         for (uint i; i < tokens.length; i++) {
-            tokens[i] = new MockERC20('token', 'token', 0);
+            tokens[i] = new MockERC20("token", "token", 0);
             tokens[i].mint(deployerPublicKey, 100e18);
-            uint price = (i + 1) * 0.01e18;
+            uint price = toX96((i + 1) * 0.01e18);
             mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(price));
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
@@ -34,6 +36,8 @@ contract DeployTestnet is Script {
             console.log("token", i, " price: ", price);
         }
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.0001e18));
+        MultipoolRouter router = new MultipoolRouter();
+        console.log("router address: ", address(router));
         vm.stopBroadcast();
     }
 }
