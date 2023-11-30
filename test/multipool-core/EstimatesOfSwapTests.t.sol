@@ -15,6 +15,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
 
     function test_CheckEstimatesZeroBalances() public {
         vm.startPrank(owner);
+        mp.toggleTargetShareAuthority(owner);
         mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);

@@ -75,6 +75,7 @@ contract MultipoolUtils is Test {
         vm.startPrank(owner);
         mp.setCurveParams(toX32(1e18), 0, 0, 0);
         mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        mp.toggleTargetShareAuthority(owner);
 
         uint[] memory p = new uint[](5);
         p[0] = toX96(10e18);
