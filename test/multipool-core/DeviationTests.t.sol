@@ -13,7 +13,30 @@ import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
 
-    // check deviation at 0.1499999999
+    function testFail_DeviationOverflowFeeWhenIsCloseToDeviationLimit() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
+
+        uint price = toX96(10e18);
+        uint quoteSum = 246.153846e18;
+        uint val = (quoteSum << 96) / price;
+
+        SharePriceParams memory sp;
+        tokens[0].mint(address(mp), val);
+        swap(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                    ]
+                )
+            ),
+            10000000000e18,
+            users[0],
+            sp
+        );
+    }
+
     function test_MintFromAllAssetsWithEqualProportions() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
 

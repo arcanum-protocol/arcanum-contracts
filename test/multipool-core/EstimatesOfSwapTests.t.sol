@@ -45,7 +45,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
         vm.stopPrank();
 
-        uint quoteSum = 1e18;
+        uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / p[1];
 
         SharePriceParams memory sp;
@@ -65,7 +65,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         assertEq(expectedFee, 99999997764825820);
         assertEq(amounts.length, 2);
         assertEq(amounts[1], int(val));
-        assertEq(amounts[0], -int(100e18 + 1000));
+        assertEq(amounts[0], -int(100e18 + 990));
     }
 
     function test_CheckEstimatesForwardWithMint() public {
