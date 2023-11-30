@@ -6,6 +6,7 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
+import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../src/lib/Price.sol";
 
@@ -22,6 +23,7 @@ function toX32(uint val) pure returns (uint64 valX32) {
 
 contract MultipoolUtils is Test {
     Multipool mp;
+    MultipoolRouter router;
     MockERC20[] tokens;
     address[] users;
     uint tokenNum;
@@ -51,11 +53,13 @@ contract MultipoolUtils is Test {
 
         initMultipool();
 
+        router = new MultipoolRouter();
+
         (owner, ownerPk) = makeAddrAndKey("Multipool owner");
         mp.transferOwnership(owner);
 
         for (uint i; i < tokenNum; i++) {
-            tokens.push(new MockERC20('token', 'token', 0));
+            tokens.push(new MockERC20("token", "token", 0));
         }
         for (uint i; i < userNum; i++) {
             users.push(makeAddr(string(abi.encode(i))));
@@ -222,7 +226,7 @@ contract MultipoolUtils is Test {
         string memory tokenJson;
         string memory mpJson;
 
-        address[] memory userAddresses = new address[](users.length+1);
+        address[] memory userAddresses = new address[](users.length + 1);
         for (uint i; i < users.length; ++i) {
             userAddresses[i] = users[i];
         }
@@ -232,7 +236,7 @@ contract MultipoolUtils is Test {
             address user = userAddresses[i];
             uint ethBalance = address(user).balance;
             vm.serializeString("t", "ethBalance", jsonString(ethBalance));
-            TokenBalance[] memory balances = new TokenBalance[](tokens.length+1);
+            TokenBalance[] memory balances = new TokenBalance[](tokens.length + 1);
             for (uint j; j < tokens.length; ++j) {
                 balances[j].token = address(tokens[j]);
                 balances[j].balance = tokens[j].balanceOf(user);

@@ -13,6 +13,61 @@ import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 contract MultipoolSwapEstimate is Test, MultipoolUtils {
     receive() external payable {}
 
+    function test_CheckEstimatesZeroBalances() public {
+        vm.startPrank(owner);
+        mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        uint[] memory p = new uint[](5);
+        p[0] = toX96(0.01e18);
+        p[1] = toX96(0.02e18);
+        p[2] = toX96(0.03e18);
+        p[3] = toX96(0.04e18);
+        p[4] = toX96(0.05e18);
+
+        address[] memory t = new address[](5);
+        t[0] = address(tokens[0]);
+        t[1] = address(tokens[1]);
+        t[2] = address(tokens[2]);
+        t[3] = address(tokens[3]);
+        t[4] = address(tokens[4]);
+
+        uint[] memory s = new uint[](5);
+        s[0] = 10e18;
+        s[1] = 10e18;
+        s[2] = 10e18;
+        s[3] = 10e18;
+        s[4] = 10e18;
+
+        mp.updateTargetShares(t, s);
+
+        for (uint i = 0; i < t.length; i++) {
+            mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+        }
+        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
+        vm.stopPrank();
+
+        uint quoteSum = 1e18;
+        uint val = (quoteSum << 96) / p[1];
+
+        SharePriceParams memory sp;
+        (int expectedFee, int[] memory amounts) = checkSwap(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(val)}),
+                        Multipool.AssetArg({addr: address(mp), amount: -1e18})
+                    ]
+                )
+            ),
+            true,
+            sp
+        );
+
+        assertEq(expectedFee, 99999997764825820);
+        assertEq(amounts.length, 2);
+        assertEq(amounts[1], int(val));
+        assertEq(amounts[0], -int(100e18 + 1000));
+    }
+
     function test_CheckEstimatesForwardWithMint() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
 
@@ -75,4 +130,6 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
 
         snapMultipool("CheckEstimatesForwardWithMint");
     }
+
+    //check estimates with 3 tokens
 }

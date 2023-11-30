@@ -13,6 +13,7 @@ import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
 
+    // check deviation at 0.1499999999
     function test_MintFromAllAssetsWithEqualProportions() public {
         bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
 
