@@ -18,6 +18,7 @@ contract DeployTestnet is Script {
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         Multipool mp = Multipool(address(proxy));
         mp.initialize("Exchange tradable fund", "ETF", deployerPublicKey, toX96(0.1e18));
+        mp.toggleTargetShareAuthority(deployerPublicKey);
         console.log("multipool address: ", address(mp));
 
         mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));

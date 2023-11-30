@@ -46,6 +46,7 @@ contract Multipool is
     //------------- Errors ------------
 
     error InvalidForcePushAuthoritySignature();
+    error InvalidTargetShareSetterAuthority();
     error ForcePushedPriceExpired();
     error ZeroAmountSupplied();
     error InsuficcientBalance();
@@ -225,7 +226,7 @@ contract Multipool is
         bool isExactInput,
         address to,
         address refundTo
-    ) public payable notPaused nonReentrant {
+    ) external payable notPaused nonReentrant {
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
         ctx.calculateTotalSupplyDelta(isExactInput);
@@ -269,7 +270,7 @@ contract Multipool is
     }
 
     function checkSwap(FPSharePriceArg calldata fpSharePrice, AssetArg[] calldata selectedAssets, bool isExactInput)
-        public
+        external
         view
         returns (int fee, int[] memory amounts)
     {
@@ -305,19 +306,27 @@ contract Multipool is
         fee = -ctx.unusedEthBalance;
     }
 
-    function increaseCashback(address assetAddress) public notPaused nonReentrant returns (uint amount) {
-        MpAsset storage asset = assets[assetAddress];
-        amount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
+    function increaseCashback(address assetAddress) external payable notPaused nonReentrant returns (uint128 amount) {
+        uint totalCollectedCashbacksCached = totalCollectedCashbacks;
+        amount = uint128(address(this).balance - totalCollectedCashbacksCached - collectedFees);
+        MpAsset memory asset = assets[assetAddress];
         asset.collectedCashbacks += uint128(amount);
+        emit AssetChange(assetAddress, asset.quantity, amount);
+        assets[assetAddress] = asset;
+        totalCollectedCashbacks = totalCollectedCashbacksCached + amount;
     }
 
     // ---------------- Owned ------------------
 
-    function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData) public onlyOwner notPaused {
-        prices[assetAddress] = FeedInfo({kind: kind, data: feedData});
+    function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData) external onlyOwner notPaused {
+        FeedInfo memory feed = FeedInfo({kind: kind, data: feedData});
+        prices[assetAddress] = feed;
+        emit FeedChange(assetAddress, feed);
     }
 
-    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public onlyOwner notPaused {
+    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) external notPaused {
+        if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareSetterAuthority();
+
         uint len = assetAddresses.length;
         uint totalTargetSharesCached = totalTargetShares;
         for (uint a; a < len; ++a) {
@@ -332,7 +341,7 @@ contract Multipool is
         totalTargetShares = totalTargetSharesCached;
     }
 
-    function withdrawFees(address to) public onlyOwner notPaused returns (uint fees) {
+    function withdrawFees(address to) external onlyOwner notPaused returns (uint fees) {
         fees = collectedFees;
         collectedFees = 0;
         payable(to).transfer(fees);
@@ -340,6 +349,7 @@ contract Multipool is
 
     function togglePause() external onlyOwner {
         isPaused = !isPaused;
+        emit PauseChange(isPaused);
     }
 
     function setCurveParams(
@@ -358,9 +368,16 @@ contract Multipool is
 
     function setSharePriceTTL(uint newSharePriceTTL) external onlyOwner {
         sharePriceTTL = newSharePriceTTL;
+        emit SharePriceTTLChange(sharePriceTTL);
     }
 
     function toggleForcePushAuthority(address authority) external onlyOwner {
         isPriceSetter[authority] = !isPriceSetter[authority];
+        emit PriceSetterToggled(authority, isPriceSetter[authority]);
+    }
+
+    function toggleTargetShareAuthority(address authority) external onlyOwner {
+        isTargetShareSetter[authority] = !isTargetShareSetter[authority];
+        emit TargetShareSetterToggled(authority, isTargetShareSetter[authority]);
     }
 }
