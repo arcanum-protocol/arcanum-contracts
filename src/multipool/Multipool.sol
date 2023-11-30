@@ -55,12 +55,13 @@ contract Multipool is
 
     //------------- Events ------------
 
-    event AssetChange(address indexed token, uint quantity, uint128 share, uint128 collcectedCashback);
+    event AssetChange(address indexed token, uint quantity, uint128 collectedCashbacks);
     event FeesChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
-    event ShareChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
+    event TargetShareChange(address indexed token, uint share, uint totalTargetShares);
     event FeedChange(address indexed token, FeedInfo feed);
-    event SharePriceChange(uint sharePriceTTL);
-    event PriceSetterToggled(address indexed setted, bool isPriceSetter);
+    event SharePriceTTLChange(uint sharePriceTTL);
+    event PriceSetterToggled(address indexed account, bool isSetter);
+    event TargetShareSetterToggled(address indexed account, bool isSetter);
     event PauseChange(bool isPaused);
     event CollectedFeesChange(uint fees);
 
@@ -82,6 +83,7 @@ contract Multipool is
     uint public sharePriceTTL;
 
     mapping(address => bool) public isPriceSetter;
+    mapping(address => bool) public isTargetShareSetter;
 
     bool public isPaused;
 
@@ -253,13 +255,17 @@ contract Multipool is
 
             if (tokenAddress != address(this)) {
                 ctx.calculateDeviationFee(asset, suppliedAmount, price);
+                emit AssetChange(tokenAddress, asset.quantity, asset.collectedCashbacks);
                 assets[tokenAddress] = asset;
+            } else {
+                emit AssetChange(address(this), totalSupply(), 0);
             }
         }
         ctx.calculateBaseFee(isExactInput);
         ctx.applyCollected(payable(refundTo));
         totalCollectedCashbacks = ctx.totalCollectedCashbacks;
         collectedFees = ctx.collectedFees;
+        emit CollectedFeesChange(ctx.collectedFees);
     }
 
     function checkSwap(FPSharePriceArg calldata fpSharePrice, AssetArg[] calldata selectedAssets, bool isExactInput)
@@ -313,14 +319,17 @@ contract Multipool is
 
     function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) public onlyOwner notPaused {
         uint len = assetAddresses.length;
-        for (uint a; a < len;) {
-            MpAsset storage asset = assets[assetAddresses[a]];
-            totalTargetShares = totalTargetShares - asset.share + shares[a];
-            asset.share = uint128(shares[a]);
-            unchecked {
-                ++a;
-            }
+        uint totalTargetSharesCached = totalTargetShares;
+        for (uint a; a < len; ++a) {
+            address assetAddress = assetAddresses[a];
+            uint share = shares[a];
+            MpAsset memory asset = assets[assetAddress];
+            totalTargetSharesCached = totalTargetSharesCached - asset.share + share;
+            asset.share = uint128(share);
+            assets[assetAddress] = asset;
+            emit TargetShareChange(assetAddress, share, totalTargetSharesCached);
         }
+        totalTargetShares = totalTargetSharesCached;
     }
 
     function withdrawFees(address to) public onlyOwner notPaused returns (uint fees) {
@@ -339,10 +348,12 @@ contract Multipool is
         uint64 newDepegBaseFee,
         uint64 newBaseFee
     ) external onlyOwner {
+        uint64 newDeviationParam = (newHalfDeviationFee << 32) / newDeviationLimit;
         deviationLimit = newDeviationLimit;
-        deviationParam = (newHalfDeviationFee << 32) / newDeviationLimit;
+        deviationParam = newDeviationParam;
         depegBaseFee = newDepegBaseFee;
         baseFee = newBaseFee;
+        emit FeesChange(newDeviationParam, newDeviationLimit, newDepegBaseFee, newBaseFee);
     }
 
     function setSharePriceTTL(uint newSharePriceTTL) external onlyOwner {
