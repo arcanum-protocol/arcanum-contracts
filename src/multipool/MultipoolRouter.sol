@@ -5,11 +5,10 @@ import "forge-std/Test.sol";
 import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
 import {MpAsset, MpContext, Multipool} from "./Multipool.sol";
-import {ReentrancyGuard} from "openzeppelin/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 contract MultipoolRouter is Ownable {
-    constructor() Ownable(msg.sender) {}
 
     mapping(address => bool) isContractAllowedToCall;
 
