@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
-// Multipool can't be understood by your mind, only heart
+// Multipool can't be understood by your mind, only your heart
 
-import "forge-std/Test.sol";
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MpAsset, MpContext} from "../lib/MpContext.sol";
 import {FeedInfo, FeedType} from "../lib/Price.sol";
@@ -12,11 +11,10 @@ import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20Permi
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "oz-proxy/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
@@ -25,20 +23,18 @@ contract Multipool is
     ERC20PermitUpgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    Test
+    ReentrancyGuardUpgradeable
 {
     using ECDSA for bytes32;
-    using MessageHashUtils for bytes32;
 
-    function initialize(string memory mpName, string memory mpSymbol, address owner, uint sharePrice)
+    function initialize(string memory mpName, string memory mpSymbol, uint sharePrice)
         public
         initializer
     {
         __ERC20_init(mpName, mpSymbol);
         __ERC20Permit_init(mpName);
         __ReentrancyGuard_init();
-        __Ownable_init(owner);
+        __Ownable_init();
         initialSharePrice = sharePrice;
     }
 
@@ -48,7 +44,7 @@ contract Multipool is
 
     error InvalidForcePushAuthoritySignature();
     error InvalidTargetShareSetterAuthority();
-    error ForcePushedPriceExpired();
+    error ForcePushedPriceExpired(uint blockTimestamp, uint priceTimestestamp);
     error ZeroAmountSupplied();
     error InsuficcientBalance();
     error SleepageExceeded();
@@ -128,7 +124,7 @@ contract Multipool is
                 revert InvalidForcePushAuthoritySignature();
             }
             if (fpSharePrice.timestamp - block.timestamp >= sharePriceTTL) {
-                revert ForcePushedPriceExpired();
+                revert ForcePushedPriceExpired(block.timestamp, fpSharePrice.timestamp);
             }
             price = fpSharePrice.value;
         } else {

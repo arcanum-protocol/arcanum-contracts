@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
 import {FixedPoint96} from "./FixedPoint96.sol";
 import {FixedPoint32} from "./FixedPoint32.sol";
 import "../multipool/Multipool.sol";
@@ -51,7 +50,7 @@ library ContextMath {
         c = b > 0 ? a + uint(b) : a - uint(-b);
     }
 
-    function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal view {
+    function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal pure {
         int delta = ctx.totalSupplyDelta;
         if (delta < 0) {
             if (!isExactInput) {
@@ -64,7 +63,7 @@ library ContextMath {
         }
     }
 
-    function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal view {
+    function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal pure {
         uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
         uint fee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
         ctx.unusedEthBalance -= int(fee);
@@ -73,7 +72,7 @@ library ContextMath {
 
     function calculateDeviationFee(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price)
         internal
-        view
+        pure
     {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);

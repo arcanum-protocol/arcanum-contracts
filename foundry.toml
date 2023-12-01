@@ -1,6 +1,6 @@
 [profile.default]
 optimizer = true
-optimizer_runs = 10000
+optimizer_runs = 1000
 gas_reports = ["Multipool", "MultipoolRouter"]
 fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
 remappings = [

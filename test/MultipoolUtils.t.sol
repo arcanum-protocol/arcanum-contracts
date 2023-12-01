@@ -11,7 +11,6 @@ import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../src/lib/Price.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "openzeppelin/utils/cryptography/MessageHashUtils.sol";
 
 function toX96(uint val) pure returns (uint valX96) {
     valX96 = (val << 96) / 1e18;
@@ -32,13 +31,12 @@ contract MultipoolUtils is Test {
     uint ownerPk;
 
     using ECDSA for bytes32;
-    using MessageHashUtils for bytes32;
 
     function initMultipool() public {
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
-        mp.initialize("Name", "SYMBOL", address(this), toX96(0.1e18));
+        mp.initialize("Name", "SYMBOL", toX96(0.1e18));
     }
 
     function assertEq(MpAsset memory a, MpAsset memory b) public {
