@@ -25,7 +25,8 @@ contract Multipool is
     ERC20PermitUpgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    Test
 {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
@@ -122,11 +123,11 @@ contract Multipool is
         uint totSup = totalSupply();
         uint price;
         if (fpSharePrice.thisAddress == address(this)) {
-            bytes memory data = abi.encodePacked(fpSharePrice.thisAddress, fpSharePrice.timestamp, fpSharePrice.value);
+            bytes memory data = abi.encodePacked(address(fpSharePrice.thisAddress), uint(fpSharePrice.timestamp), uint(fpSharePrice.value));
             if (!isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(fpSharePrice.signature)]) {
                 revert InvalidForcePushAuthoritySignature();
             }
-            if (block.timestamp - fpSharePrice.timestamp >= sharePriceTTL) {
+            if (fpSharePrice.timestamp - block.timestamp >= sharePriceTTL) {
                 revert ForcePushedPriceExpired();
             }
             price = fpSharePrice.value;
