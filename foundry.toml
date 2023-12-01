@@ -13,6 +13,7 @@ remappings = [
 ]
 build_info = true
 extra_output = ["storageLayout"]
+solc_version = "0.8.19"
 
 [profile.ci]
 verbosity = 4
