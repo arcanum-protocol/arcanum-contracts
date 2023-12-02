@@ -51,8 +51,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / p[1];
 
-        vm.warp(1701391851);
-        console.log(address(mp));
+        vm.warp(1701399851);
         Multipool.FPSharePriceArg memory fp;
         fp.thisAddress = address(mp);
         fp.timestamp = 1701395175;
@@ -118,7 +117,6 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         uint val = (quoteSum << 96) / p[1];
 
         vm.warp(1701391951);
-        console.log(address(mp));
         Multipool.FPSharePriceArg memory fp;
         fp.thisAddress = address(mp);
         fp.timestamp = 1701391951;
