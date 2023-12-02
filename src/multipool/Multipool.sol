@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 // Multipool can't be understood by your mind, only your heart
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import {MpAsset, MpContext} from "../lib/MpContext.sol";
 import {FeedInfo, FeedType} from "../lib/Price.sol";
 
@@ -26,6 +27,7 @@ contract Multipool is
     ReentrancyGuardUpgradeable
 {
     using ECDSA for bytes32;
+    using SafeERC20 for IERC20;
 
     function initialize(string memory mpName, string memory mpSymbol, uint sharePrice)
         public
@@ -198,7 +200,7 @@ contract Multipool is
 
     function transferAsset(address asset, uint quantity, address to) internal {
         if (asset != address(this)) {
-            IERC20(asset).transfer(to, quantity);
+            IERC20(asset).safeTransfer(to, quantity);
         } else {
             _mint(to, quantity);
         }
@@ -217,7 +219,7 @@ contract Multipool is
 
             uint left = unusedAmount - requiredAmount;
             if (refundAddress != address(0) && left > 0) {
-                IERC20(assetAddress).transfer(refundAddress, left);
+                IERC20(assetAddress).safeTransfer(refundAddress, left);
             }
         } else {
             _burn(address(this), requiredAmount);
