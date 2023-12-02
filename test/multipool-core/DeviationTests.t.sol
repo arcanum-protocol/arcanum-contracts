@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.8.19;
+pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
@@ -8,7 +8,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
+import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
@@ -27,7 +27,10 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
                 dynamic(
                     [
                         Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                        Multipool.AssetArg({
+                            addr: address(mp),
+                            amount: -int((quoteSum << 96) / toX96(0.1e18))
+                        })
                     ]
                 )
             ),
@@ -65,7 +68,8 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             args[i] = Multipool.AssetArg({addr: address(tokens[i]), amount: int(val)});
         }
 
-        args[5] = Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
+        args[5] =
+            Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
 
         SharePriceParams memory sp;
         swap(sort(args), 1e18, users[3], sp);
@@ -89,7 +93,10 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
                 dynamic(
                     [
                         Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                        Multipool.AssetArg({
+                            addr: address(mp),
+                            amount: -int((quoteSum << 96) / toX96(0.1e18))
+                        })
                     ]
                 )
             ),

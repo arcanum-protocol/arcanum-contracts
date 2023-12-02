@@ -62,8 +62,10 @@ library PriceMath {
             );
         }
         if (reversed) {
-            priceX96 =
-                (((FixedPoint96.Q96 << FixedPoint96.RESOLUTION) / priceX96) << FixedPoint96.RESOLUTION) / priceX96;
+            priceX96 = (
+                ((FixedPoint96.Q96 << FixedPoint96.RESOLUTION) / priceX96)
+                    << FixedPoint96.RESOLUTION
+            ) / priceX96;
         } else {
             priceX96 = (priceX96 * priceX96) >> FixedPoint96.RESOLUTION;
         }
@@ -87,13 +89,16 @@ library TickMath {
     /// @notice Calculates sqrt(1.0001^tick) * 2^96
     /// @dev Throws if |tick| > max tick
     /// @param tick The input tick for the above formula
-    /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the ratio of the two assets (token1/token0)
+    /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the ratio of the
+    /// two assets (token1/token0)
     /// at the given tick
     function getSqrtRatioAtTick(int24 tick) internal pure returns (uint160 sqrtPriceX96) {
         uint256 absTick = tick < 0 ? uint256(-int256(tick)) : uint256(int256(tick));
         require(absTick <= uint256(int256(MAX_TICK)), "T");
 
-        uint256 ratio = absTick & 0x1 != 0 ? 0xfffcb933bd6fad37aa2d162d1a594001 : 0x100000000000000000000000000000000;
+        uint256 ratio = absTick & 0x1 != 0
+            ? 0xfffcb933bd6fad37aa2d162d1a594001
+            : 0x100000000000000000000000000000000;
         if (absTick & 0x2 != 0) ratio = (ratio * 0xfff97272373d413259a46990580e213a) >> 128;
         if (absTick & 0x4 != 0) ratio = (ratio * 0xfff2e50f5f656932ef12357cf3c7fdcc) >> 128;
         if (absTick & 0x8 != 0) ratio = (ratio * 0xffe5caca7e10e4e61c3624eaa0941cd0) >> 128;

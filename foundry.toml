@@ -22,7 +22,5 @@ verbosity = 4
 
 [fmt]
 int_types = "preserve"
+line_length = 100
 
-[etherscan]
-mainnet = { key = "${ETHERSCAN_KEY}" }
-arbitrum = { key = "${ETHERSCAN_KEY}" }

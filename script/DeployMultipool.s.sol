@@ -6,7 +6,7 @@ import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20} from "../src/mocks/erc20.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, sort, dynamic} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestnet is Script {
     function run() external {
@@ -40,7 +40,35 @@ contract DeployTestnet is Script {
         }
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.0001e18));
         MultipoolRouter router = new MultipoolRouter();
+
         console.log("router address: ", address(router));
+
+        // Multipool.FPSharePriceArg memory fp;
+        // MultipoolRouter.SwapArgs memory ar = MultipoolRouter.SwapArgs({
+        //     fpSharePrice: fp,
+        //     selectedAssets: sort(
+        //             dynamic(
+        //                 [
+        //                     Multipool.AssetArg({addr: address(tokens[1]), amount: int(1e18)}),
+        //                     Multipool.AssetArg({addr: address(mp), amount: -0.00000001e18})
+        //                 ]
+        //             )
+        //         ),
+        //         isExactInput: true,
+        //         refundTo: deployerPublicKey,
+        //         to: deployerPublicKey,
+        //         ethValue: 0
+        //     });
+
+        // MultipoolRouter.Call[] memory params;
+
+        // tokens[1].mint(address(mp), 1e18);
+        // router.swap{value: 0.1e18}(
+        //     address(mp),
+        //     ar,
+        //     params,
+        //     params
+        // );
         vm.stopBroadcast();
     }
 }

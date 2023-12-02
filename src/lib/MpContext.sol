@@ -54,11 +54,13 @@ library ContextMath {
         int delta = ctx.totalSupplyDelta;
         if (delta < 0) {
             if (!isExactInput) {
-                ctx.totalSupplyDelta = int(ctx.cummulativeOutAmount) * delta / int(ctx.cummulativeInAmount);
+                ctx.totalSupplyDelta =
+                    int(ctx.cummulativeOutAmount) * delta / int(ctx.cummulativeInAmount);
             }
         } else {
             if (isExactInput) {
-                ctx.totalSupplyDelta = int(ctx.cummulativeInAmount) * delta / int(ctx.cummulativeOutAmount);
+                ctx.totalSupplyDelta =
+                    int(ctx.cummulativeInAmount) * delta / int(ctx.cummulativeOutAmount);
             }
         }
     }
@@ -70,26 +72,36 @@ library ContextMath {
         ctx.collectedFees += fee;
     }
 
-    function calculateDeviationFee(MpContext memory ctx, MpAsset memory asset, int quantityDelta, uint price)
-        internal
-        pure
-    {
+    function calculateDeviationFee(
+        MpContext memory ctx,
+        MpAsset memory asset,
+        int quantityDelta,
+        uint price
+    ) internal pure {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
         uint targetShare = (asset.share << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
 
         uint dOld = ctx.oldTotalSupply == 0
             ? 0
-            : subAbs((asset.quantity * price << FixedPoint32.RESOLUTION) / ctx.oldTotalSupply / ctx.sharePrice, targetShare);
+            : subAbs(
+                (asset.quantity * price << FixedPoint32.RESOLUTION) / ctx.oldTotalSupply
+                    / ctx.sharePrice,
+                targetShare
+            );
         uint dNew = newTotalSupply == 0
             ? 0
-            : subAbs((newQuantity * price << FixedPoint32.RESOLUTION) / newTotalSupply / ctx.sharePrice, targetShare);
+            : subAbs(
+                (newQuantity * price << FixedPoint32.RESOLUTION) / newTotalSupply / ctx.sharePrice,
+                targetShare
+            );
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
         if (dNew > dOld && ctx.oldTotalSupply != 0) {
             if (!(ctx.deviationLimit >= dNew)) revert DeviationExceedsLimit();
-            uint deviationFee =
-                (ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)) >> FixedPoint32.RESOLUTION;
+            uint deviationFee = (
+                ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)
+            ) >> FixedPoint32.RESOLUTION;
             uint basePart = (deviationFee * ctx.depegBaseFee) >> FixedPoint32.RESOLUTION;
             ctx.unusedEthBalance -= int(deviationFee);
             ctx.collectedFees += basePart;
