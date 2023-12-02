@@ -54,7 +54,9 @@ contract Multipool is
     //------------- Events ------------
 
     event AssetChange(address indexed token, uint quantity, uint128 collectedCashbacks);
-    event FeesChange(uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee);
+    event FeesChange(
+        uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee
+    );
     event TargetShareChange(address indexed token, uint share, uint totalTargetShares);
     event FeedChange(address indexed token, FeedInfo feed);
     event SharePriceTTLChange(uint sharePriceTTL);
@@ -103,7 +105,12 @@ contract Multipool is
     function getFees()
         public
         view
-        returns (uint64 _deviationParam, uint64 _deviationLimit, uint64 _depegBaseFee, uint64 _baseFee)
+        returns (
+            uint64 _deviationParam,
+            uint64 _deviationLimit,
+            uint64 _depegBaseFee,
+            uint64 _baseFee
+        )
     {
         _deviationParam = deviationParam;
         _deviationLimit = deviationLimit;
@@ -115,12 +122,24 @@ contract Multipool is
         asset = assets[assetAddress];
     }
 
-    function getContext(FPSharePriceArg calldata fpSharePrice) internal view returns (MpContext memory ctx) {
+    function getContext(FPSharePriceArg calldata fpSharePrice)
+        internal
+        view
+        returns (MpContext memory ctx)
+    {
         uint totSup = totalSupply();
         uint price;
         if (fpSharePrice.thisAddress == address(this)) {
-            bytes memory data = abi.encodePacked(address(fpSharePrice.thisAddress), uint(fpSharePrice.timestamp), uint(fpSharePrice.value));
-            if (!isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(fpSharePrice.signature)]) {
+            bytes memory data = abi.encodePacked(
+                address(fpSharePrice.thisAddress),
+                uint(fpSharePrice.timestamp),
+                uint(fpSharePrice.value)
+            );
+            if (
+                !isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(
+                    fpSharePrice.signature
+                )]
+            ) {
                 revert InvalidForcePushAuthoritySignature();
             }
             if (fpSharePrice.timestamp - block.timestamp >= sharePriceTTL) {
@@ -130,7 +149,8 @@ contract Multipool is
         } else {
             price = totSup == 0 ? initialSharePrice : prices[address(this)].getPrice();
         }
-        (uint64 _deviationParam, uint64 _deviationLimit, uint64 _depegBaseFee, uint64 _baseFee) = getFees();
+        (uint64 _deviationParam, uint64 _deviationLimit, uint64 _depegBaseFee, uint64 _baseFee) =
+            getFees();
         ctx.sharePrice = price;
         ctx.oldTotalSupply = totSup;
         ctx.totalTargetShares = totalTargetShares;
@@ -140,7 +160,8 @@ contract Multipool is
         ctx.baseFee = _baseFee;
         ctx.totalCollectedCashbacks = totalCollectedCashbacks;
         ctx.collectedFees = collectedFees;
-        ctx.unusedEthBalance = int(address(this).balance - ctx.totalCollectedCashbacks - ctx.collectedFees);
+        ctx.unusedEthBalance =
+            int(address(this).balance - ctx.totalCollectedCashbacks - ctx.collectedFees);
     }
 
     function getPricesAndSumQuotes(MpContext memory ctx, AssetArg[] memory selectedAssets)
@@ -183,9 +204,12 @@ contract Multipool is
         }
     }
 
-    function receiveAsset(MpAsset memory asset, address assetAddress, uint requiredAmount, address refundAddress)
-        internal
-    {
+    function receiveAsset(
+        MpAsset memory asset,
+        address assetAddress,
+        uint requiredAmount,
+        address refundAddress
+    ) internal {
         uint unusedAmount;
         if (assetAddress != address(this)) {
             unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
@@ -239,17 +263,22 @@ contract Multipool is
             }
 
             if (isExactInput && suppliedAmount < 0) {
-                int amount = int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
+                int amount =
+                    int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
                 if (amount > suppliedAmount) revert SleepageExceeded();
                 suppliedAmount = amount;
             } else if (!isExactInput && suppliedAmount > 0) {
-                int amount = int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
+                int amount =
+                    int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
                 if (amount > suppliedAmount) revert SleepageExceeded();
                 suppliedAmount = amount;
             }
 
-            if (suppliedAmount > 0) receiveAsset(asset, tokenAddress, uint(suppliedAmount), refundTo);
-            else transferAsset(tokenAddress, uint(-suppliedAmount), to);
+            if (suppliedAmount > 0) {
+                receiveAsset(asset, tokenAddress, uint(suppliedAmount), refundTo);
+            } else {
+                transferAsset(tokenAddress, uint(-suppliedAmount), to);
+            }
 
             if (tokenAddress != address(this)) {
                 ctx.calculateDeviationFee(asset, suppliedAmount, price);
@@ -266,11 +295,11 @@ contract Multipool is
         emit CollectedFeesChange(ctx.collectedFees);
     }
 
-    function checkSwap(FPSharePriceArg calldata fpSharePrice, AssetArg[] calldata selectedAssets, bool isExactInput)
-        external
-        view
-        returns (int fee, int[] memory amounts)
-    {
+    function checkSwap(
+        FPSharePriceArg calldata fpSharePrice,
+        AssetArg[] calldata selectedAssets,
+        bool isExactInput
+    ) external view returns (int fee, int[] memory amounts) {
         MpContext memory ctx = getContext(fpSharePrice);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
         amounts = new int[](selectedAssets.length);
@@ -287,10 +316,12 @@ contract Multipool is
             }
 
             if (isExactInput && suppliedAmount < 0) {
-                int amount = int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
+                int amount =
+                    int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
                 suppliedAmount = amount;
             } else if (!isExactInput && suppliedAmount > 0) {
-                int amount = int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
+                int amount =
+                    int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
                 suppliedAmount = amount;
             }
 
@@ -303,7 +334,13 @@ contract Multipool is
         fee = -ctx.unusedEthBalance;
     }
 
-    function increaseCashback(address assetAddress) external payable notPaused nonReentrant returns (uint128 amount) {
+    function increaseCashback(address assetAddress)
+        external
+        payable
+        notPaused
+        nonReentrant
+        returns (uint128 amount)
+    {
         uint totalCollectedCashbacksCached = totalCollectedCashbacks;
         amount = uint128(address(this).balance - totalCollectedCashbacksCached - collectedFees);
         MpAsset memory asset = assets[assetAddress];
@@ -315,13 +352,20 @@ contract Multipool is
 
     // ---------------- Owned ------------------
 
-    function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData) external onlyOwner notPaused {
+    function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData)
+        external
+        onlyOwner
+        notPaused
+    {
         FeedInfo memory feed = FeedInfo({kind: kind, data: feedData});
         prices[assetAddress] = feed;
         emit FeedChange(assetAddress, feed);
     }
 
-    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares) external notPaused {
+    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares)
+        external
+        notPaused
+    {
         if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareSetterAuthority();
 
         uint len = assetAddresses.length;

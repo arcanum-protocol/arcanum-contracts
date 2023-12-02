@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.8.19;
+pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
@@ -11,7 +11,8 @@ import {FeedInfo, FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 
 interface AaveV3 is IERC20 {
-    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)
+        external;
     function withdraw(address asset, uint256 amount, address to) external;
     function symbol() external returns (string memory symbol);
 }

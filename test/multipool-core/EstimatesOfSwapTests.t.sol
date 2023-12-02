@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.8.19;
+pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
@@ -8,7 +8,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
+import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
 
 contract MultipoolSwapEstimate is Test, MultipoolUtils {
     receive() external payable {}
@@ -57,7 +57,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.thisAddress = address(mp);
         fp.timestamp = 1701395175;
         fp.value = 7922816251426433759354395033;
-        fp.signature = hex"25fe112a17d7b3d8b7ddda7d297026424cd52fb429bf6490d029b01c1dbd569327a41fd3e9e43b7b341b48380f69876335dca3ef7f681736b496bd9f22fd51731c";
+        fp.signature =
+            hex"25fe112a17d7b3d8b7ddda7d297026424cd52fb429bf6490d029b01c1dbd569327a41fd3e9e43b7b341b48380f69876335dca3ef7f681736b496bd9f22fd51731c";
 
         (int expectedFee, int[] memory amounts) = mp.checkSwap(
             fp,
@@ -122,8 +123,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.thisAddress = address(mp);
         fp.timestamp = 1701391951;
         fp.value = 7922816251426433759354395033;
-        fp.signature = hex"0bed8a506cb35434040c7aa374cc8ab587d4f5959d8af4f62e5dbf9e5156857e4d90bac66ebd29bc8016987538831a593797d55c54ed57e6762e594466ca360d1b"
-        ;
+        fp.signature =
+            hex"0bed8a506cb35434040c7aa374cc8ab587d4f5959d8af4f62e5dbf9e5156857e4d90bac66ebd29bc8016987538831a593797d55c54ed57e6762e594466ca360d1b";
 
         (int expectedFee, int[] memory amounts) = mp.checkSwap(
             fp,
@@ -251,7 +252,10 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
                 dynamic(
                     [
                         Multipool.AssetArg({addr: address(tokens[0]), amount: int(1)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                        Multipool.AssetArg({
+                            addr: address(mp),
+                            amount: -int((quoteSum << 96) / toX96(0.1e18))
+                        })
                     ]
                 )
             ),
@@ -269,7 +273,10 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
                 dynamic(
                     [
                         Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))})
+                        Multipool.AssetArg({
+                            addr: address(mp),
+                            amount: -int((quoteSum << 96) / toX96(0.1e18))
+                        })
                     ]
                 )
             ),

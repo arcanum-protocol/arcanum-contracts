@@ -1,4 +1,4 @@
-pragma solidity >=0.8.19;
+pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
@@ -7,7 +7,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
+import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
 
 contract MockCallSomething is Test {
     function callWithEther(uint amount, address token, address to) public payable {
@@ -19,7 +19,9 @@ contract MockCallSomething is Test {
         IERC20(token).transferFrom(msg.sender, to, amount);
     }
 
-    function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to) public {
+    function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to)
+        public
+    {
         for (uint i = 0; i < tokens.length; i++) {
             IERC20(tokens[i]).transfer(to, amounts[i]);
         }
@@ -72,7 +74,11 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         calls[1] = MultipoolRouter.Call({
             callType: MultipoolRouter.CallType.ERC20Approve,
             data: abi.encode(
-                MultipoolRouter.RouterApproveParams({token: address(tokens[0]), target: address(mocked), amount: 0.5e18})
+                MultipoolRouter.RouterApproveParams({
+                    token: address(tokens[0]),
+                    target: address(mocked),
+                    amount: 0.5e18
+                })
                 )
         });
 
@@ -80,7 +86,9 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
             callType: MultipoolRouter.CallType.ANY,
             data: abi.encode(
                 MultipoolRouter.CallParams({
-                    targetData: abi.encodeCall(MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))),
+                    targetData: abi.encodeCall(
+                        MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
+                        ),
                     target: address(mocked),
                     ethValue: 20e18
                 })
@@ -121,7 +129,9 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
             callType: MultipoolRouter.CallType.ANY,
             data: abi.encode(
                 MultipoolRouter.CallParams({
-                    targetData: abi.encodeCall(MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))),
+                    targetData: abi.encodeCall(
+                        MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))
+                        ),
                     target: address(mocked),
                     ethValue: 0
                 })
@@ -151,11 +161,15 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         tokens[1].approve(address(router), 1e18);
 
         vm.prank(users[0]);
-        vm.expectRevert(abi.encodeWithSelector(MultipoolRouter.InsufficientEthBalance.selector, 2, true));
+        vm.expectRevert(
+            abi.encodeWithSelector(MultipoolRouter.InsufficientEthBalance.selector, 2, true)
+        );
         router.swap(address(mp), sa, calls, callsAfter);
 
         vm.prank(users[0]);
-        vm.expectRevert(abi.encodeWithSelector(MultipoolRouter.InsufficientEthBalance.selector, 2, true));
+        vm.expectRevert(
+            abi.encodeWithSelector(MultipoolRouter.InsufficientEthBalance.selector, 2, true)
+        );
         router.swap{value: 1}(address(mp), sa, calls, callsAfter);
 
         vm.prank(users[0]);
@@ -166,7 +180,9 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
             callType: MultipoolRouter.CallType.ANY,
             data: abi.encode(
                 MultipoolRouter.CallParams({
-                    targetData: abi.encodeCall(MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))),
+                    targetData: abi.encodeCall(
+                        MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
+                        ),
                     target: address(mocked),
                     ethValue: 1e18
                 })

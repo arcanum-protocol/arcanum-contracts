@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import {Multipool, MpAsset as UintMpAsset, MpContext as UintMpContext} from "./Multipool.sol";
+import {Multipool} from "./Multipool.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
-import {MpAsset, MpContext, Multipool} from "./Multipool.sol";
-import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 contract MultipoolRouter is Ownable {
-
     mapping(address => bool) isContractAllowedToCall;
 
     function toggleContract(address contractAddress) public onlyOwner {
@@ -62,8 +58,12 @@ contract MultipoolRouter is Ownable {
     function processCall(Call memory call, uint index, bool isPredecessing) internal {
         if (call.callType == CallType.ANY) {
             CallParams memory params = abi.decode(call.data, (CallParams));
-            if (!isContractAllowedToCall[params.target]) revert ContractCallNotAllowed(params.target);
-            if (address(this).balance < params.ethValue) revert InsufficientEthBalance(index, isPredecessing);
+            if (!isContractAllowedToCall[params.target]) {
+                revert ContractCallNotAllowed(params.target);
+            }
+            if (address(this).balance < params.ethValue) {
+                revert InsufficientEthBalance(index, isPredecessing);
+            }
             (bool success,) = params.target.call{value: params.ethValue}(params.targetData);
             if (!success) revert CallFailed(index, isPredecessing);
         } else if (call.callType == CallType.ERC20Transfer) {
@@ -71,7 +71,9 @@ contract MultipoolRouter is Ownable {
             IERC20(params.token).transferFrom(msg.sender, params.targetOrOrigin, params.amount);
         } else if (call.callType == CallType.ERC20Approve) {
             RouterApproveParams memory params = abi.decode(call.data, (RouterApproveParams));
-            if (!isContractAllowedToCall[params.target]) revert ContractCallNotAllowed(params.target);
+            if (!isContractAllowedToCall[params.target]) {
+                revert ContractCallNotAllowed(params.target);
+            }
             IERC20(params.token).approve(params.target, params.amount);
         }
     }
@@ -81,14 +83,18 @@ contract MultipoolRouter is Ownable {
         SwapArgs calldata swapArgs,
         Call[] calldata paramsBefore,
         Call[] calldata paramsAfter
-    ) public payable {
+    ) external payable {
         for (uint i; i < paramsBefore.length; ++i) {
             processCall(paramsBefore[i], i, true);
         }
 
         if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
         Multipool(poolAddress).swap{value: swapArgs.ethValue}(
-            swapArgs.fpSharePrice, swapArgs.selectedAssets, swapArgs.isExactInput, swapArgs.to, swapArgs.refundTo
+            swapArgs.fpSharePrice,
+            swapArgs.selectedAssets,
+            swapArgs.isExactInput,
+            swapArgs.to,
+            swapArgs.refundTo
         );
 
         for (uint i; i < paramsAfter.length; ++i) {
