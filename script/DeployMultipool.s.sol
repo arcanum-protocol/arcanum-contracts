@@ -57,7 +57,7 @@ contract DeployTestnet is Script {
         //         isExactInput: true,
         //         refundTo: deployerPublicKey,
         //         to: deployerPublicKey,
-        //         ethValue: 0
+        //         ethValue: 0.1e18
         //     });
 
         // MultipoolRouter.Call[] memory params;

@@ -142,7 +142,7 @@ contract Multipool is
             ) {
                 revert InvalidForcePushAuthoritySignature();
             }
-            if (fpSharePrice.timestamp - block.timestamp >= sharePriceTTL) {
+            if (fpSharePrice.timestamp + sharePriceTTL < block.timestamp) {
                 revert ForcePushedPriceExpired(block.timestamp, fpSharePrice.timestamp);
             }
             price = fpSharePrice.value;
