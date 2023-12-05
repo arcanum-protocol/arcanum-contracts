@@ -212,9 +212,8 @@ contract Multipool is
         uint requiredAmount,
         address refundAddress
     ) internal {
-        uint unusedAmount;
         if (assetAddress != address(this)) {
-            unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
+            uint unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
             if (unusedAmount < requiredAmount) revert InsuficcientBalance();
 
             uint left = unusedAmount - requiredAmount;
@@ -226,7 +225,7 @@ contract Multipool is
 
             uint left = balanceOf(address(this));
             if (refundAddress != address(0) && left > 0) {
-                transfer(refundAddress, left);
+                transferFrom(address(this), refundAddress, left);
             }
         }
     }
