@@ -183,4 +183,124 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         // // bootstrap new
     }
+
+    function test_AddNewTokenAndTryToBurnWithIt() public {
+        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
+
+        MockERC20 newOne = new MockERC20("NEW", "NEW", 0);
+
+        changeShare(address(newOne), 10e18);
+
+        //uint newPrice = toX96(10e18);
+        //uint quoteSum = 10e18;
+        //uint val = (quoteSum << 96) / newPrice;
+
+        //changePrice(address(tokens[0]), newPrice);
+        tokens[0].mint(address(mp), 1e18);
+
+        SharePriceParams memory sp;
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(newOne), amount: -int(1e18)}),
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            address(this),
+            true,
+            abi.encodeWithSignature("NoPriceOriginSet()")
+        );
+
+        uint newPrice = toX96(10e18);
+        changePrice(address(newOne), newPrice);
+
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(newOne), amount: -int(1e18)}),
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            address(this),
+            true,
+            abi.encodePacked("ERC20: transfer amount exceeds balance")
+        );
+
+        newOne.mint(address(mp), 1e18);
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(newOne), amount: -int(1e18)}),
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            address(this),
+            true,
+            abi.encodeWithSignature("NotEnoughQuantityToBurn()")
+        );
+
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(newOne), amount: int(1e18)}),
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: -int(1000)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            address(this),
+            true,
+            abi.encode(0)
+        );
+
+        snapMultipool("AddNewTokenAndTryToBurnWithIt");
+        assertEq(
+            mp.getAsset(address(newOne)),
+            MpAsset({quantity: 1e18, share: 10e18, collectedCashbacks: 0})
+        );
+        assertEq(newOne.balanceOf(address(mp)), 1e18);
+
+        newOne.mint(address(mp), 25e18);
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        Multipool.AssetArg({addr: address(newOne), amount: int(25e18)}),
+                        Multipool.AssetArg({addr: address(tokens[0]), amount: -int(1000)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            address(this),
+            true,
+            abi.encode(0)
+        );
+
+        snapMultipool("AddNewTokenAndTryToBurnWithIt2");
+        assertEq(
+            mp.getAsset(address(newOne)),
+            MpAsset({quantity: 26e18, share: 10e18, collectedCashbacks: 0})
+        );
+        assertEq(newOne.balanceOf(address(mp)), 26e18);
+    }
 }

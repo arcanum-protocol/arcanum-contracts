@@ -37,6 +37,7 @@ using {
 library ContextMath {
     error FeeExceeded();
     error DeviationExceedsLimit();
+    error NotEnoughQuantityToBurn();
 
     function subAbs(uint a, uint b) internal pure returns (uint c) {
         c = a > b ? a - b : b - a;
@@ -47,7 +48,13 @@ library ContextMath {
     }
 
     function addDelta(uint a, int b) internal pure returns (uint c) {
-        c = b > 0 ? a + uint(b) : a - uint(-b);
+        if (b > 0) {
+            c = a + uint(b);
+        } else if (a > uint(-b)) {
+            c = a - uint(-b);
+        } else {
+            revert NotEnoughQuantityToBurn();
+        }
     }
 
     function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal pure {

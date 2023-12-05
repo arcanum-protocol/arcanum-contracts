@@ -187,6 +187,16 @@ contract MultipoolUtils is Test {
         vm.stopPrank();
     }
 
+    function changeShare(address asset, uint share) public {
+        vm.startPrank(owner);
+        address[] memory addresses = new address[](1);
+        addresses[0] = asset;
+        uint[] memory shares = new uint[](1);
+        shares[0] = share;
+        mp.updateTargetShares(addresses, shares);
+        vm.stopPrank();
+    }
+
     function setCurveParams(uint64 dl, uint64 hf, uint64 bf, uint64 dbf) public {
         vm.startPrank(owner);
         mp.setCurveParams(dl, hf, dbf, bf);
