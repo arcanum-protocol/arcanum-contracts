@@ -20,6 +20,8 @@ struct MpContext {
     uint deviationLimit;
     uint depegBaseFee;
     uint baseFee;
+    uint developerFee;
+    uint developerFeeRatio;
     int unusedEthBalance;
     uint totalCollectedCashbacks;
     uint collectedFees;
@@ -50,7 +52,7 @@ library ContextMath {
     function addDelta(uint a, int b) internal pure returns (uint c) {
         if (b > 0) {
             c = a + uint(b);
-        } else if (a > uint(-b)) {
+        } else if (a >= uint(-b)) {
             c = a - uint(-b);
         } else {
             revert NotEnoughQuantityToBurn();
@@ -76,7 +78,9 @@ library ContextMath {
         uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
         uint fee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
         ctx.unusedEthBalance -= int(fee);
-        ctx.collectedFees += fee;
+        uint developerFee = fee * ctx.developerFeeRatio >> FixedPoint32.RESOLUTION;
+        ctx.collectedFees += fee - developerFee;
+        ctx.developerFee += developerFee;
     }
 
     function calculateDeviationFee(

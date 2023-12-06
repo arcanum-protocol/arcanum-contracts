@@ -1,6 +1,7 @@
 {
   "multipool": {
     "totalCashback": "4586318361190992",
+    "totalDevFees": "9999999762512743",
     "totalFees": "0",
     "totalShares": "50000000000000000000",
     "totalSupply": "16100000000000000000020"
@@ -34,7 +35,7 @@
   },
   "users": {
     "multipool": {
-      "ethBalance": "4586318361190992",
+      "ethBalance": "14586318123703735",
       "tokenBalance0": "41000000000000000000",
       "tokenBalance1": "15000000000000000000",
       "tokenBalance2": "60000000000000000000",
@@ -52,7 +53,7 @@
       "tokenBalanceMultipool": "100000000000000000010"
     },
     "user1": {
-      "ethBalance": "106879475302607925",
+      "ethBalance": "96879475540095182",
       "tokenBalance0": "100000000000000000000",
       "tokenBalance1": "100000000000000000000",
       "tokenBalance2": "100000000000000000000",

@@ -80,5 +80,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         );
 
         snapMultipool("MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt4");
+
+        mp.withdrawDeveloperFees();
+
+        snapMultipool("MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt5");
     }
 }

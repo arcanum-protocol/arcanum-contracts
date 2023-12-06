@@ -1,7 +1,8 @@
 {
   "multipool": {
     "totalCashback": "0",
-    "totalFees": "99999997764825820",
+    "totalDevFees": "9999999762512743",
+    "totalFees": "89999998002313077",
     "totalShares": "60000000000000000000",
     "totalSupply": "16000000000000000000010"
   },
