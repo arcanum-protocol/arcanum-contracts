@@ -8,7 +8,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
+import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
 
 contract MultipoolSwapEstimate is Test, MultipoolUtils {
     receive() external payable {}
@@ -17,7 +17,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         vm.startPrank(owner);
         mp.toggleTargetShareAuthority(owner);
         mp.toggleForcePushAuthority(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266));
-        mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         mp.setSharePriceTTL(60);
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
@@ -43,7 +43,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         mp.updateTargetShares(t, s);
 
         for (uint i = 0; i < t.length; i++) {
-            mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
         }
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
         vm.stopPrank();
@@ -82,7 +82,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         vm.startPrank(owner);
         mp.toggleTargetShareAuthority(owner);
         mp.toggleForcePushAuthority(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266));
-        mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         mp.setSharePriceTTL(60);
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
@@ -108,7 +108,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         mp.updateTargetShares(t, s);
 
         for (uint i = 0; i < t.length; i++) {
-            mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
         }
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
         vm.stopPrank();
@@ -146,7 +146,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
     function test_CheckEstimatesZeroBalances() public {
         vm.startPrank(owner);
         mp.toggleTargetShareAuthority(owner);
-        mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
         p[1] = toX96(0.02e18);
@@ -171,7 +171,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         mp.updateTargetShares(t, s);
 
         for (uint i = 0; i < t.length; i++) {
-            mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
         }
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
         vm.stopPrank();

@@ -180,8 +180,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sp
         );
         snapMultipool("SwapHappyPath2");
-
-        // // bootstrap new
     }
 
     function test_AddNewTokenAndTryToBurnWithIt() public {

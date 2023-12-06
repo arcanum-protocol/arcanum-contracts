@@ -72,7 +72,7 @@ contract MultipoolUtils is Test {
     function bootstrapTokens(uint[5] memory quoteValues, address to) public {
         vm.startPrank(owner);
         mp.setCurveParams(toX32(1e18), 0, 0, 0);
-        mp.updatePrice(address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         mp.toggleTargetShareAuthority(owner);
 
         uint[] memory p = new uint[](5);
@@ -105,7 +105,7 @@ contract MultipoolUtils is Test {
         for (uint i = 0; i < t.length; i++) {
             quoteSum += quoteValues[i];
             uint val = (quoteValues[i] << 96) / p[i];
-            mp.updatePrice(address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
             tokens[i].mint(address(mp), val);
             args[i] = Multipool.AssetArg({addr: address(tokens[i]), amount: int(val)});
         }
@@ -118,6 +118,7 @@ contract MultipoolUtils is Test {
         Multipool.FPSharePriceArg memory fp;
         mp.swap(fp, args, true, to, users[3]);
         mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
+        mp.setDevFees(users[2], toX32(0.1e18));
         vm.stopPrank();
     }
 
@@ -183,7 +184,7 @@ contract MultipoolUtils is Test {
 
     function changePrice(address asset, uint price) public {
         vm.startPrank(owner);
-        mp.updatePrice(asset, FeedType.FixedValue, abi.encode(price));
+        updatePrice(address(mp), asset, FeedType.FixedValue, abi.encode(price));
         vm.stopPrank();
     }
 
@@ -288,6 +289,7 @@ contract MultipoolUtils is Test {
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
         vm.serializeString("multipool", "totalCashback", jsonString(mp.totalCollectedCashbacks()));
         vm.serializeString("multipool", "totalFees", jsonString(mp.collectedFees()));
+        vm.serializeString("multipool", "totalDevFees", jsonString(mp.developerFee()));
         mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.totalTargetShares()));
 
         string memory snapJson;
@@ -313,6 +315,19 @@ contract MultipoolUtils is Test {
             vm.removeFile(nfpath);
         }
     }
+}
+
+function updatePrice(address multipoolAddress, address asset, FeedType kind, bytes memory data) {
+    address[] memory priceAddresses = new address[](1);
+    priceAddresses[0] = asset;
+
+    FeedType[] memory priceTypes = new FeedType[](1);
+    priceTypes[0] = kind;
+
+    bytes[] memory priceDatas = new bytes[](1);
+    priceDatas[0] = data;
+
+    Multipool(multipoolAddress).updatePrices(priceAddresses, priceTypes, priceDatas);
 }
 
 function sort(Multipool.AssetArg[] memory arr) pure returns (Multipool.AssetArg[] memory a) {

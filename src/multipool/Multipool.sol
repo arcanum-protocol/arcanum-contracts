@@ -45,6 +45,7 @@ contract Multipool is
     //------------- Errors ------------
 
     error InvalidForcePushAuthoritySignature();
+    error IsNotDeveloper();
     error InvalidTargetShareSetterAuthority();
     error ForcePushedPriceExpired(uint blockTimestamp, uint priceTimestestamp);
     error ZeroAmountSupplied();
@@ -64,6 +65,7 @@ contract Multipool is
     event SharePriceTTLChange(uint sharePriceTTL);
     event PriceSetterToggled(address indexed account, bool isSetter);
     event TargetShareSetterToggled(address indexed account, bool isSetter);
+    event DevParamsChange(address indexed devAddress, uint64 baseFeeRatio);
     event PauseChange(bool isPaused);
     event CollectedFeesChange(uint fees);
 
@@ -87,6 +89,9 @@ contract Multipool is
     mapping(address => bool) public isPriceSetter;
     mapping(address => bool) public isTargetShareSetter;
 
+    address public developerAddress;
+    uint64 public developerBaseFeeRatio;
+    uint public developerFee;
     bool public isPaused;
 
     // ---------------- Methods ------------------
@@ -160,10 +165,14 @@ contract Multipool is
         ctx.deviationLimit = _deviationLimit;
         ctx.depegBaseFee = _depegBaseFee;
         ctx.baseFee = _baseFee;
+        ctx.developerFee = developerFee;
+        ctx.developerFeeRatio = developerBaseFeeRatio;
         ctx.totalCollectedCashbacks = totalCollectedCashbacks;
         ctx.collectedFees = collectedFees;
-        ctx.unusedEthBalance =
-            int(address(this).balance - ctx.totalCollectedCashbacks - ctx.collectedFees);
+        ctx.unusedEthBalance = int(
+            address(this).balance - ctx.totalCollectedCashbacks - ctx.collectedFees
+                - ctx.developerFee
+        );
     }
 
     function getPricesAndSumQuotes(MpContext memory ctx, AssetArg[] memory selectedAssets)
@@ -293,7 +302,8 @@ contract Multipool is
         ctx.applyCollected(payable(refundTo));
         totalCollectedCashbacks = ctx.totalCollectedCashbacks;
         collectedFees = ctx.collectedFees;
-        emit CollectedFeesChange(ctx.collectedFees);
+        developerFee = ctx.developerFee;
+        emit CollectedFeesChange(ctx.collectedFees + ctx.developerFee);
     }
 
     function checkSwap(
@@ -343,7 +353,9 @@ contract Multipool is
         returns (uint128 amount)
     {
         uint totalCollectedCashbacksCached = totalCollectedCashbacks;
-        amount = uint128(address(this).balance - totalCollectedCashbacksCached - collectedFees);
+        amount = uint128(
+            address(this).balance - totalCollectedCashbacksCached - collectedFees - developerFee
+        );
         MpAsset memory asset = assets[assetAddress];
         asset.collectedCashbacks += uint128(amount);
         emit AssetChange(assetAddress, asset.quantity, amount);
@@ -353,14 +365,18 @@ contract Multipool is
 
     // ---------------- Owned ------------------
 
-    function updatePrice(address assetAddress, FeedType kind, bytes calldata feedData)
-        external
-        onlyOwner
-        notPaused
-    {
-        FeedInfo memory feed = FeedInfo({kind: kind, data: feedData});
-        prices[assetAddress] = feed;
-        emit FeedChange(assetAddress, feed);
+    function updatePrices(
+        address[] calldata assetAddresses,
+        FeedType[] calldata kinds,
+        bytes[] calldata feedData
+    ) external onlyOwner notPaused {
+        uint len = assetAddresses.length;
+        for (uint i; i < len; ++i) {
+            address assetAddress = assetAddresses[i];
+            FeedInfo memory feed = FeedInfo({kind: kinds[i], data: feedData[i]});
+            prices[assetAddress] = feed;
+            emit FeedChange(assetAddress, feed);
+        }
     }
 
     function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares)
@@ -389,6 +405,12 @@ contract Multipool is
         payable(to).transfer(fees);
     }
 
+    function withdrawDeveloperFees() external notPaused returns (uint fees) {
+        fees = developerFee;
+        developerFee = 0;
+        payable(developerAddress).transfer(fees);
+    }
+
     function togglePause() external onlyOwner {
         isPaused = !isPaused;
         emit PauseChange(isPaused);
@@ -411,6 +433,12 @@ contract Multipool is
     function setSharePriceTTL(uint newSharePriceTTL) external onlyOwner {
         sharePriceTTL = newSharePriceTTL;
         emit SharePriceTTLChange(sharePriceTTL);
+    }
+
+    function setDevFees(address newDeveloperAddress, uint64 newDevFeeRatio) external onlyOwner {
+        developerAddress = newDeveloperAddress;
+        developerBaseFeeRatio = newDevFeeRatio;
+        emit DevParamsChange(newDeveloperAddress, newDevFeeRatio);
     }
 
     function toggleForcePushAuthority(address authority) external onlyOwner {
