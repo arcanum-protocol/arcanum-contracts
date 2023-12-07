@@ -35,12 +35,12 @@ contract MultipoolFactory {
     }
 
     function deployMultipool(DeployArgs memory args) external returns (address multipool) {
-        Multipool mpImpl = new Multipool();
-        ERC1967Proxy proxy =
-            new ERC1967Proxy(address(mpImpl), abi.encode(args.name, args.symbol, args.startPrice));
-        Multipool mp = Multipool(address(proxy));
-        mp.setSharePriceTTL(60);
-        mp.updateTargetShares(args.assets, args.targetShares);
-        return address(mp);
+        // Multipool mpImpl = new Multipool();
+        // ERC1967Proxy proxy =
+        //     new ERC1967Proxy(address(mpImpl), abi.encode(args.name, args.symbol, args.startPrice));
+        // Multipool mp = Multipool(address(proxy));
+        // mp.setSharePriceTTL(60);
+        // mp.updateTargetShares(args.assets, args.targetShares);
+        // return address(mp);
     }
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Script.sol";
 import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
-import {MockERC20} from "../src/mocks/erc20.sol";
+import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
 
@@ -69,6 +69,20 @@ contract DeployTestnet is Script {
         //     params,
         //     params
         // );
+        vm.stopBroadcast();
+    }
+}
+
+contract DeployTokenWithAlternativeDecimals is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
+
+        MockERC20WithDecimals token4 = new MockERC20WithDecimals("TOKEN4", "TKN4", 4);
+        console.log("token with 4 decimals: ", address(token4));
+        MockERC20WithDecimals token24 = new MockERC20WithDecimals("TOKEN24", "TKN24", 24);
+        console.log("token with 24 decimals: ", address(token24));
+
         vm.stopBroadcast();
     }
 }
