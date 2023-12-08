@@ -2,13 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
 
 contract MultipoolSwapEstimate is Test, MultipoolUtils {
     receive() external payable {}
@@ -52,7 +50,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         uint val = (quoteSum << 96) / p[1];
 
         vm.warp(1701399851);
-        Multipool.ForcePushArgs memory fp;
+        ForcePushArgs memory fp;
         fp.contractAddress = address(mp);
         fp.timestamp = 1701395175;
         fp.sharePrice = 7922816251426433759354395033;
@@ -64,8 +62,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -117,7 +115,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         uint val = (quoteSum << 96) / p[1];
 
         vm.warp(1701391951);
-        Multipool.ForcePushArgs memory fp;
+        ForcePushArgs memory fp;
         fp.contractAddress = address(mp);
         fp.timestamp = 1701391951;
         fp.sharePrice = 7922816251426433759354395033;
@@ -129,8 +127,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -184,8 +182,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -202,8 +200,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(1e18)}),
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: -int(100e18 + 990)})
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(1e18)}),
+                        AssetArgs({assetAddress: address(mp), amount: -int(100e18 + 990)})
                     ]
                 )
             ),
@@ -231,8 +229,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -249,8 +247,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(1)}),
-                        Multipool.AssetArgs({
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1)}),
+                        AssetArgs({
                             assetAddress: address(mp),
                             amount: -int((quoteSum << 96) / toX96(0.1e18))
                         })
@@ -270,8 +268,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArgs({
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        AssetArgs({
                             assetAddress: address(mp),
                             amount: -int((quoteSum << 96) / toX96(0.1e18))
                         })

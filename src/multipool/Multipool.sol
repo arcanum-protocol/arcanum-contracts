@@ -11,9 +11,11 @@ import {MpAsset, MpContext} from "../lib/MpContext.sol";
 import {FeedInfo, FeedType} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 
-import {
-    IMultipool, IMultipoolManagerMethods, IMultipoolMethods
-} from "../interfaces/IMultipool.sol";
+import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManagerMethods.sol";
+import {IMultipoolMethods} from "../interfaces/multipool/IMultipoolMethods.sol";
+import {IMultipool} from "../interfaces/IMultipool.sol";
+
+import {ForcePushArgs, AssetArgs} from "../types/Multipool.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
@@ -53,26 +55,6 @@ contract Multipool is
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-
-    // Asset args that are provided to swap methods
-    struct AssetArgs {
-        // Multipool asset address
-        address assetAddress;
-        // Negative for token out, positive for token in
-        int amount;
-    }
-
-    // Struct that provides overriding of price called force push
-    struct ForcePushArgs {
-        // Address of this contract
-        address contractAddress;
-        // Signing timestamp
-        uint128 timestamp;
-        // Share price of this contract
-        uint128 sharePrice;
-        // Force push authoirty's sign
-        bytes signature;
-    }
 
     mapping(address => MpAsset) internal assets;
     mapping(address => FeedInfo) internal prices;

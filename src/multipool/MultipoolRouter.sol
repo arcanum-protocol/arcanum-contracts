@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Multipool} from "./Multipool.sol";
-import "openzeppelin/token/ERC20/IERC20.sol";
+import {ForcePushArgs, AssetArgs} from "../types/Multipool.sol";
+import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 interface WETH is IERC20 {
@@ -59,8 +60,8 @@ contract MultipoolRouter is Ownable {
     error ContractCallNotAllowed(address target);
 
     struct SwapArgs {
-        Multipool.ForcePushArgs fpSharePrice;
-        Multipool.AssetArgs[] selectedAssets;
+        ForcePushArgs fpSharePrice;
+        AssetArgs[] selectedAssets;
         bool isExactInput;
         address to;
         address refundTo;

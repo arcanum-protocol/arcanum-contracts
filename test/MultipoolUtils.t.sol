@@ -2,13 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
-import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../src/lib/Price.sol";
+import {ForcePushArgs, AssetArgs} from "../src/types/Multipool.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
@@ -98,7 +97,7 @@ contract MultipoolUtils is Test {
 
         mp.updateTargetShares(t, s);
 
-        Multipool.AssetArgs[] memory args = new Multipool.AssetArgs[](6);
+        AssetArgs[] memory args = new AssetArgs[](6);
 
         uint quoteSum;
 
@@ -107,20 +106,18 @@ contract MultipoolUtils is Test {
             uint val = (quoteValues[i] << 96) / p[i];
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
             tokens[i].mint(address(mp), val);
-            args[i] = Multipool.AssetArgs({assetAddress: address(tokens[i]), amount: int(val)});
+            args[i] = AssetArgs({assetAddress: address(tokens[i]), amount: int(val)});
         }
 
-        args[5] = Multipool.AssetArgs({
-            assetAddress: address(mp),
-            amount: -int((quoteSum << 96) / toX96(0.1e18))
-        });
+        args[5] =
+            AssetArgs({assetAddress: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
 
         args = sort(args);
 
-        Multipool.ForcePushArgs memory fp;
+        ForcePushArgs memory fp;
         mp.swap(fp, args, true, to, users[3]);
         mp.setFeeParams(
-            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), toX32(0.1e18), users[2] 
+            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), toX32(0.1e18), users[2]
         );
         vm.stopPrank();
     }
@@ -132,7 +129,7 @@ contract MultipoolUtils is Test {
     }
 
     function swap(
-        Multipool.AssetArgs[] memory assets,
+        AssetArgs[] memory assets,
         uint ethValue,
         address to,
         SharePriceParams memory sp
@@ -143,7 +140,7 @@ contract MultipoolUtils is Test {
     }
 
     function swapExt(
-        Multipool.AssetArgs[] memory assets,
+        AssetArgs[] memory assets,
         uint ethValue,
         address to,
         SharePriceParams memory sp,
@@ -153,7 +150,7 @@ contract MultipoolUtils is Test {
     )
         public
     {
-        Multipool.ForcePushArgs memory fp;
+        ForcePushArgs memory fp;
         if (sp.send) {
             fp.contractAddress = owner;
             fp.timestamp = sp.ts;
@@ -171,7 +168,7 @@ contract MultipoolUtils is Test {
     }
 
     function checkSwap(
-        Multipool.AssetArgs[] memory assets,
+        AssetArgs[] memory assets,
         bool isExactInput,
         SharePriceParams memory sp
     )
@@ -179,7 +176,7 @@ contract MultipoolUtils is Test {
         view
         returns (int fee, int[] memory amounts)
     {
-        Multipool.ForcePushArgs memory fp;
+        ForcePushArgs memory fp;
         if (sp.send) {
             fp.contractAddress = owner;
             fp.timestamp = sp.ts;
@@ -305,9 +302,9 @@ function updatePrice(address multipoolAddress, address asset, FeedType kind, byt
     Multipool(multipoolAddress).updatePrices(priceAddresses, priceTypes, priceDatas);
 }
 
-function sort(Multipool.AssetArgs[] memory arr) pure returns (Multipool.AssetArgs[] memory a) {
+function sort(AssetArgs[] memory arr) pure returns (AssetArgs[] memory a) {
     uint i;
-    Multipool.AssetArgs memory key;
+    AssetArgs memory key;
     uint j;
 
     for (i = 1; i < arr.length; i++) {
@@ -322,61 +319,43 @@ function sort(Multipool.AssetArgs[] memory arr) pure returns (Multipool.AssetArg
     a = arr;
 }
 
-function dynamic(Multipool.AssetArgs[1] memory assets)
-    pure
-    returns (Multipool.AssetArgs[] memory dynarray)
-{
-    dynarray = new Multipool.AssetArgs[](assets.length);
+function dynamic(AssetArgs[1] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArgs[2] memory assets)
-    pure
-    returns (Multipool.AssetArgs[] memory dynarray)
-{
-    dynarray = new Multipool.AssetArgs[](assets.length);
+function dynamic(AssetArgs[2] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArgs[3] memory assets)
-    pure
-    returns (Multipool.AssetArgs[] memory dynarray)
-{
-    dynarray = new Multipool.AssetArgs[](assets.length);
+function dynamic(AssetArgs[3] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArgs[4] memory assets)
-    pure
-    returns (Multipool.AssetArgs[] memory dynarray)
-{
-    dynarray = new Multipool.AssetArgs[](assets.length);
+function dynamic(AssetArgs[4] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArgs[5] memory assets)
-    pure
-    returns (Multipool.AssetArgs[] memory dynarray)
-{
-    dynarray = new Multipool.AssetArgs[](assets.length);
+function dynamic(AssetArgs[5] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArgs[6] memory assets)
-    pure
-    returns (Multipool.AssetArgs[] memory dynarray)
-{
-    dynarray = new Multipool.AssetArgs[](assets.length);
+function dynamic(AssetArgs[6] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
