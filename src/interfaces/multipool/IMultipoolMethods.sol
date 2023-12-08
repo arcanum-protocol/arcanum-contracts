@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {FeedInfo} from "../../lib/Price.sol";
 import {MpAsset} from "../../lib/MpContext.sol";
-import {Multipool} from "../../multipool/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../../types/Multipool.sol";
 
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
@@ -71,8 +71,8 @@ interface IMultipoolMethods {
     /// Fees are charged in native token equivalend via transferring them before invocation or in
     /// msg.value
     function swap(
-        Multipool.ForcePushArgs calldata forcePushArgs,
-        Multipool.AssetArgs[] calldata assetsToSwap,
+        ForcePushArgs calldata forcePushArgs,
+        AssetArgs[] calldata assetsToSwap,
         bool isExactInput,
         address sendTo,
         address refundTo
@@ -90,8 +90,8 @@ interface IMultipoolMethods {
     /// @return fee Native token amount to cover swap fees
     /// @dev To avoid calculation errors don't provide small values to amount
     function checkSwap(
-        Multipool.ForcePushArgs calldata forcePushArgs,
-        Multipool.AssetArgs[] calldata assetsToSwap,
+        ForcePushArgs calldata forcePushArgs,
+        AssetArgs[] calldata assetsToSwap,
         bool isExactInput
     )
         external

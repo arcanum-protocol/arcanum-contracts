@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {FixedPoint96} from "./FixedPoint96.sol";
 import {FixedPoint32} from "./FixedPoint32.sol";
-import "../multipool/Multipool.sol";
 
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 

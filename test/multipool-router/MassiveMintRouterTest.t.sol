@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
+import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
-import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
 
 contract MockCallSomething is Test {
     function callWithEther(uint amount, address token, address to) public payable {
@@ -39,18 +39,18 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
         mocked = new MockCallSomething();
 
-        Multipool.AssetArgs[] memory assetArgs = sort(
+        AssetArgs[] memory assetArgs = sort(
             dynamic(
                 [
-                    Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                    Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-                    Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
-                    Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
+                    AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+                    AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
+                    AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
+                    AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
                 ]
             )
         );
         MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
-            fpSharePrice: Multipool.ForcePushArgs({
+            fpSharePrice: ForcePushArgs({
                 contractAddress: address(0),
                 timestamp: 0,
                 sharePrice: 0,

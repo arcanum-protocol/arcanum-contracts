@@ -2,11 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
+import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 

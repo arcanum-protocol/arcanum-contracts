@@ -2,13 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
 
 //also test refund
 contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
@@ -31,10 +29,10 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(0)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(0)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
                     ]
                 )
             ),
@@ -64,10 +62,10 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
                     ]
                 )
             ),
@@ -88,15 +86,12 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({
-                            assetAddress: address(mp),
-                            amount: int(19000000000000000000010)
-                        }),
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(19000000000000000000010)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
                     ]
                 )
             ),
@@ -112,12 +107,12 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: int(100000e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(100000e18)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
                     ]
                 )
             ),
@@ -133,8 +128,8 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(mp), amount: int(190010)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(190010)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
                     ]
                 )
             ),
@@ -150,15 +145,12 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({
-                            assetAddress: address(mp),
-                            amount: int(17000000000000000000010)
-                        }),
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(-410e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(-150.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-780e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-1160e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(-300e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-410e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-150.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-780e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-1160e18)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-300e18)})
                     ]
                 )
             ),
@@ -174,15 +166,12 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({
-                            assetAddress: address(mp),
-                            amount: int(17000000000000000000010)
-                        }),
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
                     ]
                 )
             ),
@@ -205,15 +194,12 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({
-                            assetAddress: address(mp),
-                            amount: int(-17000000000000000000011)
-                        }),
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(41e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(15.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(78e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(116e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(30e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(-17000000000000000000011)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(41e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(15.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(78e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(116e18)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(30e18)})
                     ]
                 )
             ),
@@ -229,15 +215,12 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({
-                            assetAddress: address(mp),
-                            amount: int(-17000000000000000001111)
-                        }),
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(41e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(15.5e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(78e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(116e18)}),
-                        Multipool.AssetArgs({assetAddress: address(tokens[4]), amount: int(30e18)})
+                        AssetArgs({assetAddress: address(mp), amount: int(-17000000000000000001111)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(41e18)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(15.5e18)}),
+                        AssetArgs({assetAddress: address(tokens[2]), amount: int(78e18)}),
+                        AssetArgs({assetAddress: address(tokens[3]), amount: int(116e18)}),
+                        AssetArgs({assetAddress: address(tokens[4]), amount: int(30e18)})
                     ]
                 )
             ),

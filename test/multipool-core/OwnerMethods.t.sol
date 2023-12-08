@@ -2,13 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
@@ -26,8 +24,8 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArgs({
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        AssetArgs({
                             assetAddress: address(mp),
                             amount: -int((quoteSum << 96) / toX96(0.1e18))
                         })
@@ -63,8 +61,8 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: -int(10000)}),
-                        Multipool.AssetArgs({
+                        AssetArgs({assetAddress: address(tokens[0]), amount: -int(10000)}),
+                        AssetArgs({
                             assetAddress: address(mp),
                             amount: int((quoteSum << 96) / toX96(0.1e18) / 2)
                         })
