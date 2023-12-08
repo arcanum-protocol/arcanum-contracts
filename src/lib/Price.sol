@@ -3,23 +3,31 @@ pragma solidity ^0.8.0;
 
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
+import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
-enum FeedType {
+enum FeedType
+// Unset value
+{
     Undefined,
+    // Constant value used for tests and to represend quote price feed to quote
     FixedValue,
+    // Uniswap v3 price extraction
     UniV3
 }
-// YieldDerivative
 
+// Data of uniswap v3 feed
 struct UniV3Feed {
+    // Pool address
     address oracle;
+    // Shows wether to flip the price
     bool reversed;
+    // Interval of aggregation in seconds
     uint twapInterval;
 }
 
-// any Price should have a 2^96 decimals
-// some unsafe shit here, generally feed type is a simple number and bytes that
-//depend on feed type
+// Any price should have a 2^96 decimals
+// Some unsafe shit here, generally feed type is a simple number and bytes that
+// depend on feed type
 struct FeedInfo {
     FeedType kind;
     bytes data;
@@ -27,21 +35,44 @@ struct FeedInfo {
 
 using {PriceMath.getPrice} for FeedInfo global;
 
+/// @title Price calculation and provision library
 library PriceMath {
+    /// @notice Is thrown if price feed data is unset
     error NoPriceOriginSet();
 
-    function getPrice(FeedInfo memory feed) internal view returns (uint price) {
-        if (feed.kind == FeedType.FixedValue) {
-            price = abi.decode(feed.data, (uint));
-        } else if (feed.kind == FeedType.UniV3) {
-            UniV3Feed memory data = abi.decode(feed.data, (UniV3Feed));
+    /// @notice Extracts current price from origin
+    /// @dev Processed the provided `prceFeed` to get it's current price value.
+    /// @param priceFeed struct with data of supplied price feed
+    /// @return price value is represented as a Q96 value
+    function getPrice(FeedInfo memory priceFeed) internal view returns (uint price) {
+        if (priceFeed.kind == FeedType.FixedValue) {
+            price = abi.decode(priceFeed.data, (uint));
+        } else if (priceFeed.kind == FeedType.UniV3) {
+            UniV3Feed memory data = abi.decode(priceFeed.data, (UniV3Feed));
             price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
         } else {
             revert NoPriceOriginSet();
         }
     }
 
-    function getTwapX96(address uniswapV3Pool, bool reversed, uint256 twapInterval)
+    /**
+     *
+     * Reversed parameter serves to determine wether price needs to be flipped. This happens because
+     * uniswap
+     * pools have single pool per asset pair and sort assets addresses.
+     */
+    /// @notice Extracts current price from origin
+    /// @dev This function is used to extract TWAP price from uniswap v3 pool
+    /// @param twapInterval price aggregation interval in seconds
+    /// @param uniswapV3Pool address of target uniswap v3 pool
+    /// @param reversed parameter serves to determine wether price needs to be flipped.
+    //  This happens because uniswap pools have single pool per asset pair and sort assets addresses
+    /// @return priceX96 value is represented as a Q96 value
+    function getTwapX96(
+        address uniswapV3Pool,
+        bool reversed,
+        uint256 twapInterval
+    )
         internal
         view
         returns (uint256 priceX96)
@@ -73,17 +104,22 @@ library PriceMath {
 }
 
 /// @title Math library for computing sqrt prices from ticks and vice versa
-/// @notice Computes sqrt price for ticks of size 1.0001, i.e. sqrt(1.0001^tick) as fixed point Q64.96 numbers. Supports
+/// @notice Computes sqrt price for ticks of size 1.0001, i.e. sqrt(1.0001^tick) as fixed point
+/// Q64.96 numbers. Supports
 /// prices between 2**-128 and 2**128
 library TickMath {
-    /// @dev The minimum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**-128
+    /// @dev The minimum tick that may be passed to #getSqrtRatioAtTick computed from log base
+    /// 1.0001 of 2**-128
     int24 internal constant MIN_TICK = -887272;
-    /// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**128
+    /// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base
+    /// 1.0001 of 2**128
     int24 internal constant MAX_TICK = -MIN_TICK;
 
-    /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
+    /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to
+    /// getSqrtRatioAtTick(MIN_TICK)
     uint160 internal constant MIN_SQRT_RATIO = 4295128739;
-    /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
+    /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to
+    /// getSqrtRatioAtTick(MAX_TICK)
     uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
 
     /// @notice Calculates sqrt(1.0001^tick) * 2^96
@@ -122,8 +158,10 @@ library TickMath {
         if (tick > 0) ratio = type(uint256).max / ratio;
 
         // this divides by 1<<32 rounding up to go from a Q128.128 to a Q128.96.
-        // we then downcast because we know the result always fits within 160 bits due to our tick input constraint
-        // we round up in the division so getTickAtSqrtRatio of the output price is always consistent
+        // we then downcast because we know the result always fits within 160 bits due to our tick
+        // input constraint
+        // we round up in the division so getTickAtSqrtRatio of the output price is always
+        // consistent
         sqrtPriceX96 = uint160((ratio >> 32) + (ratio % (1 << 32) == 0 ? 0 : 1));
     }
 }

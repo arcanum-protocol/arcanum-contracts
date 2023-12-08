@@ -19,7 +19,11 @@ contract MockCallSomething is Test {
         IERC20(token).transferFrom(msg.sender, to, amount);
     }
 
-    function mockTransferAllFunds(uint[] calldata amounts, address[] calldata tokens, address to)
+    function mockTransferAllFunds(
+        uint[] calldata amounts,
+        address[] calldata tokens,
+        address to
+    )
         public
     {
         for (uint i = 0; i < tokens.length; i++) {
@@ -35,21 +39,21 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
         mocked = new MockCallSomething();
 
-        Multipool.AssetArg[] memory assetArgs = sort(
+        Multipool.AssetArgs[] memory assetArgs = sort(
             dynamic(
                 [
-                    Multipool.AssetArg({addr: address(tokens[0]), amount: int(1e18)}),
-                    Multipool.AssetArg({addr: address(tokens[1]), amount: int(0.5e18)}),
-                    Multipool.AssetArg({addr: address(tokens[2]), amount: int(-2e18)}),
-                    Multipool.AssetArg({addr: address(tokens[3]), amount: int(-4e18)})
+                    Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+                    Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
+                    Multipool.AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
+                    Multipool.AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
                 ]
             )
         );
         MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
-            fpSharePrice: Multipool.FPSharePriceArg({
-                thisAddress: address(0),
+            fpSharePrice: Multipool.ForcePushArgs({
+                contractAddress: address(0),
                 timestamp: 0,
-                value: 0,
+                sharePrice: 0,
                 signature: abi.encode(0)
             }),
             selectedAssets: assetArgs,

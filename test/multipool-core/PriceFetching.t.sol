@@ -11,7 +11,12 @@ import {FeedInfo, FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 
 interface AaveV3 is IERC20 {
-    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)
+    function supply(
+        address asset,
+        uint256 amount,
+        address onBehalfOf,
+        uint16 referralCode
+    )
         external;
     function withdraw(address asset, uint256 amount, address to) external;
     function symbol() external returns (string memory symbol);

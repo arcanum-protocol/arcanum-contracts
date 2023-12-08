@@ -26,9 +26,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArg({
-                            addr: address(mp),
+                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArgs({
+                            assetAddress: address(mp),
                             amount: -int((quoteSum << 96) / toX96(0.1e18))
                         })
                     ]
@@ -63,9 +63,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[0]), amount: -int(10000)}),
-                        Multipool.AssetArg({
-                            addr: address(mp),
+                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: -int(10000)}),
+                        Multipool.AssetArgs({
+                            assetAddress: address(mp),
                             amount: int((quoteSum << 96) / toX96(0.1e18) / 2)
                         })
                     ]

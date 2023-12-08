@@ -33,7 +33,10 @@ contract LpFarm is Ownable {
         rewardToken = _rewardToken;
     }
 
-    function calculateReward(PoolInfo memory pool, uint blockNumber)
+    function calculateReward(
+        PoolInfo memory pool,
+        uint blockNumber
+    )
         internal
         pure
         returns (uint rewards)
