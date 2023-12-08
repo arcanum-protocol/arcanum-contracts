@@ -15,10 +15,10 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
 
     function testFail_CheckForcePushSignatureFailsWithInvalidTTL() public {
         vm.startPrank(owner);
-        mp.toggleTargetShareAuthority(owner);
-        mp.toggleForcePushAuthority(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266));
+        mp.setAuthorityRights(owner, false, true);
+        mp.setAuthorityRights(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266), true, false);
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
-        mp.setSharePriceTTL(60);
+        mp.setSharePriceValidityDuration(60);
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
         p[1] = toX96(0.02e18);
@@ -45,17 +45,17 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         for (uint i = 0; i < t.length; i++) {
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
         }
-        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
+        setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.01e18), toX32(0.6e18));
         vm.stopPrank();
 
         uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / p[1];
 
         vm.warp(1701399851);
-        Multipool.FPSharePriceArg memory fp;
-        fp.thisAddress = address(mp);
+        Multipool.ForcePushArgs memory fp;
+        fp.contractAddress = address(mp);
         fp.timestamp = 1701395175;
-        fp.value = 7922816251426433759354395033;
+        fp.sharePrice = 7922816251426433759354395033;
         fp.signature =
             hex"25fe112a17d7b3d8b7ddda7d297026424cd52fb429bf6490d029b01c1dbd569327a41fd3e9e43b7b341b48380f69876335dca3ef7f681736b496bd9f22fd51731c";
 
@@ -64,8 +64,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -1e18})
+                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -80,10 +80,10 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
 
     function test_CheckForcePushSignatureWorks() public {
         vm.startPrank(owner);
-        mp.toggleTargetShareAuthority(owner);
-        mp.toggleForcePushAuthority(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266));
+        mp.setAuthorityRights(owner, false, true);
+        mp.setAuthorityRights(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266), true, false);
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
-        mp.setSharePriceTTL(60);
+        mp.setSharePriceValidityDuration(60);
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
         p[1] = toX96(0.02e18);
@@ -110,17 +110,17 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         for (uint i = 0; i < t.length; i++) {
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
         }
-        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
+        setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.01e18), toX32(0.6e18));
         vm.stopPrank();
 
         uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / p[1];
 
         vm.warp(1701391951);
-        Multipool.FPSharePriceArg memory fp;
-        fp.thisAddress = address(mp);
+        Multipool.ForcePushArgs memory fp;
+        fp.contractAddress = address(mp);
         fp.timestamp = 1701391951;
-        fp.value = 7922816251426433759354395033;
+        fp.sharePrice = 7922816251426433759354395033;
         fp.signature =
             hex"0bed8a506cb35434040c7aa374cc8ab587d4f5959d8af4f62e5dbf9e5156857e4d90bac66ebd29bc8016987538831a593797d55c54ed57e6762e594466ca360d1b";
 
@@ -129,8 +129,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -1e18})
+                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -145,7 +145,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
 
     function test_CheckEstimatesZeroBalances() public {
         vm.startPrank(owner);
-        mp.toggleTargetShareAuthority(owner);
+        mp.setAuthorityRights(owner, false, true);
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
@@ -173,7 +173,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         for (uint i = 0; i < t.length; i++) {
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
         }
-        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
+        setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.01e18), toX32(0.6e18));
         vm.stopPrank();
 
         uint quoteSum = 10e18;
@@ -184,8 +184,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -1e18})
+                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -202,8 +202,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[1]), amount: int(1e18)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -int(100e18 + 990)})
+                        Multipool.AssetArgs({assetAddress: address(tokens[1]), amount: int(1e18)}),
+                        Multipool.AssetArgs({assetAddress: address(mp), amount: -int(100e18 + 990)})
                     ]
                 )
             ),
@@ -231,8 +231,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArg({addr: address(mp), amount: -1e18})
+                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
@@ -249,9 +249,9 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(1)}),
-                        Multipool.AssetArg({
-                            addr: address(mp),
+                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(1)}),
+                        Multipool.AssetArgs({
+                            assetAddress: address(mp),
                             amount: -int((quoteSum << 96) / toX96(0.1e18))
                         })
                     ]
@@ -270,9 +270,9 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             sort(
                 dynamic(
                     [
-                        Multipool.AssetArg({addr: address(tokens[0]), amount: int(val)}),
-                        Multipool.AssetArg({
-                            addr: address(mp),
+                        Multipool.AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        Multipool.AssetArgs({
+                            assetAddress: address(mp),
                             amount: -int((quoteSum << 96) / toX96(0.1e18))
                         })
                     ]

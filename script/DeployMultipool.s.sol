@@ -17,10 +17,9 @@ contract DeployTestnet is Script {
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         Multipool mp = Multipool(address(proxy));
-        mp.initialize("Exchange tradable fund", "ETF", toX96(0.1e18));
-        mp.toggleTargetShareAuthority(deployerPublicKey);
-        mp.toggleForcePushAuthority(deployerPublicKey);
-        mp.setSharePriceTTL(600);
+        mp.initialize("Exchange tradable fund", "ETF", uint128(toX96(0.1e18)));
+        mp.setAuthorityRights(deployerPublicKey, true, true);
+        mp.setSharePriceValidityDuration(600);
         console.log("multipool address: ", address(mp));
 
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
@@ -38,7 +37,14 @@ contract DeployTestnet is Script {
             console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);
         }
-        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.0001e18));
+        mp.setFeeParams(
+            toX32(0.15e18),
+            toX32(0.0003e18),
+            toX32(0.6e18),
+            toX32(0.0001e18),
+            deployerPublicKey,
+            toX32(0.15e18)
+        );
         MultipoolRouter router = new MultipoolRouter();
 
         console.log("router address: ", address(router));

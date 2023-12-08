@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
-// Multipool can't be understood by your mind, only your heart
+// Multipool can't be understood by your mind, only by your heart
+// good luck little defi explorer
+// oh, if you wana fork, fuck you
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
+
 import {MpAsset, MpContext} from "../lib/MpContext.sol";
 import {FeedInfo, FeedType} from "../lib/Price.sol";
+import {FixedPoint96} from "../lib/FixedPoint96.sol";
+
+import {
+    IMultipool, IMultipoolManagerMethods, IMultipoolMethods
+} from "../interfaces/IMultipool.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
@@ -13,12 +21,12 @@ import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
-import {FixedPoint96} from "../lib/FixedPoint96.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
+    IMultipool,
     Initializable,
     ERC20Upgradeable,
     ERC20PermitUpgradeable,
@@ -29,47 +37,42 @@ contract Multipool is
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
-    function initialize(string memory mpName, string memory mpSymbol, uint sharePrice)
+    function initialize(
+        string memory name,
+        string memory symbol,
+        uint128 startSharePrice
+    )
         public
         initializer
     {
-        __ERC20_init(mpName, mpSymbol);
-        __ERC20Permit_init(mpName);
+        __ERC20_init(name, symbol);
+        __ERC20Permit_init(name);
         __ReentrancyGuard_init();
         __Ownable_init();
-        initialSharePrice = sharePrice;
+        initialSharePrice = startSharePrice;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    //------------- Errors ------------
+    // Asset args that are provided to swap methods
+    struct AssetArgs {
+        // Multipool asset address
+        address assetAddress;
+        // Negative for token out, positive for token in
+        int amount;
+    }
 
-    error InvalidForcePushAuthoritySignature();
-    error IsNotDeveloper();
-    error InvalidTargetShareSetterAuthority();
-    error ForcePushedPriceExpired(uint blockTimestamp, uint priceTimestestamp);
-    error ZeroAmountSupplied();
-    error InsuficcientBalance();
-    error SleepageExceeded();
-    error AssetsNotSortedOrNotUnique();
-    error IsPaused();
-
-    //------------- Events ------------
-
-    event AssetChange(address indexed token, uint quantity, uint128 collectedCashbacks);
-    event FeesChange(
-        uint64 deviationParam, uint64 deviationLimit, uint64 depegBaseFee, uint64 baseFee
-    );
-    event TargetShareChange(address indexed token, uint share, uint totalTargetShares);
-    event FeedChange(address indexed token, FeedInfo feed);
-    event SharePriceTTLChange(uint sharePriceTTL);
-    event PriceSetterToggled(address indexed account, bool isSetter);
-    event TargetShareSetterToggled(address indexed account, bool isSetter);
-    event DevParamsChange(address indexed devAddress, uint64 baseFeeRatio);
-    event PauseChange(bool isPaused);
-    event CollectedFeesChange(uint fees);
-
-    //------------- Variables ------------
+    // Struct that provides overriding of price called force push
+    struct ForcePushArgs {
+        // Address of this contract
+        address contractAddress;
+        // Signing timestamp
+        uint128 timestamp;
+        // Share price of this contract
+        uint128 sharePrice;
+        // Force push authoirty's sign
+        bytes signature;
+    }
 
     mapping(address => MpAsset) internal assets;
     mapping(address => FeedInfo) internal prices;
@@ -83,121 +86,161 @@ contract Multipool is
     uint public totalCollectedCashbacks;
     uint public collectedFees;
 
-    uint public initialSharePrice;
-    uint public sharePriceTTL;
+    uint128 internal initialSharePrice;
+    uint128 internal sharePriceValidityDuration;
 
     mapping(address => bool) public isPriceSetter;
     mapping(address => bool) public isTargetShareSetter;
 
-    address public developerAddress;
-    uint64 public developerBaseFeeRatio;
-    uint public developerFee;
-    bool public isPaused;
+    address internal developerAddress;
+    uint64 internal developerBaseFee;
+    uint public collectedDeveloperFees;
 
-    // ---------------- Methods ------------------
+    bool public isPaused;
 
     modifier notPaused() {
         if (isPaused) revert IsPaused();
         _;
     }
 
-    function getPriceFeed(address asset) public view returns (FeedInfo memory f) {
-        f = prices[asset];
+    /// @inheritdoc IMultipoolMethods
+    function getSharePriceParams()
+        external
+        view
+        override
+        returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice)
+    {
+        _sharePriceValidityDuration = sharePriceValidityDuration;
+        _initialSharePrice = initialSharePrice;
     }
 
-    function getPrice(address asset) public view returns (uint price) {
+    /// @inheritdoc IMultipoolMethods
+    function getPriceFeed(address asset)
+        external
+        view
+        override
+        returns (FeedInfo memory priceFeed)
+    {
+        priceFeed = prices[asset];
+    }
+
+    /// @inheritdoc IMultipoolMethods
+    function getPrice(address asset) public view override returns (uint price) {
         price = prices[asset].getPrice();
     }
 
-    function getFees()
+    function getFeeParams()
         public
         view
+        override
         returns (
             uint64 _deviationParam,
             uint64 _deviationLimit,
             uint64 _depegBaseFee,
-            uint64 _baseFee
+            uint64 _baseFee,
+            uint64 _developerBaseFee,
+            address _developerAddress
         )
     {
         _deviationParam = deviationParam;
         _deviationLimit = deviationLimit;
         _depegBaseFee = depegBaseFee;
         _baseFee = baseFee;
+        _developerBaseFee = developerBaseFee;
+        _developerAddress = developerAddress;
     }
 
-    function getAsset(address assetAddress) public view returns (MpAsset memory asset) {
+    /// @inheritdoc IMultipoolMethods
+    function getAsset(address assetAddress) public view override returns (MpAsset memory asset) {
         asset = assets[assetAddress];
     }
 
-    function getContext(FPSharePriceArg calldata fpSharePrice)
+    /// @notice Assembles context for swappping
+    /// @param forcePushArgs price force push related data
+    /// @return ctx state memory context used across swapping
+    /// @dev tries to apply force pushed share price if provided address matches otherwhise ignores
+    /// struct
+    function getContext(ForcePushArgs calldata forcePushArgs)
         internal
         view
         returns (MpContext memory ctx)
     {
-        uint totSup = totalSupply();
+        uint _totalSupply = totalSupply();
         uint price;
-        if (fpSharePrice.thisAddress == address(this)) {
+        if (forcePushArgs.contractAddress == address(this)) {
             bytes memory data = abi.encodePacked(
-                address(fpSharePrice.thisAddress),
-                uint(fpSharePrice.timestamp),
-                uint(fpSharePrice.value)
+                address(forcePushArgs.contractAddress),
+                uint(forcePushArgs.timestamp),
+                uint(forcePushArgs.sharePrice)
             );
             if (
                 !isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(
-                    fpSharePrice.signature
+                    forcePushArgs.signature
                 )]
             ) {
-                revert InvalidForcePushAuthoritySignature();
+                revert InvalidForcePushAuthority();
             }
-            if (fpSharePrice.timestamp + sharePriceTTL < block.timestamp) {
-                revert ForcePushedPriceExpired(block.timestamp, fpSharePrice.timestamp);
+            if (forcePushArgs.timestamp + sharePriceValidityDuration < block.timestamp) {
+                revert ForcePushPriceExpired(block.timestamp, forcePushArgs.timestamp);
             }
-            price = fpSharePrice.value;
+            price = forcePushArgs.sharePrice;
         } else {
-            price = totSup == 0 ? initialSharePrice : prices[address(this)].getPrice();
+            price = _totalSupply == 0 ? initialSharePrice : prices[address(this)].getPrice();
         }
-        (uint64 _deviationParam, uint64 _deviationLimit, uint64 _depegBaseFee, uint64 _baseFee) =
-            getFees();
+
+        uint64 _deviationParam = deviationParam;
+        uint64 _deviationLimit = deviationLimit;
+        uint64 _depegBaseFee = depegBaseFee;
+        uint64 _baseFee = baseFee;
+
         ctx.sharePrice = price;
-        ctx.oldTotalSupply = totSup;
+        ctx.oldTotalSupply = _totalSupply;
         ctx.totalTargetShares = totalTargetShares;
         ctx.deviationParam = _deviationParam;
         ctx.deviationLimit = _deviationLimit;
         ctx.depegBaseFee = _depegBaseFee;
         ctx.baseFee = _baseFee;
-        ctx.developerFee = developerFee;
-        ctx.developerFeeRatio = developerBaseFeeRatio;
+        ctx.collectedDeveloperFees = collectedDeveloperFees;
+        ctx.developerBaseFee = developerBaseFee;
         ctx.totalCollectedCashbacks = totalCollectedCashbacks;
         ctx.collectedFees = collectedFees;
         ctx.unusedEthBalance = int(
             address(this).balance - ctx.totalCollectedCashbacks - ctx.collectedFees
-                - ctx.developerFee
+                - ctx.collectedDeveloperFees
         );
     }
 
-    function getPricesAndSumQuotes(MpContext memory ctx, AssetArg[] memory selectedAssets)
+    /// @notice Assembles context for swappping
+    /// @param ctx Multipool calculation context
+    /// @return fetchedPrices Array of prices per each supplied asset
+    /// @dev Also checks that assets are unique via asserting that they are sorted and each element
+    /// address is stricly bigger
+    function getPricesAndSumQuotes(
+        MpContext memory ctx,
+        AssetArgs[] memory selectedAssets
+    )
         internal
         view
-        returns (uint[] memory pr)
+        returns (uint[] memory fetchedPrices)
     {
         uint arrayLen = selectedAssets.length;
         address prevAddress = address(0);
-        pr = new uint[](arrayLen);
+        fetchedPrices = new uint[](arrayLen);
         for (uint i; i < arrayLen; ++i) {
-            address currentAddress = selectedAssets[i].addr;
+            address assetAddress = selectedAssets[i].assetAddress;
             int amount = selectedAssets[i].amount;
 
-            if (prevAddress >= currentAddress) revert AssetsNotSortedOrNotUnique();
-            prevAddress = currentAddress;
+            if (prevAddress >= assetAddress) revert AssetsNotSortedOrNotUnique();
+            prevAddress = assetAddress;
 
             uint price;
-            if (currentAddress == address(this)) {
+            if (assetAddress == address(this)) {
                 price = ctx.sharePrice;
                 ctx.totalSupplyDelta = -amount;
             } else {
-                price = prices[currentAddress].getPrice();
+                price = prices[assetAddress].getPrice();
             }
-            pr[i] = price;
+            fetchedPrices[i] = price;
             if (amount == 0) revert ZeroAmountSupplied();
             if (amount > 0) {
                 ctx.cummulativeInAmount += price * uint(amount) >> FixedPoint96.RESOLUTION;
@@ -207,6 +250,11 @@ contract Multipool is
         }
     }
 
+    /// @notice Proceeses asset transfer
+    /// @param asset Address of asset to send
+    /// @param quantity Address value to send
+    /// @param to Recepient address
+    /// @dev Handles multipool share with no contract calls
     function transferAsset(address asset, uint quantity, address to) internal {
         if (asset != address(this)) {
             IERC20(asset).safeTransfer(to, quantity);
@@ -215,15 +263,23 @@ contract Multipool is
         }
     }
 
+    /// @notice Asserts there is enough token balance and makes left value refund
+    /// @param asset Asset data structure storing asset relative data
+    /// @param assetAddress Address of asset to check and refund
+    /// @param requiredAmount Value that is checked to present unused on contract
+    /// @param refundAddress Address to receive asset refund
+    /// @dev Handles multipool share with no contract calls
     function receiveAsset(
         MpAsset memory asset,
         address assetAddress,
         uint requiredAmount,
         address refundAddress
-    ) internal {
+    )
+        internal
+    {
         if (assetAddress != address(this)) {
             uint unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
-            if (unusedAmount < requiredAmount) revert InsuficcientBalance();
+            if (unusedAmount < requiredAmount) revert InsufficientBalance(assetAddress);
 
             uint left = unusedAmount - requiredAmount;
             if (refundAddress != address(0) && left > 0) {
@@ -239,37 +295,33 @@ contract Multipool is
         }
     }
 
-    struct AssetArg {
-        address addr;
-        int amount;
-    }
-
-    struct FPSharePriceArg {
-        address thisAddress;
-        uint128 timestamp;
-        uint128 value;
-        bytes signature;
-    }
-
+    /// @inheritdoc IMultipoolMethods
     function swap(
-        FPSharePriceArg calldata fpSharePrice,
-        AssetArg[] calldata selectedAssets,
+        ForcePushArgs calldata forcePushArgs,
+        AssetArgs[] calldata assetsToSwap,
         bool isExactInput,
-        address to,
+        address sendTo,
         address refundTo
-    ) external payable notPaused nonReentrant {
-        MpContext memory ctx = getContext(fpSharePrice);
-        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
+    )
+        external
+        payable
+        override
+        notPaused
+        nonReentrant
+    {
+        MpContext memory ctx = getContext(forcePushArgs);
+        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, assetsToSwap);
+
         ctx.calculateTotalSupplyDelta(isExactInput);
 
-        for (uint i; i < selectedAssets.length; ++i) {
-            address tokenAddress = selectedAssets[i].addr;
-            int suppliedAmount = selectedAssets[i].amount;
+        for (uint i; i < assetsToSwap.length; ++i) {
+            address assetAddress = assetsToSwap[i].assetAddress;
+            int suppliedAmount = assetsToSwap[i].amount;
             uint price = currentPrices[i];
 
             MpAsset memory asset;
-            if (selectedAssets[i].addr != address(this)) {
-                asset = assets[selectedAssets[i].addr];
+            if (assetAddress != address(this)) {
+                asset = assets[assetAddress];
             }
 
             if (isExactInput && suppliedAmount < 0) {
@@ -285,45 +337,54 @@ contract Multipool is
             }
 
             if (suppliedAmount > 0) {
-                receiveAsset(asset, tokenAddress, uint(suppliedAmount), refundTo);
+                receiveAsset(asset, assetAddress, uint(suppliedAmount), refundTo);
             } else {
-                transferAsset(tokenAddress, uint(-suppliedAmount), to);
+                transferAsset(assetAddress, uint(-suppliedAmount), sendTo);
             }
 
-            if (tokenAddress != address(this)) {
+            if (assetAddress != address(this)) {
                 ctx.calculateDeviationFee(asset, suppliedAmount, price);
-                emit AssetChange(tokenAddress, asset.quantity, asset.collectedCashbacks);
-                assets[tokenAddress] = asset;
+                assets[assetAddress] = asset;
+                emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
             } else {
                 emit AssetChange(address(this), totalSupply(), 0);
             }
         }
         ctx.calculateBaseFee(isExactInput);
         ctx.applyCollected(payable(refundTo));
+
         totalCollectedCashbacks = ctx.totalCollectedCashbacks;
         collectedFees = ctx.collectedFees;
-        developerFee = ctx.developerFee;
-        emit CollectedFeesChange(ctx.collectedFees + ctx.developerFee);
+        collectedDeveloperFees = ctx.collectedDeveloperFees;
+
+        emit CollectedFeesChange(address(this).balance, ctx.totalCollectedCashbacks);
     }
 
+    /// @inheritdoc IMultipoolMethods
     function checkSwap(
-        FPSharePriceArg calldata fpSharePrice,
-        AssetArg[] calldata selectedAssets,
+        ForcePushArgs calldata forcePushArgs,
+        AssetArgs[] calldata assetsToSwap,
         bool isExactInput
-    ) external view returns (int fee, int[] memory amounts) {
-        MpContext memory ctx = getContext(fpSharePrice);
-        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, selectedAssets);
-        amounts = new int[](selectedAssets.length);
+    )
+        external
+        view
+        override
+        returns (int fee, int[] memory amounts)
+    {
+        MpContext memory ctx = getContext(forcePushArgs);
+        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, assetsToSwap);
+
+        amounts = new int[](assetsToSwap.length);
         ctx.calculateTotalSupplyDelta(isExactInput);
 
-        for (uint i; i < selectedAssets.length; ++i) {
-            address tokenAddress = selectedAssets[i].addr;
-            int suppliedAmount = selectedAssets[i].amount;
+        for (uint i; i < assetsToSwap.length; ++i) {
+            address assetAddress = assetsToSwap[i].assetAddress;
+            int suppliedAmount = assetsToSwap[i].amount;
             uint price = currentPrices[i];
 
             MpAsset memory asset;
-            if (selectedAssets[i].addr != address(this)) {
-                asset = assets[selectedAssets[i].addr];
+            if (assetAddress != address(this)) {
+                asset = assets[assetAddress];
             }
 
             if (isExactInput && suppliedAmount < 0) {
@@ -336,7 +397,7 @@ contract Multipool is
                 suppliedAmount = amount;
             }
 
-            if (tokenAddress != address(this)) {
+            if (assetAddress != address(this)) {
                 ctx.calculateDeviationFee(asset, suppliedAmount, price);
             }
             amounts[i] = suppliedAmount;
@@ -345,109 +406,146 @@ contract Multipool is
         fee = -ctx.unusedEthBalance;
     }
 
+    /// @inheritdoc IMultipoolMethods
     function increaseCashback(address assetAddress)
         external
         payable
+        override
         notPaused
         nonReentrant
         returns (uint128 amount)
     {
         uint totalCollectedCashbacksCached = totalCollectedCashbacks;
         amount = uint128(
-            address(this).balance - totalCollectedCashbacksCached - collectedFees - developerFee
+            address(this).balance - totalCollectedCashbacksCached - collectedFees
+                - collectedDeveloperFees
         );
         MpAsset memory asset = assets[assetAddress];
         asset.collectedCashbacks += uint128(amount);
         emit AssetChange(assetAddress, asset.quantity, amount);
         assets[assetAddress] = asset;
         totalCollectedCashbacks = totalCollectedCashbacksCached + amount;
+        emit CollectedFeesChange(address(this).balance, totalCollectedCashbacksCached);
     }
 
-    // ---------------- Owned ------------------
-
+    /// @inheritdoc IMultipoolManagerMethods
     function updatePrices(
         address[] calldata assetAddresses,
         FeedType[] calldata kinds,
         bytes[] calldata feedData
-    ) external onlyOwner notPaused {
+    )
+        external
+        onlyOwner
+        notPaused
+    {
         uint len = assetAddresses.length;
         for (uint i; i < len; ++i) {
             address assetAddress = assetAddresses[i];
             FeedInfo memory feed = FeedInfo({kind: kinds[i], data: feedData[i]});
             prices[assetAddress] = feed;
-            emit FeedChange(assetAddress, feed);
+            emit PriceFeedChange(assetAddress, feed);
         }
     }
 
-    function updateTargetShares(address[] calldata assetAddresses, uint[] calldata shares)
+    /// @inheritdoc IMultipoolManagerMethods
+    function updateTargetShares(
+        address[] calldata assetAddresses,
+        uint[] calldata targetShares
+    )
         external
+        override
         notPaused
     {
-        if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareSetterAuthority();
+        if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareAuthority();
 
         uint len = assetAddresses.length;
         uint totalTargetSharesCached = totalTargetShares;
         for (uint a; a < len; ++a) {
             address assetAddress = assetAddresses[a];
-            uint share = shares[a];
+            uint targetShare = targetShares[a];
             MpAsset memory asset = assets[assetAddress];
-            totalTargetSharesCached = totalTargetSharesCached - asset.share + share;
-            asset.share = uint128(share);
+            totalTargetSharesCached = totalTargetSharesCached - asset.targetShare + targetShare;
+            asset.targetShare = uint128(targetShare);
             assets[assetAddress] = asset;
-            emit TargetShareChange(assetAddress, share, totalTargetSharesCached);
+            emit TargetShareChange(assetAddress, targetShare, totalTargetSharesCached);
         }
         totalTargetShares = totalTargetSharesCached;
     }
 
-    function withdrawFees(address to) external onlyOwner notPaused returns (uint fees) {
+    /// @inheritdoc IMultipoolManagerMethods
+    function withdrawFees(address to) external override onlyOwner returns (uint fees) {
         fees = collectedFees;
         collectedFees = 0;
         payable(to).transfer(fees);
+        emit CollectedFeesChange(address(this).balance, totalCollectedCashbacks);
     }
 
-    function withdrawDeveloperFees() external notPaused returns (uint fees) {
-        fees = developerFee;
-        developerFee = 0;
+    /// @inheritdoc IMultipoolManagerMethods
+    function withdrawDeveloperFees() external override notPaused returns (uint fees) {
+        fees = collectedDeveloperFees;
+        collectedDeveloperFees = 0;
         payable(developerAddress).transfer(fees);
+        emit CollectedFeesChange(address(this).balance, totalCollectedCashbacks);
     }
 
-    function togglePause() external onlyOwner {
+    /// @inheritdoc IMultipoolManagerMethods
+    function togglePause() external override onlyOwner {
         isPaused = !isPaused;
         emit PauseChange(isPaused);
     }
 
-    function setCurveParams(
+    /// @inheritdoc IMultipoolManagerMethods
+    function setFeeParams(
         uint64 newDeviationLimit,
         uint64 newHalfDeviationFee,
         uint64 newDepegBaseFee,
-        uint64 newBaseFee
-    ) external onlyOwner {
+        uint64 newBaseFee,
+        address newDeveloperAddress,
+        uint64 newDeveloperBaseFee
+    )
+        external
+        override
+        onlyOwner
+    {
         uint64 newDeviationParam = (newHalfDeviationFee << 32) / newDeviationLimit;
         deviationLimit = newDeviationLimit;
         deviationParam = newDeviationParam;
         depegBaseFee = newDepegBaseFee;
         baseFee = newBaseFee;
-        emit FeesChange(newDeviationParam, newDeviationLimit, newDepegBaseFee, newBaseFee);
-    }
-
-    function setSharePriceTTL(uint newSharePriceTTL) external onlyOwner {
-        sharePriceTTL = newSharePriceTTL;
-        emit SharePriceTTLChange(sharePriceTTL);
-    }
-
-    function setDevFees(address newDeveloperAddress, uint64 newDevFeeRatio) external onlyOwner {
         developerAddress = newDeveloperAddress;
-        developerBaseFeeRatio = newDevFeeRatio;
-        emit DevParamsChange(newDeveloperAddress, newDevFeeRatio);
+        developerBaseFee = newDeveloperBaseFee;
+        emit FeesChange(
+            newDeveloperAddress,
+            newDeviationParam,
+            newDeviationLimit,
+            newDepegBaseFee,
+            newBaseFee,
+            newDeveloperBaseFee
+        );
     }
 
-    function toggleForcePushAuthority(address authority) external onlyOwner {
-        isPriceSetter[authority] = !isPriceSetter[authority];
-        emit PriceSetterToggled(authority, isPriceSetter[authority]);
+    /// @inheritdoc IMultipoolManagerMethods
+    function setSharePriceValidityDuration(uint128 newValidityDuration)
+        external
+        override
+        onlyOwner
+    {
+        sharePriceValidityDuration = newValidityDuration;
+        emit SharePriceExpirationChange(newValidityDuration);
     }
 
-    function toggleTargetShareAuthority(address authority) external onlyOwner {
-        isTargetShareSetter[authority] = !isTargetShareSetter[authority];
-        emit TargetShareSetterToggled(authority, isTargetShareSetter[authority]);
+    /// @inheritdoc IMultipoolManagerMethods
+    function setAuthorityRights(
+        address authority,
+        bool forcePushSettlement,
+        bool targetShareSettlement
+    )
+        external
+        override
+        onlyOwner
+    {
+        isPriceSetter[authority] = forcePushSettlement;
+        isTargetShareSetter[authority] = targetShareSettlement;
+        emit AuthorityRightsChange(authority, forcePushSettlement, targetShareSettlement);
     }
 }

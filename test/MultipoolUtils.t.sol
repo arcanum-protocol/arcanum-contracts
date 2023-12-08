@@ -36,13 +36,13 @@ contract MultipoolUtils is Test {
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
-        mp.initialize("Name", "SYMBOL", toX96(0.1e18));
+        mp.initialize("Name", "SYMBOL", uint128(toX96(0.1e18)));
     }
 
     function assertEq(MpAsset memory a, MpAsset memory b) public {
         assertEq(a.quantity, b.quantity, "MpAsset quantity");
         assertEq(a.collectedCashbacks, b.collectedCashbacks, "MpAsset cashbacks");
-        assertEq(a.share, b.share, "MpAsset share");
+        assertEq(a.targetShare, b.targetShare, "MpAsset share");
     }
 
     function setUp() public {
@@ -71,9 +71,9 @@ contract MultipoolUtils is Test {
 
     function bootstrapTokens(uint[5] memory quoteValues, address to) public {
         vm.startPrank(owner);
-        mp.setCurveParams(toX32(1e18), 0, 0, 0);
+        mp.setFeeParams(toX32(1e18), 0, 0, 0, address(0), 0);
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
-        mp.toggleTargetShareAuthority(owner);
+        mp.setAuthorityRights(owner, false, true);
 
         uint[] memory p = new uint[](5);
         p[0] = toX96(10e18);
@@ -98,7 +98,7 @@ contract MultipoolUtils is Test {
 
         mp.updateTargetShares(t, s);
 
-        Multipool.AssetArg[] memory args = new Multipool.AssetArg[](6);
+        Multipool.AssetArgs[] memory args = new Multipool.AssetArgs[](6);
 
         uint quoteSum;
 
@@ -107,18 +107,21 @@ contract MultipoolUtils is Test {
             uint val = (quoteValues[i] << 96) / p[i];
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
             tokens[i].mint(address(mp), val);
-            args[i] = Multipool.AssetArg({addr: address(tokens[i]), amount: int(val)});
+            args[i] = Multipool.AssetArgs({assetAddress: address(tokens[i]), amount: int(val)});
         }
 
-        args[5] =
-            Multipool.AssetArg({addr: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
+        args[5] = Multipool.AssetArgs({
+            assetAddress: address(mp),
+            amount: -int((quoteSum << 96) / toX96(0.1e18))
+        });
 
         args = sort(args);
 
-        Multipool.FPSharePriceArg memory fp;
+        Multipool.ForcePushArgs memory fp;
         mp.swap(fp, args, true, to, users[3]);
-        mp.setCurveParams(toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18));
-        mp.setDevFees(users[2], toX32(0.1e18));
+        mp.setFeeParams(
+            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), users[2], toX32(0.1e18)
+        );
         vm.stopPrank();
     }
 
@@ -129,28 +132,32 @@ contract MultipoolUtils is Test {
     }
 
     function swap(
-        Multipool.AssetArg[] memory assets,
+        Multipool.AssetArgs[] memory assets,
         uint ethValue,
         address to,
         SharePriceParams memory sp
-    ) public {
+    )
+        public
+    {
         swapExt(assets, ethValue, to, sp, users[3], true, abi.encode(0));
     }
 
     function swapExt(
-        Multipool.AssetArg[] memory assets,
+        Multipool.AssetArgs[] memory assets,
         uint ethValue,
         address to,
         SharePriceParams memory sp,
         address refundTo,
         bool isExactInput,
         bytes memory error
-    ) public {
-        Multipool.FPSharePriceArg memory fp;
+    )
+        public
+    {
+        Multipool.ForcePushArgs memory fp;
         if (sp.send) {
-            fp.thisAddress = owner;
+            fp.contractAddress = owner;
             fp.timestamp = sp.ts;
-            fp.value = sp.value;
+            fp.sharePrice = sp.value;
             bytes32 message =
                 keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
@@ -164,15 +171,19 @@ contract MultipoolUtils is Test {
     }
 
     function checkSwap(
-        Multipool.AssetArg[] memory assets,
+        Multipool.AssetArgs[] memory assets,
         bool isExactInput,
         SharePriceParams memory sp
-    ) public view returns (int fee, int[] memory amounts) {
-        Multipool.FPSharePriceArg memory fp;
+    )
+        public
+        view
+        returns (int fee, int[] memory amounts)
+    {
+        Multipool.ForcePushArgs memory fp;
         if (sp.send) {
-            fp.thisAddress = owner;
+            fp.contractAddress = owner;
             fp.timestamp = sp.ts;
-            fp.value = sp.value;
+            fp.sharePrice = sp.value;
             bytes32 message =
                 keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
@@ -200,39 +211,9 @@ contract MultipoolUtils is Test {
 
     function setCurveParams(uint64 dl, uint64 hf, uint64 bf, uint64 dbf) public {
         vm.startPrank(owner);
-        mp.setCurveParams(dl, hf, dbf, bf);
+        (,,,, uint64 developerFee, address developerAddress) = mp.getFeeParams();
+        mp.setFeeParams(dl, hf, dbf, bf, developerAddress, developerFee);
         vm.stopPrank();
-    }
-
-    struct TokenBalance {
-        uint balance;
-        address token;
-    }
-
-    struct User {
-        address addr;
-        uint ethBalance;
-        TokenBalance[] balances;
-    }
-
-    struct Asset {
-        address addr;
-        uint collectedCashbacks;
-        uint share;
-        uint quantity;
-    }
-
-    struct MpData {
-        uint totalSupply;
-        uint totalCashback;
-        uint totalCollectedFees;
-        uint totalShares;
-    }
-
-    struct Snapshot {
-        User[] users;
-        Asset[] assets;
-        MpData multipool;
     }
 
     function jsonString(uint num) public pure returns (string memory str) {
@@ -254,21 +235,15 @@ contract MultipoolUtils is Test {
             address user = userAddresses[i];
             uint ethBalance = address(user).balance;
             vm.serializeString("t", "ethBalance", jsonString(ethBalance));
-            TokenBalance[] memory balances = new TokenBalance[](tokens.length + 1);
             for (uint j; j < tokens.length; ++j) {
-                balances[j].token = address(tokens[j]);
-                balances[j].balance = tokens[j].balanceOf(user);
                 vm.serializeString(
                     "t",
                     string.concat("tokenBalance", vm.toString(j)),
-                    jsonString(balances[j].balance)
+                    jsonString(tokens[j].balanceOf(user))
                 );
             }
-            balances[tokens.length].token = address(mp);
-            balances[tokens.length].balance = mp.balanceOf(user);
-            string memory userJson = vm.serializeString(
-                "t", "tokenBalanceMultipool", jsonString(balances[tokens.length].balance)
-            );
+            string memory userJson =
+                vm.serializeString("t", "tokenBalanceMultipool", jsonString(mp.balanceOf(user)));
 
             if (user == address(mp)) {
                 usersJson = vm.serializeString("users", "multipool", userJson);
@@ -281,7 +256,7 @@ contract MultipoolUtils is Test {
         for (uint i; i < tokens.length; ++i) {
             MpAsset memory a = mp.getAsset(address(tokens[i]));
             vm.serializeString("tk", "cashbacks", jsonString(a.collectedCashbacks));
-            vm.serializeString("tk", "share", jsonString(a.share));
+            vm.serializeString("tk", "share", jsonString(a.targetShare));
             string memory token = vm.serializeString("tk", "quantity", jsonString(a.quantity));
             tokenJson = vm.serializeString("token", string.concat("token", vm.toString(i)), token);
         }
@@ -289,7 +264,7 @@ contract MultipoolUtils is Test {
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
         vm.serializeString("multipool", "totalCashback", jsonString(mp.totalCollectedCashbacks()));
         vm.serializeString("multipool", "totalFees", jsonString(mp.collectedFees()));
-        vm.serializeString("multipool", "totalDevFees", jsonString(mp.developerFee()));
+        vm.serializeString("multipool", "totalDevFees", jsonString(mp.collectedDeveloperFees()));
         mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.totalTargetShares()));
 
         string memory snapJson;
@@ -330,15 +305,15 @@ function updatePrice(address multipoolAddress, address asset, FeedType kind, byt
     Multipool(multipoolAddress).updatePrices(priceAddresses, priceTypes, priceDatas);
 }
 
-function sort(Multipool.AssetArg[] memory arr) pure returns (Multipool.AssetArg[] memory a) {
+function sort(Multipool.AssetArgs[] memory arr) pure returns (Multipool.AssetArgs[] memory a) {
     uint i;
-    Multipool.AssetArg memory key;
+    Multipool.AssetArgs memory key;
     uint j;
 
     for (i = 1; i < arr.length; i++) {
         key = arr[i];
 
-        for (j = i; j > 0 && arr[j - 1].addr > key.addr; j--) {
+        for (j = i; j > 0 && arr[j - 1].assetAddress > key.assetAddress; j--) {
             arr[j] = arr[j - 1];
         }
 
@@ -347,61 +322,61 @@ function sort(Multipool.AssetArg[] memory arr) pure returns (Multipool.AssetArg[
     a = arr;
 }
 
-function dynamic(Multipool.AssetArg[1] memory assets)
+function dynamic(Multipool.AssetArgs[1] memory assets)
     pure
-    returns (Multipool.AssetArg[] memory dynarray)
+    returns (Multipool.AssetArgs[] memory dynarray)
 {
-    dynarray = new Multipool.AssetArg[](assets.length);
+    dynarray = new Multipool.AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArg[2] memory assets)
+function dynamic(Multipool.AssetArgs[2] memory assets)
     pure
-    returns (Multipool.AssetArg[] memory dynarray)
+    returns (Multipool.AssetArgs[] memory dynarray)
 {
-    dynarray = new Multipool.AssetArg[](assets.length);
+    dynarray = new Multipool.AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArg[3] memory assets)
+function dynamic(Multipool.AssetArgs[3] memory assets)
     pure
-    returns (Multipool.AssetArg[] memory dynarray)
+    returns (Multipool.AssetArgs[] memory dynarray)
 {
-    dynarray = new Multipool.AssetArg[](assets.length);
+    dynarray = new Multipool.AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArg[4] memory assets)
+function dynamic(Multipool.AssetArgs[4] memory assets)
     pure
-    returns (Multipool.AssetArg[] memory dynarray)
+    returns (Multipool.AssetArgs[] memory dynarray)
 {
-    dynarray = new Multipool.AssetArg[](assets.length);
+    dynarray = new Multipool.AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArg[5] memory assets)
+function dynamic(Multipool.AssetArgs[5] memory assets)
     pure
-    returns (Multipool.AssetArg[] memory dynarray)
+    returns (Multipool.AssetArgs[] memory dynarray)
 {
-    dynarray = new Multipool.AssetArg[](assets.length);
+    dynarray = new Multipool.AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }
 }
 
-function dynamic(Multipool.AssetArg[6] memory assets)
+function dynamic(Multipool.AssetArgs[6] memory assets)
     pure
-    returns (Multipool.AssetArg[] memory dynarray)
+    returns (Multipool.AssetArgs[] memory dynarray)
 {
-    dynarray = new Multipool.AssetArg[](assets.length);
+    dynarray = new Multipool.AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
     }

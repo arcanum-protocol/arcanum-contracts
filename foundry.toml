@@ -17,10 +17,10 @@ solc_version = "0.8.19"
 [profile.ci]
 verbosity = 4
 
-[invariant]
-#fail_on_revert = true
-
 [fmt]
 int_types = "preserve"
 line_length = 100
+wrap_comments = true
+multiline_func_header = "all"
+override_spacing = false
 

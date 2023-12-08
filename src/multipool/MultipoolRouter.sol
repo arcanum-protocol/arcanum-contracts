@@ -47,8 +47,8 @@ contract MultipoolRouter is Ownable {
     error ContractCallNotAllowed(address target);
 
     struct SwapArgs {
-        Multipool.FPSharePriceArg fpSharePrice;
-        Multipool.AssetArg[] selectedAssets;
+        Multipool.ForcePushArgs fpSharePrice;
+        Multipool.AssetArgs[] selectedAssets;
         bool isExactInput;
         address to;
         address refundTo;
@@ -83,7 +83,10 @@ contract MultipoolRouter is Ownable {
         SwapArgs calldata swapArgs,
         Call[] calldata paramsBefore,
         Call[] calldata paramsAfter
-    ) external payable {
+    )
+        external
+        payable
+    {
         for (uint i; i < paramsBefore.length; ++i) {
             processCall(paramsBefore[i], i, true);
         }

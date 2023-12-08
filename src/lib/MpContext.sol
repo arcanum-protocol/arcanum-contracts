@@ -5,9 +5,11 @@ import {FixedPoint96} from "./FixedPoint96.sol";
 import {FixedPoint32} from "./FixedPoint32.sol";
 import "../multipool/Multipool.sol";
 
+import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
+
 struct MpAsset {
     uint quantity;
-    uint128 share;
+    uint128 targetShare;
     uint128 collectedCashbacks;
 }
 
@@ -20,8 +22,8 @@ struct MpContext {
     uint deviationLimit;
     uint depegBaseFee;
     uint baseFee;
-    uint developerFee;
-    uint developerFeeRatio;
+    uint collectedDeveloperFees;
+    uint developerBaseFee;
     int unusedEthBalance;
     uint totalCollectedCashbacks;
     uint collectedFees;
@@ -37,10 +39,6 @@ using {
 } for MpContext global;
 
 library ContextMath {
-    error FeeExceeded();
-    error DeviationExceedsLimit();
-    error NotEnoughQuantityToBurn();
-
     function subAbs(uint a, uint b) internal pure returns (uint c) {
         c = a > b ? a - b : b - a;
     }
@@ -55,7 +53,7 @@ library ContextMath {
         } else if (a >= uint(-b)) {
             c = a - uint(-b);
         } else {
-            revert NotEnoughQuantityToBurn();
+            revert IMultipoolErrors.NotEnoughQuantityToBurn();
         }
     }
 
@@ -76,11 +74,12 @@ library ContextMath {
 
     function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal pure {
         uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
-        uint fee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
-        ctx.unusedEthBalance -= int(fee);
-        uint developerFee = fee * ctx.developerFeeRatio >> FixedPoint32.RESOLUTION;
-        ctx.collectedFees += fee - developerFee;
-        ctx.developerFee += developerFee;
+        uint newCollectedFee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
+        ctx.unusedEthBalance -= int(newCollectedFee);
+        uint newCollectedDeveloperFees =
+            newCollectedFee * ctx.developerBaseFee >> FixedPoint32.RESOLUTION;
+        ctx.collectedFees += newCollectedFee - newCollectedDeveloperFees;
+        ctx.collectedDeveloperFees += newCollectedDeveloperFees;
     }
 
     function calculateDeviationFee(
@@ -88,10 +87,13 @@ library ContextMath {
         MpAsset memory asset,
         int quantityDelta,
         uint price
-    ) internal pure {
+    )
+        internal
+        pure
+    {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
-        uint targetShare = (asset.share << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
+        uint targetShare = (asset.targetShare << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
 
         uint dOld = ctx.oldTotalSupply == 0
             ? 0
@@ -109,7 +111,7 @@ library ContextMath {
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
         if (dNew > dOld && ctx.oldTotalSupply != 0) {
-            if (!(ctx.deviationLimit >= dNew)) revert DeviationExceedsLimit();
+            if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
             uint deviationFee = (
                 ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)
             ) >> FixedPoint32.RESOLUTION;
@@ -132,7 +134,7 @@ library ContextMath {
 
     function applyCollected(MpContext memory ctx, address payable refundTo) internal {
         int balance = ctx.unusedEthBalance;
-        if (!(balance >= 0)) revert FeeExceeded();
+        if (!(balance >= 0)) revert IMultipoolErrors.FeeExceeded();
         if (balance > 0) {
             refundTo.transfer(uint(balance));
         }
