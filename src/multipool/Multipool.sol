@@ -436,6 +436,7 @@ contract Multipool is
     )
         external
         onlyOwner
+        nonReentrant
         notPaused
     {
         uint len = assetAddresses.length;
@@ -454,6 +455,7 @@ contract Multipool is
     )
         external
         override
+        nonReentrant
         notPaused
     {
         if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareAuthority();
@@ -473,7 +475,13 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function withdrawFees(address to) external override onlyOwner returns (uint fees) {
+    function withdrawFees(address to)
+        external
+        override
+        onlyOwner
+        nonReentrant
+        returns (uint fees)
+    {
         fees = collectedFees;
         collectedFees = 0;
         payable(to).transfer(fees);
@@ -481,7 +489,7 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function withdrawDeveloperFees() external override notPaused returns (uint fees) {
+    function withdrawDeveloperFees() external override notPaused nonReentrant returns (uint fees) {
         fees = collectedDeveloperFees;
         collectedDeveloperFees = 0;
         payable(developerAddress).transfer(fees);
@@ -500,8 +508,8 @@ contract Multipool is
         uint64 newHalfDeviationFee,
         uint64 newDepegBaseFee,
         uint64 newBaseFee,
-        address newDeveloperAddress,
-        uint64 newDeveloperBaseFee
+        uint64 newDeveloperBaseFee,
+        address newDeveloperAddress
     )
         external
         override

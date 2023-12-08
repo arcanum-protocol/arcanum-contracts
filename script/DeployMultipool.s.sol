@@ -42,8 +42,8 @@ contract DeployTestnet is Script {
             toX32(0.0003e18),
             toX32(0.6e18),
             toX32(0.0001e18),
-            deployerPublicKey,
-            toX32(0.15e18)
+            toX32(0.15e18),
+            deployerPublicKey
         );
         MultipoolRouter router = new MultipoolRouter();
 

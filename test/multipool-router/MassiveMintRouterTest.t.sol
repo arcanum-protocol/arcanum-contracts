@@ -87,9 +87,9 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         });
 
         calls[2] = MultipoolRouter.Call({
-            callType: MultipoolRouter.CallType.ANY,
+            callType: MultipoolRouter.CallType.Any,
             data: abi.encode(
-                MultipoolRouter.CallParams({
+                MultipoolRouter.AnyCallParams({
                     targetData: abi.encodeCall(
                         MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
                         ),
@@ -130,9 +130,9 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         });
 
         calls[5] = MultipoolRouter.Call({
-            callType: MultipoolRouter.CallType.ANY,
+            callType: MultipoolRouter.CallType.Any,
             data: abi.encode(
-                MultipoolRouter.CallParams({
+                MultipoolRouter.AnyCallParams({
                     targetData: abi.encodeCall(
                         MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))
                         ),
@@ -181,9 +181,9 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         router.swap{value: 20e18}(address(mp), sa, calls, callsAfter);
 
         calls[2] = MultipoolRouter.Call({
-            callType: MultipoolRouter.CallType.ANY,
+            callType: MultipoolRouter.CallType.Any,
             data: abi.encode(
-                MultipoolRouter.CallParams({
+                MultipoolRouter.AnyCallParams({
                     targetData: abi.encodeCall(
                         MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
                         ),
