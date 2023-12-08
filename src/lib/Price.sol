@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
+import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 
 enum FeedType
 // Unset value
@@ -12,7 +13,9 @@ enum FeedType
     // Constant value used for tests and to represend quote price feed to quote
     FixedValue,
     // Uniswap v3 price extraction
-    UniV3
+    UniV3,
+    // Call for other contract to provide price
+    Adapter
 }
 
 // Data of uniswap v3 feed
@@ -50,6 +53,9 @@ library PriceMath {
         } else if (priceFeed.kind == FeedType.UniV3) {
             UniV3Feed memory data = abi.decode(priceFeed.data, (UniV3Feed));
             price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
+        } else if (priceFeed.kind == FeedType.Adapter) {
+            (address adapterContract, uint feedId) = abi.decode(priceFeed.data, (address, uint));
+            price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
             revert NoPriceOriginSet();
         }

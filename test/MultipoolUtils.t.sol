@@ -71,7 +71,7 @@ contract MultipoolUtils is Test {
 
     function bootstrapTokens(uint[5] memory quoteValues, address to) public {
         vm.startPrank(owner);
-        mp.setFeeParams(toX32(1e18), 0, 0, 0, address(0), 0);
+        mp.setFeeParams(toX32(1e18), 0, 0, 0, 0, address(0));
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
         mp.setAuthorityRights(owner, false, true);
 
@@ -120,7 +120,7 @@ contract MultipoolUtils is Test {
         Multipool.ForcePushArgs memory fp;
         mp.swap(fp, args, true, to, users[3]);
         mp.setFeeParams(
-            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), users[2], toX32(0.1e18)
+            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), toX32(0.1e18), users[2] 
         );
         vm.stopPrank();
     }
@@ -212,7 +212,7 @@ contract MultipoolUtils is Test {
     function setCurveParams(uint64 dl, uint64 hf, uint64 bf, uint64 dbf) public {
         vm.startPrank(owner);
         (,,,, uint64 developerFee, address developerAddress) = mp.getFeeParams();
-        mp.setFeeParams(dl, hf, dbf, bf, developerAddress, developerFee);
+        mp.setFeeParams(dl, hf, dbf, bf, developerFee, developerAddress);
         vm.stopPrank();
     }
 

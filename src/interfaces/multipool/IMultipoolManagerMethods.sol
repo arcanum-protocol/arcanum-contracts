@@ -61,8 +61,8 @@ interface IMultipoolManagerMethods {
         uint64 newHalfDeviationFee,
         uint64 newDepegBaseFee,
         uint64 newBaseFee,
-        address newDeveloperAddress,
-        uint64 newDeveloperBaseFee
+        uint64 newDeveloperBaseFee,
+        address newDeveloperAddress
     )
         external;
 

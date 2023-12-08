@@ -5,6 +5,11 @@ import {Multipool} from "./Multipool.sol";
 import "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
+interface WETH is IERC20 {
+    function deposit() external payable;
+    function withdraw(uint256 amount) external;
+}
+
 contract MultipoolRouter is Ownable {
     mapping(address => bool) isContractAllowedToCall;
 
@@ -15,7 +20,8 @@ contract MultipoolRouter is Ownable {
     enum CallType {
         ERC20Transfer,
         ERC20Approve,
-        ANY
+        Any,
+        Wrap
     }
 
     struct TokenTransferParams {
@@ -30,9 +36,15 @@ contract MultipoolRouter is Ownable {
         uint amount;
     }
 
-    struct CallParams {
+    struct AnyCallParams {
         bytes targetData;
         address target;
+        uint ethValue;
+    }
+
+    struct WrapParams {
+        address weth;
+        bool wrap;
         uint ethValue;
     }
 
@@ -56,8 +68,8 @@ contract MultipoolRouter is Ownable {
     }
 
     function processCall(Call memory call, uint index, bool isPredecessing) internal {
-        if (call.callType == CallType.ANY) {
-            CallParams memory params = abi.decode(call.data, (CallParams));
+        if (call.callType == CallType.Any) {
+            AnyCallParams memory params = abi.decode(call.data, (AnyCallParams));
             if (!isContractAllowedToCall[params.target]) {
                 revert ContractCallNotAllowed(params.target);
             }
@@ -75,6 +87,13 @@ contract MultipoolRouter is Ownable {
                 revert ContractCallNotAllowed(params.target);
             }
             IERC20(params.token).approve(params.target, params.amount);
+        } else if (call.callType == CallType.Wrap) {
+            WrapParams memory params = abi.decode(call.data, (WrapParams));
+            if (params.wrap) {
+                WETH(params.weth).deposit{value: params.ethValue}();
+            } else {
+                WETH(params.weth).withdraw(params.ethValue);
+            }
         }
     }
 
