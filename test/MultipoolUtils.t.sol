@@ -40,11 +40,13 @@ contract MultipoolUtils is Test {
     uint userNum;
     address owner;
     uint ownerPk;
+    address implementation;
 
     using ECDSA for bytes32;
 
     function initMultipool() public {
         Multipool mpImpl = new Multipool();
+        implementation = address(mpImpl);
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
         mp.initialize("Name", "SYMBOL", uint128(toX96(0.1e18)));
@@ -84,7 +86,7 @@ contract MultipoolUtils is Test {
         vm.startPrank(owner);
         mp.setFeeParams(toX32(1e18), 0, 0, 0, 0, address(0));
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
-        mp.setAuthorityRights(owner, false, true);
+        mp.setAuthorityRights(owner, true, true);
 
         uint[] memory p = new uint[](5);
         p[0] = toX96(10e18);
@@ -179,11 +181,11 @@ contract MultipoolUtils is Test {
     {
         ForcePushArgs memory fp;
         if (sp.send) {
-            fp.contractAddress = owner;
+            fp.contractAddress = address(mp);
             fp.timestamp = sp.ts;
             fp.sharePrice = sp.value;
             bytes32 message =
-                keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
+                keccak256(abi.encodePacked(fp.contractAddress, uint(sp.ts), uint(sp.value))).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
             bytes memory signature = abi.encodePacked(r, s, v);
             fp.signature = signature;
