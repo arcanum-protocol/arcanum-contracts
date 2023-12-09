@@ -21,7 +21,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         mp.withdrawFees(address(0));
 
         vm.expectRevert("Ownable: caller is not the owner");
-        mp.setFeeParams(0,0,0,0,0,address(0));
+        mp.setFeeParams(0, 0, 0, 0, 0, address(0));
 
         vm.expectRevert("Ownable: caller is not the owner");
         mp.setSharePriceValidityDuration(0);
@@ -34,13 +34,13 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSignature("InvalidTargetShareAuthority()"));
-        mp.updateTargetShares(a,b);
+        mp.updateTargetShares(a, b);
 
         address[] memory c;
         FeedType[] memory d;
         bytes[] memory e;
         vm.expectRevert("Ownable: caller is not the owner");
-        mp.updatePrices(c,d,e);
+        mp.updatePrices(c, d, e);
 
         vm.expectRevert("Ownable: caller is not the owner");
         mp.setAuthorityRights(address(0), false, false);
@@ -54,10 +54,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
                 dynamic(
                     [
                         AssetArgs({assetAddress: address(tokens[0]), amount: int(0)}),
-                        AssetArgs({
-                            assetAddress: address(mp),
-                            amount: -int((0 << 96) / toX96(0.1e18))
-                        })
+                        AssetArgs({assetAddress: address(mp), amount: -int((0 << 96) / toX96(0.1e18))})
                     ]
                 )
             ),
@@ -91,15 +88,13 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         mp.getSharePriceParams();
         mp.getPriceFeed(address(0));
-        
-        mp.getFeeParams();
 
+        mp.getFeeParams();
 
         vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
         mp.getPrice(address(0));
-        
-        mp.getAsset(address(0));
 
+        mp.getAsset(address(0));
     }
 
     function test_MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt() public {

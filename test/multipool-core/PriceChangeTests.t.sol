@@ -36,13 +36,11 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             true,
             false,
             abi.encodeWithSignature("FeeExceeded()")
-
         );
     }
 
     function test_AssetPriceGrow() public {
         bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
-
 
         vm.prank(owner);
         updatePrice(address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(40e18)));
@@ -69,13 +67,14 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             true,
             false,
             abi.encodeWithSignature("DeviationExceedsLimit()")
-
         );
 
         uint256 snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(10e18+1000)));
+        updatePrice(
+            address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(10e18 + 1000))
+        );
         swapExt(
             sort(
                 dynamic(
@@ -182,7 +181,6 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             true,
             false,
             abi.encode(0)
-
         );
 
         snapMultipool("AssetPriceGrow4");
@@ -190,7 +188,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[2]), FeedType.FixedValue, abi.encode(toX96(0.01e18)));
+        updatePrice(
+            address(mp), address(tokens[2]), FeedType.FixedValue, abi.encode(toX96(0.01e18))
+        );
 
         swapExt(
             sort(
@@ -211,7 +211,6 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             false,
             abi.encodeWithSignature("DeviationExceedsLimit()")
         );
-
     }
 
     function test_SharePriceChange() public {
@@ -244,7 +243,6 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             true,
             false,
             abi.encodeWithSignature("DeviationExceedsLimit()")
-
         );
 
         vm.revertTo(snapshot);
@@ -356,6 +354,5 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         );
 
         snapMultipool("SharePriceChange3");
-
     }
 }

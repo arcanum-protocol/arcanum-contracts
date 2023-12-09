@@ -23,7 +23,9 @@ function toX32(uint val) pure returns (uint64 valX32) {
 contract AbstractFixedValueOracle is IPriceAdapter {
     uint p;
 
-    constructor (uint _p) {p = _p;}
+    constructor(uint _p) {
+        p = _p;
+    }
 
     function getPrice(uint feedId) external view override returns (uint price) {
         require(feedId == 10000000000000000123212, "invalid id");
@@ -184,8 +186,9 @@ contract MultipoolUtils is Test {
             fp.contractAddress = address(mp);
             fp.timestamp = sp.ts;
             fp.sharePrice = sp.value;
-            bytes32 message =
-                keccak256(abi.encodePacked(fp.contractAddress, uint(sp.ts), uint(sp.value))).toEthSignedMessageHash();
+            bytes32 message = keccak256(
+                abi.encodePacked(fp.contractAddress, uint(sp.ts), uint(sp.value), block.chainid)
+            ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
             bytes memory signature = abi.encodePacked(r, s, v);
             fp.signature = signature;
