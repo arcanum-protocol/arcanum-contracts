@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Multipool} from "./Multipool.sol";
-import {ForcePushArgs, AssetArgs} from "../types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
@@ -60,11 +60,12 @@ contract MultipoolRouter is Ownable {
     error ContractCallNotAllowed(address target);
 
     struct SwapArgs {
-        ForcePushArgs fpSharePrice;
-        AssetArgs[] selectedAssets;
+        ForcePushArgs forcePushArgs;
+        AssetArgs[] assetsToSwap;
         bool isExactInput;
-        address to;
-        address refundTo;
+        address receiverAddress;
+        bool refundEthToReceiver;
+        address refundAddress;
         uint ethValue;
     }
 
@@ -113,11 +114,12 @@ contract MultipoolRouter is Ownable {
 
         if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
         Multipool(poolAddress).swap{value: swapArgs.ethValue}(
-            swapArgs.fpSharePrice,
-            swapArgs.selectedAssets,
+            swapArgs.forcePushArgs,
+            swapArgs.assetsToSwap,
             swapArgs.isExactInput,
-            swapArgs.to,
-            swapArgs.refundTo
+            swapArgs.receiverAddress,
+            swapArgs.refundEthToReceiver,
+            swapArgs.refundAddress
         );
 
         for (uint i; i < paramsAfter.length; ++i) {

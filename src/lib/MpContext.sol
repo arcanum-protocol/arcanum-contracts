@@ -133,8 +133,8 @@ library ContextMath {
 
     function applyCollected(MpContext memory ctx, address payable refundTo) internal {
         int balance = ctx.unusedEthBalance;
-        if (!(balance >= 0)) revert IMultipoolErrors.FeeExceeded();
-        if (balance > 0) {
+        if (balance < 0) revert IMultipoolErrors.FeeExceeded();
+        if (refundTo != address(0) && balance > 0) {
             refundTo.transfer(uint(balance));
         }
     }

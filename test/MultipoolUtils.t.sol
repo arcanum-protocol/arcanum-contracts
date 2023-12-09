@@ -7,7 +7,7 @@ import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../src/lib/Price.sol";
-import {ForcePushArgs, AssetArgs} from "../src/types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../src/types/SwapArgs.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
@@ -115,7 +115,7 @@ contract MultipoolUtils is Test {
         args = sort(args);
 
         ForcePushArgs memory fp;
-        mp.swap(fp, args, true, to, users[3]);
+        mp.swap(fp, args, true, to, false, users[3]);
         mp.setFeeParams(
             toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), toX32(0.1e18), users[2]
         );
@@ -136,7 +136,7 @@ contract MultipoolUtils is Test {
     )
         public
     {
-        swapExt(assets, ethValue, to, sp, users[3], true, abi.encode(0));
+        swapExt(assets, ethValue, to, sp, users[3], true, false, abi.encode(0));
     }
 
     function swapExt(
@@ -146,6 +146,7 @@ contract MultipoolUtils is Test {
         SharePriceParams memory sp,
         address refundTo,
         bool isExactInput,
+        bool refundEthToReceiver,
         bytes memory error
     )
         public
@@ -164,7 +165,7 @@ contract MultipoolUtils is Test {
         if (keccak256(error) != keccak256(abi.encode(0))) {
             vm.expectRevert(error);
         }
-        mp.swap{value: ethValue}(fp, assets, isExactInput, to, refundTo);
+        mp.swap{value: ethValue}(fp, assets, isExactInput, to, refundEthToReceiver, refundTo);
     }
 
     function checkSwap(

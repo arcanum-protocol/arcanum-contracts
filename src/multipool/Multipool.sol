@@ -15,7 +15,7 @@ import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManage
 import {IMultipoolMethods} from "../interfaces/multipool/IMultipoolMethods.sol";
 import {IMultipool} from "../interfaces/IMultipool.sol";
 
-import {ForcePushArgs, AssetArgs} from "../types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
@@ -282,8 +282,9 @@ contract Multipool is
         ForcePushArgs calldata forcePushArgs,
         AssetArgs[] calldata assetsToSwap,
         bool isExactInput,
-        address sendTo,
-        address refundTo
+        address receiverAddress,
+        bool refundEthToReceiver,
+        address refundAddress
     )
         external
         payable
@@ -319,9 +320,9 @@ contract Multipool is
             }
 
             if (suppliedAmount > 0) {
-                receiveAsset(asset, assetAddress, uint(suppliedAmount), refundTo);
+                receiveAsset(asset, assetAddress, uint(suppliedAmount), refundAddress);
             } else {
-                transferAsset(assetAddress, uint(-suppliedAmount), sendTo);
+                transferAsset(assetAddress, uint(-suppliedAmount), receiverAddress);
             }
 
             if (assetAddress != address(this)) {
@@ -333,7 +334,7 @@ contract Multipool is
             }
         }
         ctx.calculateBaseFee(isExactInput);
-        ctx.applyCollected(payable(refundTo));
+        ctx.applyCollected(refundEthToReceiver ? payable(receiverAddress) : payable(refundAddress));
 
         totalCollectedCashbacks = ctx.totalCollectedCashbacks;
         collectedFees = ctx.collectedFees;

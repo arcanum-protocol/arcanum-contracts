@@ -7,7 +7,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../../src/multipool/MultipoolRouter.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
-import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
 
 contract MockCallSomething is Test {
     function callWithEther(uint amount, address token, address to) public payable {
@@ -50,16 +50,17 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
             )
         );
         MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
-            fpSharePrice: ForcePushArgs({
+            forcePushArgs: ForcePushArgs({
                 contractAddress: address(0),
                 timestamp: 0,
                 sharePrice: 0,
                 signature: abi.encode(0)
             }),
-            selectedAssets: assetArgs,
+            assetsToSwap: assetArgs,
             isExactInput: true,
-            to: users[0],
-            refundTo: users[0],
+            receiverAddress: users[0],
+            refundEthToReceiver: false,
+            refundAddress: users[0],
             ethValue: 5e18
         });
 
