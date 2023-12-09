@@ -6,7 +6,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
-import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
 
 //also test refund
 contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
@@ -41,6 +41,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sp,
             users[1],
             true,
+            false,
             abi.encodeWithSignature("ZeroAmountSupplied()")
         );
     }
@@ -74,6 +75,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sp,
             users[1],
             true,
+            false,
             abi.encode(0)
         );
 
@@ -100,6 +102,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sp,
             users[1],
             false,
+            false,
             abi.encodeWithSignature("DeviationExceedsLimit()")
         );
 
@@ -121,6 +124,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sp,
             users[1],
             false,
+            false,
             abi.encodeWithSignature("DeviationExceedsLimit()")
         );
 
@@ -137,6 +141,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             users[0],
             sp,
             users[1],
+            false,
             false,
             abi.encodeWithSignature("SleepageExceeded()")
         );
@@ -159,6 +164,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sp,
             users[1],
             true,
+            false,
             abi.encodeWithSignature("SleepageExceeded()")
         );
 
@@ -179,6 +185,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             users[0],
             sp,
             users[1],
+            false,
             false,
             abi.encode(0)
         );
@@ -208,6 +215,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             sp,
             users[1],
             true,
+            false,
             abi.encodeWithSignature("SleepageExceeded()")
         );
 
@@ -228,6 +236,7 @@ contract MultipoolTestSleepageAndRefund is Test, MultipoolUtils {
             users[0],
             sp,
             users[1],
+            false,
             false,
             abi.encodeWithSignature("SleepageExceeded()")
         );

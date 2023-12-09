@@ -6,7 +6,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic} from "../MultipoolUtils.t.sol";
-import {ForcePushArgs, AssetArgs} from "../../src/types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
@@ -37,6 +37,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sp,
             users[3],
             true,
+            false,
             abi.encode(0)
         );
 
@@ -74,6 +75,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sp,
             users[2],
             true,
+            false,
             abi.encode(0)
         );
 

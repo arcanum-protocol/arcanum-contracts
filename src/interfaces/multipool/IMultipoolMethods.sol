@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {FeedInfo} from "../../lib/Price.sol";
 import {MpAsset} from "../../lib/MpContext.sol";
-import {ForcePushArgs, AssetArgs} from "../../types/Multipool.sol";
+import {ForcePushArgs, AssetArgs} from "../../types/SwapArgs.sol";
 
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
@@ -63,8 +63,10 @@ interface IMultipoolMethods {
     /// @param isExactInput Shows sleepage direction. If is true input amouns (that are greater than
     /// zero) will be used exactly and output amounts (less than zero) will be used as slippage
     /// checks. If false it is reversed
-    /// @param sendTo Address that will receive output amounts
-    /// @param refundTo Address that will be used to receive left input token and native token
+    /// @param receiverAddress Address that will receive output amounts
+    /// @param refundEthToReceiver If this value is true, left ether will be sent to
+    /// `receiverAddress`, else, `refundAddress` will be used
+    /// @param refundAddress Address that will be used to receive left input token and native token
     /// balances
     /// @dev This is a low level method that works via direct token transfer on contract and method
     /// execution. Should be used in other contracts only
@@ -74,8 +76,9 @@ interface IMultipoolMethods {
         ForcePushArgs calldata forcePushArgs,
         AssetArgs[] calldata assetsToSwap,
         bool isExactInput,
-        address sendTo,
-        address refundTo
+        address receiverAddress,
+        bool refundEthToReceiver,
+        address refundAddress
     )
         external
         payable;
