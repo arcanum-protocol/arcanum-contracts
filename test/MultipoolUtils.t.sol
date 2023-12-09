@@ -8,6 +8,7 @@ import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedInfo, FeedType} from "../src/lib/Price.sol";
 import {ForcePushArgs, AssetArgs} from "../src/types/SwapArgs.sol";
+import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
@@ -17,6 +18,17 @@ function toX96(uint val) pure returns (uint valX96) {
 
 function toX32(uint val) pure returns (uint64 valX32) {
     valX32 = uint64((val << 32) / 1e18);
+}
+
+contract AbstractFixedValueOracle is IPriceAdapter {
+    uint p;
+
+    constructor (uint _p) {p = _p;}
+
+    function getPrice(uint feedId) external view override returns (uint price) {
+        require(feedId == 10000000000000000123212, "invalid id");
+        price = p;
+    }
 }
 
 contract MultipoolUtils is Test {
@@ -108,6 +120,20 @@ contract MultipoolUtils is Test {
             tokens[i].mint(address(mp), val);
             args[i] = AssetArgs({assetAddress: address(tokens[i]), amount: int(val)});
         }
+
+        // insert adapter for token 1 here
+        address priceAdapter10 = address(new AbstractFixedValueOracle(p[0]));
+
+        address[] memory priceAdapterAddresses = new address[](2);
+        priceAdapterAddresses[0] = address(tokens[0]);
+        priceAdapterAddresses[1] = address(tokens[1]);
+        FeedType[] memory priceAdapterType = new FeedType[](2);
+        priceAdapterType[0] = FeedType.Adapter;
+        priceAdapterType[1] = FeedType.FixedValue;
+        bytes[] memory priceAdapterBytes = new bytes[](2);
+        priceAdapterBytes[0] = abi.encode(priceAdapter10, uint(10000000000000000123212));
+        priceAdapterBytes[1] = abi.encode(p[1]);
+        mp.updatePrices(priceAdapterAddresses, priceAdapterType, priceAdapterBytes);
 
         args[5] =
             AssetArgs({assetAddress: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
