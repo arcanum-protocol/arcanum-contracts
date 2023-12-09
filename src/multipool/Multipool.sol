@@ -157,7 +157,8 @@ contract Multipool is
             bytes memory data = abi.encodePacked(
                 address(forcePushArgs.contractAddress),
                 uint(forcePushArgs.timestamp),
-                uint(forcePushArgs.sharePrice)
+                uint(forcePushArgs.sharePrice),
+                uint(block.chainid)
             );
             if (
                 !isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(
