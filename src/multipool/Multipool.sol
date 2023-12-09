@@ -39,6 +39,10 @@ contract Multipool is
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         string memory name,
         string memory symbol,
@@ -467,16 +471,16 @@ contract Multipool is
     {
         fees = collectedFees;
         collectedFees = 0;
-        payable(to).transfer(fees);
         emit CollectedFeesChange(address(this).balance, totalCollectedCashbacks);
+        payable(to).transfer(fees);
     }
 
     /// @inheritdoc IMultipoolManagerMethods
     function withdrawDeveloperFees() external override notPaused nonReentrant returns (uint fees) {
         fees = collectedDeveloperFees;
         collectedDeveloperFees = 0;
-        payable(developerAddress).transfer(fees);
         emit CollectedFeesChange(address(this).balance, totalCollectedCashbacks);
+        payable(developerAddress).transfer(fees);
     }
 
     /// @inheritdoc IMultipoolManagerMethods
