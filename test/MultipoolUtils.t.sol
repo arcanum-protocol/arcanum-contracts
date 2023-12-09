@@ -49,9 +49,14 @@ contract MultipoolUtils is Test {
     function initMultipool() public {
         Multipool mpImpl = new Multipool();
         implementation = address(mpImpl);
-        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(mpImpl),
+            abi.encodeWithSignature(
+                "initialize(string,string,uint128)", "Name", "SYMBOL", uint128(toX96(0.1e18))
+            )
+        );
         mp = Multipool(address(proxy));
-        mp.initialize("Name", "SYMBOL", uint128(toX96(0.1e18)));
+        //mp.initialize("Name", "SYMBOL", uint128(toX96(0.1e18)));
     }
 
     function assertEq(MpAsset memory a, MpAsset memory b) public {
