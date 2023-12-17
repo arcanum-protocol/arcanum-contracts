@@ -5,6 +5,7 @@ import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
+import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
 enum FeedType
 // Unset value
@@ -40,9 +41,6 @@ using {PriceMath.getPrice} for FeedInfo global;
 
 /// @title Price calculation and provision library
 library PriceMath {
-    /// @notice Is thrown if price feed data is unset
-    error NoPriceOriginSet();
-
     /// @notice Extracts current price from origin
     /// @dev Processed the provided `prceFeed` to get it's current price value.
     /// @param priceFeed struct with data of supplied price feed
@@ -57,7 +55,7 @@ library PriceMath {
             (address adapterContract, uint feedId) = abi.decode(priceFeed.data, (address, uint));
             price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
-            revert NoPriceOriginSet();
+            revert IMultipoolErrors.NoPriceOriginSet();
         }
     }
 
