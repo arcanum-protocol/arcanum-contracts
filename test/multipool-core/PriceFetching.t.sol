@@ -33,7 +33,13 @@ contract MultipoolPriceFetching is Test {
 
     function setUp() public {
         mainnetFork = vm.createFork("https://eth.llamarpc.com", 18649943);
-        //arbitrumFork = vm.createFork("", );
+        arbitrumFork = vm.createFork("https://arb-mainnet-public.unifra.io", 163110835);
+    }
+
+    function test_UniswapMakesAnOLDError() public {
+        vm.selectFork(arbitrumFork);
+        uint value = PriceMath.getTwapX96(0x1eE25aDA6ee9Aa7B2c56d05DAb5Be476752605Fd, false, 10);
+        assertEq(value, 486107010125295881900198823811751);
     }
 
     function test_FetchUniV3BtcUsdcPriceFromFork() public {

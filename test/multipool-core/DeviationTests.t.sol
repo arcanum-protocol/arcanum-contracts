@@ -364,4 +364,93 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         );
         assertEq(newOne.balanceOf(address(mp)), 26e18);
     }
+
+    function test_BurnValue() public {
+        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+
+        SharePriceParams memory sp;
+
+        vm.prank(users[3]);
+        mp.transfer(address(mp), 17000000000000000000010);
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        AssetArgs({assetAddress: address(mp), amount: int(1000000000000000000000)}),
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-2e18)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            users[3],
+            false,
+            false,
+            abi.encode(0)
+        );
+        snapMultipool("BurnValue");
+    }
+
+    function test_BurnWhenDeviationExceedsAccuracy() public {
+        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+
+        SharePriceParams memory sp;
+
+        // removing token 0
+        changeShare(address(tokens[0]), 0);
+        snapMultipool("BurnWhenDeviationExceedsAccuracy0");
+
+        vm.prank(users[3]);
+        mp.transfer(address(mp), 17000000000000000000010);
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
+                        // leave almost nothing there
+                        AssetArgs({
+                            assetAddress: address(tokens[0]),
+                            amount: int(-39.999999999999999e18)
+                        })
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            users[3],
+            false,
+            false,
+            abi.encode(0)
+        );
+        snapMultipool("BurnWhenDeviationExceedsAccuracy1");
+
+        uint balance = mp.balanceOf(users[3]);
+        vm.prank(users[3]);
+        mp.transfer(address(mp), balance);
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        // sleepage can be actually any big value
+                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
+                        // leave almost nothing there
+                        AssetArgs({
+                            assetAddress: address(tokens[0]),
+                            amount: int(-(40e18 - 39.999999999999999e18))
+                        })
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp,
+            users[3],
+            false,
+            false,
+            abi.encode(0)
+        );
+        snapMultipool("BurnWhenDeviationExceedsAccuracy2");
+    }
 }

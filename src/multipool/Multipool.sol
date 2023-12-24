@@ -277,7 +277,7 @@ contract Multipool is
 
             uint left = balanceOf(address(this));
             if (refundAddress != address(0) && left > 0) {
-                transferFrom(address(this), refundAddress, left);
+                _transfer(address(this), refundAddress, left);
             }
         }
     }
