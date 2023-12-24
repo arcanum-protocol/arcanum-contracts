@@ -121,7 +121,9 @@ library ContextMath {
 
             asset.collectedCashbacks += uint128(deviationFee - basePart);
         } else if (dNew <= dOld) {
-            uint cashback = (dOld - dNew) * asset.collectedCashbacks / dOld;
+            uint cashback = dOld == 0
+                ? asset.collectedCashbacks
+                : (dOld - dNew) * asset.collectedCashbacks / dOld;
 
             ctx.unusedEthBalance += int(cashback);
             ctx.totalCollectedCashbacks -= cashback;

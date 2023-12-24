@@ -43,4 +43,7 @@ interface IMultipoolErrors {
 
     /// @notice Is thrown if price feed data is unset
     error NoPriceOriginSet();
+
+    /// @notice Is thrown if uniswap v3 twap price fetching resulted in error that was not "OLD"
+    error UniV3PriceFetchingReverted();
 }

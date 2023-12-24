@@ -7,9 +7,8 @@ import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
-enum FeedType
-// Unset value
-{
+enum FeedType {
+    // Unset value
     Undefined,
     // Constant value used for tests and to represend quote price feed to quote
     FixedValue,
@@ -89,12 +88,24 @@ library PriceMath {
             secondsAgos[0] = uint32(twapInterval); // from (before)
             secondsAgos[1] = 0; // to (now)
 
-            (int56[] memory tickCumulatives,) = IUniswapV3Pool(uniswapV3Pool).observe(secondsAgos);
-
-            // tick(imprecise as it's an integer) to price
-            priceX96 = TickMath.getSqrtRatioAtTick(
-                int24(int256(tickCumulatives[1] - tickCumulatives[0]) / int256(twapInterval))
+            (bool success, bytes memory data) = uniswapV3Pool.staticcall(
+                abi.encodeWithSelector(IUniswapV3Pool(uniswapV3Pool).observe.selector, secondsAgos)
             );
+            if (success) {
+                (int56[] memory tickCumulatives,) = abi.decode(data, (int56[], uint160[]));
+
+                // tick(imprecise as it's an integer) to price
+                priceX96 = TickMath.getSqrtRatioAtTick(
+                    int24(int256(tickCumulatives[1] - tickCumulatives[0]) / int256(twapInterval))
+                );
+            } else {
+                // fallbakc to slot0 if error is OLD
+                if (keccak256(data) == keccak256(abi.encodeWithSignature("Error(string)", "OLD"))) {
+                    (priceX96,,,,,,) = IUniswapV3Pool(uniswapV3Pool).slot0();
+                } else {
+                    revert IMultipoolErrors.UniV3PriceFetchingReverted();
+                }
+            }
         }
         if (reversed) {
             priceX96 = (
