@@ -37,12 +37,6 @@ contract MultipoolRouter is Ownable {
         uint amount;
     }
 
-    struct AnyCallParams {
-        bytes targetData;
-        address target;
-        uint ethValue;
-    }
-
     struct WrapParams {
         address weth;
         bool wrap;
@@ -71,18 +65,25 @@ contract MultipoolRouter is Ownable {
 
     function processCall(Call memory call, uint index, bool isPredecessing) internal {
         if (call.callType == CallType.Any) {
-            AnyCallParams memory params = abi.decode(call.data, (AnyCallParams));
-            if (!isContractAllowedToCall[params.target]) {
-                revert ContractCallNotAllowed(params.target);
+            (address target, uint ethValue, bytes memory targetData) =
+                abi.decode(call.data, (address, uint, bytes));
+            if (!isContractAllowedToCall[target]) {
+                revert ContractCallNotAllowed(target);
             }
-            if (address(this).balance < params.ethValue) {
+            if (address(this).balance < ethValue) {
                 revert InsufficientEthBalance(index, isPredecessing);
             }
-            (bool success,) = params.target.call{value: params.ethValue}(params.targetData);
+            (bool success,) = target.call{value: ethValue}(targetData);
             if (!success) revert CallFailed(index, isPredecessing);
         } else if (call.callType == CallType.ERC20Transfer) {
             TokenTransferParams memory params = abi.decode(call.data, (TokenTransferParams));
-            IERC20(params.token).transferFrom(msg.sender, params.targetOrOrigin, params.amount);
+            if (isPredecessing) {
+                IERC20(params.token).transferFrom(msg.sender, params.targetOrOrigin, params.amount);
+            } else {
+                IERC20(params.token).transferFrom(
+                    address(this), params.targetOrOrigin, params.amount
+                );
+            }
         } else if (call.callType == CallType.ERC20Approve) {
             RouterApproveParams memory params = abi.decode(call.data, (RouterApproveParams));
             if (!isContractAllowedToCall[params.target]) {
