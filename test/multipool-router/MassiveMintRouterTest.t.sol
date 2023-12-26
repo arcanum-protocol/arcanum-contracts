@@ -90,13 +90,13 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         calls[2] = MultipoolRouter.Call({
             callType: MultipoolRouter.CallType.Any,
             data: abi.encode(
-                MultipoolRouter.AnyCallParams({
-                    targetData: abi.encodeCall(
+                address(mocked),
+                uint(20e18),
+                bytes(
+                    abi.encodeCall(
                         MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
-                        ),
-                    target: address(mocked),
-                    ethValue: 20e18
-                })
+                    )
+                )
                 )
         });
 
@@ -133,13 +133,11 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         calls[5] = MultipoolRouter.Call({
             callType: MultipoolRouter.CallType.Any,
             data: abi.encode(
-                MultipoolRouter.AnyCallParams({
-                    targetData: abi.encodeCall(
-                        MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))
-                        ),
-                    target: address(mocked),
-                    ethValue: 0
-                })
+                address(mocked),
+                uint(0),
+                abi.encodeCall(
+                    MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))
+                )
                 )
         });
 
@@ -184,17 +182,66 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
         calls[2] = MultipoolRouter.Call({
             callType: MultipoolRouter.CallType.Any,
             data: abi.encode(
-                MultipoolRouter.AnyCallParams({
-                    targetData: abi.encodeCall(
-                        MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
-                        ),
-                    target: address(mocked),
-                    ethValue: 1e18
-                })
+                address(mocked),
+                uint(1e18),
+                abi.encodeCall(
+                    MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
+                )
                 )
         });
 
         vm.prank(users[0]);
         router.swap{value: 10e18}(address(mp), sa, calls, callsAfter);
+    }
+
+    function test_MassiveRouter_LargeMemoryAllocation() public {
+        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+        mocked = new MockCallSomething();
+
+        AssetArgs[] memory assetArgs = sort(
+            dynamic(
+                [
+                    AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+                    AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
+                    AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
+                    AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
+                ]
+            )
+        );
+        MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
+            forcePushArgs: ForcePushArgs({
+                contractAddress: address(0),
+                timestamp: 0,
+                sharePrice: 0,
+                signature: abi.encode(0)
+            }),
+            assetsToSwap: assetArgs,
+            isExactInput: true,
+            receiverAddress: users[0],
+            refundEthToReceiver: false,
+            refundAddress: users[0],
+            ethValue: 5e18
+        });
+
+        MultipoolRouter.Call[] memory calls = new MultipoolRouter.Call[](7);
+
+        for (uint i; i < calls.length; ++i) {
+            calls[i] = MultipoolRouter.Call({
+                callType: MultipoolRouter.CallType.Any,
+                data: hex"000000000000000000000000000000000000000000000000000000000000006000000000000000000000000068b3465833fb72a70ecdf485e0e4c7bd8665fc4500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000144c04b8d59000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000004810e5a7741ea5fdbb658eda632ddfac3b19e3c600000000000000000000000000000000000000000000000000000000658a3a5c0000000000000000000000000000000000000000000000000000000001d763a900000000000000000000000000000000000000000000000008d64feffa1fddb00000000000000000000000000000000000000000000000000000000000000042fd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb90001f482af49447d8a07e3bd95bd0d56f35241523fbab1002710fc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            });
+        }
+
+        MultipoolRouter.Call[] memory callsAfter;
+
+        router.toggleContract(address(mocked));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultipoolRouter.ContractCallNotAllowed.selector,
+                0x0000000000000000000000000000000000000060
+            )
+        );
+        router.swap(address(mp), sa, calls, callsAfter);
     }
 }
