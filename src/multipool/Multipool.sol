@@ -95,7 +95,11 @@ contract Multipool is
         external
         view
         override
-        returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice, uint _signatureThershold)
+        returns (
+            uint128 _sharePriceValidityDuration,
+            uint128 _initialSharePrice,
+            uint _signatureThershold
+        )
     {
         _sharePriceValidityDuration = sharePriceValidityDuration;
         _initialSharePrice = initialSharePrice;
@@ -156,14 +160,13 @@ contract Multipool is
         uint _totalSupply = totalSupply();
         uint price;
         if (forcePushArgs.contractAddress == address(this)) {
-            // 1 is added to thershold to prevent it being zeroed. 
+            // 1 is added to thershold to prevent it being zeroed.
             // This makes sense to prevent passing price with no signatures
             if (forcePushArgs.signatures.length < signatureThershold + 1) {
                 revert InvalidForcePushSignatureNumber();
             }
             bytes32 lastSignatureHash;
-            for(uint i; i < forcePushArgs.signatures.length; ++i) {
-
+            for (uint i; i < forcePushArgs.signatures.length; ++i) {
                 bytes32 currentSignatureHash = keccak256(forcePushArgs.signatures[i]);
                 if (currentSignatureHash <= lastSignatureHash) {
                     revert SignaturesNotSortedOrNotUnique();
@@ -538,7 +541,10 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function setSharePriceParams(uint128 newValidityDuration, uint newSignatureThershold)
+    function setSharePriceParams(
+        uint128 newValidityDuration,
+        uint newSignatureThershold
+    )
         external
         override
         onlyOwner

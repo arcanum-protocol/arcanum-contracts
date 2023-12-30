@@ -1,5 +1,5 @@
 # Multipool
-[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/3dfff3148182d4dfe6804e525ac556b83c05da71/src/multipool/Multipool.sol)
+[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/275ab153e36267157a2ba5626f6cd734bad189ea/src/multipool/Multipool.sol)
 
 **Inherits:**
 [IMultipool](/src/interfaces/IMultipool.sol/interface.IMultipool.md), Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable
@@ -125,6 +125,13 @@ bool public isPaused;
 ```
 
 
+### signatureThershold
+
+```solidity
+uint internal signatureThershold;
+```
+
+
 ## Functions
 ### constructor
 
@@ -172,7 +179,11 @@ function getSharePriceParams()
     external
     view
     override
-    returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice);
+    returns (
+        uint128 _sharePriceValidityDuration,
+        uint128 _initialSharePrice,
+        uint _signatureThershold
+    );
 ```
 **Returns**
 
@@ -180,6 +191,7 @@ function getSharePriceParams()
 |----|----|-----------|
 |`_sharePriceValidityDuration`|`uint128`|Time in seconds for signed share price to be valid|
 |`_initialSharePrice`|`uint128`|Price that is used when contract's total supply is zero|
+|`_signatureThershold`|`uint256`|_signatureThreshold Minimal signature number required for force push price verification|
 
 
 ### getPriceFeed
@@ -605,22 +617,30 @@ function setFeeParams(
 |`newDeveloperAddress`|`address`|address to send arcanum protocol development and maintaince fees|
 
 
-### setSharePriceValidityDuration
+### setSharePriceParams
 
 This method allows to chenge time for wich force pushed share price is valid
+and minimal number of unique signatures required for price force push
 
 *Called only by owner. This mechanism allow you to manage price volatility by changing
 valid price timeframes*
 
 
 ```solidity
-function setSharePriceValidityDuration(uint128 newValidityDuration) external override onlyOwner;
+function setSharePriceParams(
+    uint128 newValidityDuration,
+    uint newSignatureThershold
+)
+    external
+    override
+    onlyOwner;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`newValidityDuration`|`uint128`|New interval in seconds|
+|`newSignatureThershold`|`uint256`|New number of signatures that substracted by 1 (if 0 is passed 1 signature is required)|
 
 
 ### setAuthorityRights
