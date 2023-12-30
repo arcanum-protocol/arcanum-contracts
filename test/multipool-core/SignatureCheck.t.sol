@@ -8,10 +8,15 @@ import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
 import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
 
+import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
+
 contract MultipoolSwapEstimate is Test, MultipoolUtils {
+
+    using ECDSA for bytes32;
+
     receive() external payable {}
 
-    function testFail_CheckForcePushSignatureFailsWithInvalidTTL() public {
+    function test_PassNotEnoughSignatures() public {
         vm.startPrank(owner);
         mp.setAuthorityRights(owner, false, true);
         mp.setAuthorityRights(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266), true, false);
@@ -54,10 +59,10 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.contractAddress = address(mp);
         fp.timestamp = 1701395175;
         fp.sharePrice = 7922816251426433759354395033;
-        fp.signatures = new bytes[](1);
-        fp.signatures[0] = hex"25fe112a17d7b3d8b7ddda7d297026424cd52fb429bf6490d029b01c1dbd569327a41fd3e9e43b7b341b48380f69876335dca3ef7f681736b496bd9f22fd51731c";
+        fp.signatures = new bytes[](0);
 
-        (int expectedFee, int[] memory amounts) = mp.checkSwap(
+        vm.expectRevert(abi.encodeWithSignature("InvalidForcePushSignatureNumber()"));
+        mp.checkSwap(
             fp,
             sort(
                 dynamic(
@@ -69,14 +74,9 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             ),
             true
         );
-
-        assertEq(expectedFee, 99999997764825820);
-        assertEq(amounts.length, 2);
-        assertEq(amounts[1], int(val));
-        assertEq(amounts[0], -int(100e18 + 990));
     }
 
-    function test_CheckForcePushSignatureWorks() public {
+    function test_CheckForcePushSignaturePreventsDuplication() public {
         vm.startPrank(owner);
         mp.setAuthorityRights(owner, false, true);
         mp.setAuthorityRights(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266), true, false);
@@ -119,10 +119,12 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.contractAddress = address(mp);
         fp.timestamp = 1702111278;
         fp.sharePrice = 7922816251426433759354395033;
-        fp.signatures = new bytes[](1);
+        fp.signatures = new bytes[](2);
         fp.signatures[0] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+        fp.signatures[1] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
 
-        (int expectedFee, int[] memory amounts) = mp.checkSwap(
+        vm.expectRevert(abi.encodeWithSignature("SignaturesNotSortedOrNotUnique()"));
+        mp.checkSwap(
             fp,
             sort(
                 dynamic(
@@ -135,16 +137,34 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
             true
         );
 
-        assertEq(expectedFee, 99999997764825820);
-        assertEq(amounts.length, 2);
-        assertEq(amounts[1], int(val));
-        assertEq(amounts[0], -int(100e18 + 990));
+        fp.signatures = new bytes[](0);
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidForcePushSignatureNumber()"));
+        mp.checkSwap(
+            fp,
+            sort(
+                dynamic(
+                    [
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(mp), amount: -1e18})
+                    ]
+                )
+            ),
+            true
+        );
     }
 
-    function test_CheckEstimatesZeroBalances() public {
+    function test_CheckMultipleForcePushSignaturesWork() public {
         vm.startPrank(owner);
         mp.setAuthorityRights(owner, false, true);
+        mp.setAuthorityRights(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266), true, false);
+
+
+        (address priceAuth, uint priceAuthPk) = makeAddrAndKey("Multipool price authority");
+        mp.setAuthorityRights(priceAuth, true, false);
+
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        mp.setSharePriceParams(60, 1);
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
         p[1] = toX96(0.02e18);
@@ -177,8 +197,25 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / p[1];
 
-        SharePriceParams memory sp;
-        (int expectedFee, int[] memory amounts) = checkSwap(
+        vm.warp(1701391951);
+        ForcePushArgs memory fp;
+        fp.contractAddress = address(mp);
+        fp.timestamp = 1702111278;
+        fp.sharePrice = 7922816251426433759354395033;
+        fp.signatures = new bytes[](2);
+
+        {
+            bytes32 message =
+                keccak256(abi.encodePacked(fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid))).toEthSignedMessageHash();
+            (uint8 v, bytes32 r, bytes32 _s) = vm.sign(priceAuthPk, message);
+            bytes memory signature2 = abi.encodePacked(r, _s, v);
+
+            fp.signatures[1] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+            fp.signatures[0] = signature2;
+        }
+
+        (int expectedFee, int[] memory amounts) = mp.checkSwap(
+            fp,
             sort(
                 dynamic(
                     [
@@ -187,8 +224,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
                     ]
                 )
             ),
-            true,
-            sp
+            true
         );
 
         assertEq(expectedFee, 99999997764825820);
@@ -196,93 +232,52 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         assertEq(amounts[1], int(val));
         assertEq(amounts[0], -int(100e18 + 990));
 
-        (expectedFee, amounts) = checkSwap(
+        {
+            bytes32 message =
+                keccak256(abi.encodePacked(fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid))).toEthSignedMessageHash();
+            (uint8 v, bytes32 r, bytes32 _s) = vm.sign(priceAuthPk, message);
+            bytes memory signature2 = abi.encodePacked(r, _s, v);
+
+            fp.signatures[0] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+            fp.signatures[1] = signature2;
+        }
+
+        vm.expectRevert(abi.encodeWithSignature("SignaturesNotSortedOrNotUnique()"));
+        mp.checkSwap(
+            fp,
             sort(
                 dynamic(
                     [
-                        AssetArgs({assetAddress: address(tokens[1]), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(mp), amount: -int(100e18 + 990)})
-                    ]
-                )
-            ),
-            false,
-            sp
-        );
-
-        assertEq(expectedFee, 99999997764825820 + 1);
-        assertEq(amounts.length, 2);
-        assertEq(amounts[1], int(val + 29900));
-        assertEq(amounts[0], -int(100e18 + 990));
-    }
-
-    function test_CheckEstimatesForwardWithMint() public {
-        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
-
-        uint price = toX96(10e18);
-        uint quoteSum = 10e18;
-        uint val = (quoteSum << 96) / price;
-
-        tokens[0].mint(address(mp), val);
-
-        SharePriceParams memory sp;
-        (int expectedFee, int[] memory amounts) = checkSwap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
                         AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
-            true,
-            sp
+            true
         );
 
-        assertEq(expectedFee, 111465793663798917);
-        assertEq(amounts.length, 2);
-        assertEq(amounts[1], int(val));
-        assertEq(amounts[0], -int(100e18 + 1000));
+        {
+            bytes32 message =
+                keccak256(abi.encodePacked(fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid))).toEthSignedMessageHash();
+            (uint8 v, bytes32 r, bytes32 _s) = vm.sign(priceAuthPk, message);
+            bytes memory signature2 = abi.encodePacked(r, _s, v);
 
-        (expectedFee, amounts) = checkSwap(
+            fp.signatures[1] = signature2;
+            fp.signatures[0] = hex"a38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+        }
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidForcePushAuthority()"));
+        mp.checkSwap(
+            fp,
             sort(
                 dynamic(
                     [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1)}),
-                        AssetArgs({
-                            assetAddress: address(mp),
-                            amount: -int((quoteSum << 96) / toX96(0.1e18))
-                        })
+                        AssetArgs({assetAddress: address(tokens[1]), amount: int(val)}),
+                        AssetArgs({assetAddress: address(mp), amount: -1e18})
                     ]
                 )
             ),
-            false,
-            sp
+            true
         );
-
-        assertEq(expectedFee, 111465793663798917);
-        assertEq(amounts.length, 2);
-        assertEq(amounts[1], int(val) - 1);
-        assertEq(amounts[0], -int(100e18));
-
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-                        AssetArgs({
-                            assetAddress: address(mp),
-                            amount: -int((quoteSum << 96) / toX96(0.1e18))
-                        })
-                    ]
-                )
-            ),
-            111465793663798917,
-            users[0],
-            sp
-        );
-
-        snapMultipool("CheckEstimatesForwardWithMint");
     }
-
-    //check estimates with 3 tokens
 }

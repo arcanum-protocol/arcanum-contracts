@@ -46,4 +46,10 @@ interface IMultipoolErrors {
 
     /// @notice Is thrown if uniswap v3 twap price fetching resulted in error that was not "OLD"
     error UniV3PriceFetchingReverted();
+
+    /// @notice Is thrown if the number of signatures is lower than threshold
+    error InvalidForcePushSignatureNumber();
+
+    /// @notice Is thrown if same force push signature is passed twice
+    error SignaturesNotSortedOrNotUnique();
 }
