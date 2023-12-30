@@ -19,7 +19,7 @@ contract DeployTestnet is Script {
         Multipool mp = Multipool(address(proxy));
         mp.initialize("Exchange tradable fund", "ETF", uint128(toX96(0.1e18)));
         mp.setAuthorityRights(deployerPublicKey, true, true);
-        mp.setSharePriceValidityDuration(600);
+        mp.setSharePriceParams(600, 0);
         console.log("multipool address: ", address(mp));
 
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));

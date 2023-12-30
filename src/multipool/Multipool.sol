@@ -83,6 +83,7 @@ contract Multipool is
     uint public collectedDeveloperFees;
 
     bool public isPaused;
+    uint internal signatureThershold;
 
     modifier notPaused() {
         if (isPaused) revert IsPaused();
@@ -94,10 +95,11 @@ contract Multipool is
         external
         view
         override
-        returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice)
+        returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice, uint _signatureThershold)
     {
         _sharePriceValidityDuration = sharePriceValidityDuration;
         _initialSharePrice = initialSharePrice;
+        _signatureThershold = signatureThershold + 1;
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -154,21 +156,36 @@ contract Multipool is
         uint _totalSupply = totalSupply();
         uint price;
         if (forcePushArgs.contractAddress == address(this)) {
-            bytes memory data = abi.encodePacked(
-                address(forcePushArgs.contractAddress),
-                uint(forcePushArgs.timestamp),
-                uint(forcePushArgs.sharePrice),
-                uint(block.chainid)
-            );
-            if (
-                !isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(
-                    forcePushArgs.signature
-                )]
-            ) {
-                revert InvalidForcePushAuthority();
+            // 1 is added to thershold to prevent it being zeroed. 
+            // This makes sense to prevent passing price with no signatures
+            if (forcePushArgs.signatures.length < signatureThershold + 1) {
+                revert InvalidForcePushSignatureNumber();
             }
-            if (forcePushArgs.timestamp + sharePriceValidityDuration < block.timestamp) {
-                revert ForcePushPriceExpired(block.timestamp, forcePushArgs.timestamp);
+            bytes32 lastSignatureHash;
+            for(uint i; i < forcePushArgs.signatures.length; ++i) {
+
+                bytes32 currentSignatureHash = keccak256(forcePushArgs.signatures[i]);
+                if (currentSignatureHash <= lastSignatureHash) {
+                    revert SignaturesNotSortedOrNotUnique();
+                }
+                lastSignatureHash = currentSignatureHash;
+
+                bytes memory data = abi.encodePacked(
+                    address(forcePushArgs.contractAddress),
+                    uint(forcePushArgs.timestamp),
+                    uint(forcePushArgs.sharePrice),
+                    uint(block.chainid)
+                );
+                if (
+                    !isPriceSetter[keccak256(data).toEthSignedMessageHash().recover(
+                        forcePushArgs.signatures[i]
+                    )]
+                ) {
+                    revert InvalidForcePushAuthority();
+                }
+                if (forcePushArgs.timestamp + sharePriceValidityDuration < block.timestamp) {
+                    revert ForcePushPriceExpired(block.timestamp, forcePushArgs.timestamp);
+                }
             }
             price = forcePushArgs.sharePrice;
         } else {
@@ -521,12 +538,13 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function setSharePriceValidityDuration(uint128 newValidityDuration)
+    function setSharePriceParams(uint128 newValidityDuration, uint newSignatureThershold)
         external
         override
         onlyOwner
     {
         sharePriceValidityDuration = newValidityDuration;
+        signatureThershold = newSignatureThershold;
         emit SharePriceExpirationChange(newValidityDuration);
     }
 

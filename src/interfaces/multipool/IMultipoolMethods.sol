@@ -10,11 +10,12 @@ interface IMultipoolMethods {
     /// @notice Gets several share prive params
     /// @return _sharePriceValidityDuration Time in seconds for signed share price to be valid
     /// @return _initialSharePrice Price that is used when contract's total supply is zero
+    /// @return _signatureThreshold Minimal signature number required for force push price verification
     /// @dev Fetches data by reading a single slot
     function getSharePriceParams()
         external
         view
-        returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice);
+        returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice, uint _signatureThreshold);
 
     /// @notice Gets price feed data
     /// @param asset Asset for wich to get price feed

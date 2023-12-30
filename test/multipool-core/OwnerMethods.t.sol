@@ -24,7 +24,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         mp.setFeeParams(0, 0, 0, 0, 0, address(0));
 
         vm.expectRevert("Ownable: caller is not the owner");
-        mp.setSharePriceValidityDuration(0);
+        mp.setSharePriceParams(0, 0);
 
         vm.prank(owner);
         mp.setAuthorityRights(owner, false, false);

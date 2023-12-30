@@ -49,12 +49,13 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                 ]
             )
         );
+        bytes[] memory signatures0 = new bytes[](0);
         MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
             forcePushArgs: ForcePushArgs({
                 contractAddress: address(0),
                 timestamp: 0,
                 sharePrice: 0,
-                signature: abi.encode(0)
+                signatures: signatures0
             }),
             assetsToSwap: assetArgs,
             isExactInput: true,
@@ -208,12 +209,13 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                 ]
             )
         );
+        bytes[] memory signatures0 = new bytes[](0);
         MultipoolRouter.SwapArgs memory sa = MultipoolRouter.SwapArgs({
             forcePushArgs: ForcePushArgs({
                 contractAddress: address(0),
                 timestamp: 0,
                 sharePrice: 0,
-                signature: abi.encode(0)
+                signatures: signatures0
             }),
             assetsToSwap: assetArgs,
             isExactInput: true,

@@ -196,7 +196,8 @@ contract MultipoolUtils is Test {
             ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
             bytes memory signature = abi.encodePacked(r, s, v);
-            fp.signature = signature;
+            fp.signatures = new bytes[](1);
+            fp.signatures[0] = signature;
         }
         if (keccak256(error) != keccak256(abi.encode(0))) {
             vm.expectRevert(error);
@@ -222,7 +223,8 @@ contract MultipoolUtils is Test {
                 keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
             bytes memory signature = abi.encodePacked(r, s, v);
-            fp.signature = signature;
+            fp.signatures = new bytes[](1);
+            fp.signatures[0] = signature;
         }
         (fee, amounts) = mp.checkSwap(fp, assets, isExactInput);
     }

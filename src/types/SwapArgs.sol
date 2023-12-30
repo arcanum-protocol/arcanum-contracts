@@ -18,5 +18,5 @@ struct ForcePushArgs {
     // Share price of this contract
     uint128 sharePrice;
     // Force push authoirty's sign
-    bytes signature;
+    bytes[] signatures;
 }

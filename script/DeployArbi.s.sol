@@ -31,7 +31,7 @@ contract DeployArbi is Script {
         console.log("Instructions address: ", address(mpImpl));
 
         mp.setAuthorityRights(deployerPublicKey, true, true);
-        mp.setSharePriceValidityDuration(600);
+        mp.setSharePriceParams(600, 0);
 
         address[] memory tokenAddresses = new address[](6);
         tokenAddresses[0] = address(0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a);
