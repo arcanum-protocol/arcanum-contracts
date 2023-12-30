@@ -1,5 +1,5 @@
 # IMultipoolManagerMethods
-[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/3dfff3148182d4dfe6804e525ac556b83c05da71/src/interfaces/multipool/IMultipoolManagerMethods.sol)
+[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/275ab153e36267157a2ba5626f6cd734bad189ea/src/interfaces/multipool/IMultipoolManagerMethods.sol)
 
 
 ## Functions
@@ -131,22 +131,24 @@ function setFeeParams(
 |`newDeveloperAddress`|`address`|address to send arcanum protocol development and maintaince fees|
 
 
-### setSharePriceValidityDuration
+### setSharePriceParams
 
 This method allows to chenge time for wich force pushed share price is valid
+and minimal number of unique signatures required for price force push
 
 *Called only by owner. This mechanism allow you to manage price volatility by changing
 valid price timeframes*
 
 
 ```solidity
-function setSharePriceValidityDuration(uint128 newValidityDuration) external;
+function setSharePriceParams(uint128 newValidityDuration, uint newSignatureThershold) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`newValidityDuration`|`uint128`|New interval in seconds|
+|`newSignatureThershold`|`uint256`|New number of signatures that substracted by 1 (if 0 is passed 1 signature is required)|
 
 
 ### setAuthorityRights

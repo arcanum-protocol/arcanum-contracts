@@ -11,7 +11,6 @@ import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 contract MultipoolSwapEstimate is Test, MultipoolUtils {
-
     using ECDSA for bytes32;
 
     receive() external payable {}
@@ -120,8 +119,10 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.timestamp = 1702111278;
         fp.sharePrice = 7922816251426433759354395033;
         fp.signatures = new bytes[](2);
-        fp.signatures[0] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
-        fp.signatures[1] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+        fp.signatures[0] =
+            hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+        fp.signatures[1] =
+            hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
 
         vm.expectRevert(abi.encodeWithSignature("SignaturesNotSortedOrNotUnique()"));
         mp.checkSwap(
@@ -158,7 +159,6 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         vm.startPrank(owner);
         mp.setAuthorityRights(owner, false, true);
         mp.setAuthorityRights(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266), true, false);
-
 
         (address priceAuth, uint priceAuthPk) = makeAddrAndKey("Multipool price authority");
         mp.setAuthorityRights(priceAuth, true, false);
@@ -205,12 +205,16 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.signatures = new bytes[](2);
 
         {
-            bytes32 message =
-                keccak256(abi.encodePacked(fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid))).toEthSignedMessageHash();
+            bytes32 message = keccak256(
+                abi.encodePacked(
+                    fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid)
+                )
+            ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 _s) = vm.sign(priceAuthPk, message);
             bytes memory signature2 = abi.encodePacked(r, _s, v);
 
-            fp.signatures[1] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+            fp.signatures[1] =
+                hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
             fp.signatures[0] = signature2;
         }
 
@@ -233,12 +237,16 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         assertEq(amounts[0], -int(100e18 + 990));
 
         {
-            bytes32 message =
-                keccak256(abi.encodePacked(fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid))).toEthSignedMessageHash();
+            bytes32 message = keccak256(
+                abi.encodePacked(
+                    fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid)
+                )
+            ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 _s) = vm.sign(priceAuthPk, message);
             bytes memory signature2 = abi.encodePacked(r, _s, v);
 
-            fp.signatures[0] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+            fp.signatures[0] =
+                hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
             fp.signatures[1] = signature2;
         }
 
@@ -257,13 +265,17 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         );
 
         {
-            bytes32 message =
-                keccak256(abi.encodePacked(fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid))).toEthSignedMessageHash();
+            bytes32 message = keccak256(
+                abi.encodePacked(
+                    fp.contractAddress, uint(fp.timestamp), uint(fp.sharePrice), uint(block.chainid)
+                )
+            ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 _s) = vm.sign(priceAuthPk, message);
             bytes memory signature2 = abi.encodePacked(r, _s, v);
 
             fp.signatures[1] = signature2;
-            fp.signatures[0] = hex"a38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+            fp.signatures[0] =
+                hex"a38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
         }
 
         vm.expectRevert(abi.encodeWithSignature("InvalidForcePushAuthority()"));

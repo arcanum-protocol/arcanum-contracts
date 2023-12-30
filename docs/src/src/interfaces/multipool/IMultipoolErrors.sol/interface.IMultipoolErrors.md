@@ -1,5 +1,5 @@
 # IMultipoolErrors
-[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/3dfff3148182d4dfe6804e525ac556b83c05da71/src/interfaces/multipool/IMultipoolErrors.sol)
+[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/275ab153e36267157a2ba5626f6cd734bad189ea/src/interfaces/multipool/IMultipoolErrors.sol)
 
 
 ## Errors
@@ -110,5 +110,29 @@ Is thrown if price feed data is unset
 
 ```solidity
 error NoPriceOriginSet();
+```
+
+### UniV3PriceFetchingReverted
+Is thrown if uniswap v3 twap price fetching resulted in error that was not "OLD"
+
+
+```solidity
+error UniV3PriceFetchingReverted();
+```
+
+### InvalidForcePushSignatureNumber
+Is thrown if the number of signatures is lower than threshold
+
+
+```solidity
+error InvalidForcePushSignatureNumber();
+```
+
+### SignaturesNotSortedOrNotUnique
+Is thrown if same force push signature is passed twice
+
+
+```solidity
+error SignaturesNotSortedOrNotUnique();
 ```
 

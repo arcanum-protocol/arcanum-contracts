@@ -1,5 +1,5 @@
 # IMultipoolMethods
-[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/3dfff3148182d4dfe6804e525ac556b83c05da71/src/interfaces/multipool/IMultipoolMethods.sol)
+[Git Source](https://github.com/provisorDAO/arcanum-contracts/blob/275ab153e36267157a2ba5626f6cd734bad189ea/src/interfaces/multipool/IMultipoolMethods.sol)
 
 
 ## Functions
@@ -14,7 +14,11 @@ Gets several share prive params
 function getSharePriceParams()
     external
     view
-    returns (uint128 _sharePriceValidityDuration, uint128 _initialSharePrice);
+    returns (
+        uint128 _sharePriceValidityDuration,
+        uint128 _initialSharePrice,
+        uint _signatureThreshold
+    );
 ```
 **Returns**
 
@@ -22,6 +26,7 @@ function getSharePriceParams()
 |----|----|-----------|
 |`_sharePriceValidityDuration`|`uint128`|Time in seconds for signed share price to be valid|
 |`_initialSharePrice`|`uint128`|Price that is used when contract's total supply is zero|
+|`_signatureThreshold`|`uint256`|Minimal signature number required for force push price verification|
 
 
 ### getPriceFeed

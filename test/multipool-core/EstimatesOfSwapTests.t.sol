@@ -55,7 +55,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.timestamp = 1701395175;
         fp.sharePrice = 7922816251426433759354395033;
         fp.signatures = new bytes[](1);
-        fp.signatures[0] = hex"25fe112a17d7b3d8b7ddda7d297026424cd52fb429bf6490d029b01c1dbd569327a41fd3e9e43b7b341b48380f69876335dca3ef7f681736b496bd9f22fd51731c";
+        fp.signatures[0] =
+            hex"25fe112a17d7b3d8b7ddda7d297026424cd52fb429bf6490d029b01c1dbd569327a41fd3e9e43b7b341b48380f69876335dca3ef7f681736b496bd9f22fd51731c";
 
         (int expectedFee, int[] memory amounts) = mp.checkSwap(
             fp,
@@ -120,7 +121,8 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         fp.timestamp = 1702111278;
         fp.sharePrice = 7922816251426433759354395033;
         fp.signatures = new bytes[](1);
-        fp.signatures[0] = hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
+        fp.signatures[0] =
+            hex"e38c327593c584e1df70f649273fa89b25497bedcbea5a6b4fcc055235f085cd3a5630a7361e7b68eb795141e82cca9e1e535dd09074adb304aec400fc73048f1c";
 
         (int expectedFee, int[] memory amounts) = mp.checkSwap(
             fp,

@@ -66,13 +66,18 @@ interface IMultipoolManagerMethods {
     )
         external;
 
-    /// @notice This method allows to chenge time for wich force pushed share price is valid 
+    /// @notice This method allows to chenge time for wich force pushed share price is valid
     /// and minimal number of unique signatures required for price force push
     /// @param newValidityDuration New interval in seconds
-    /// @param newSignatureThershold New number of signatures that substracted by 1 (if 0 is passed 1 signature is required)
+    /// @param newSignatureThershold New number of signatures that substracted by 1 (if 0 is passed
+    /// 1 signature is required)
     /// @dev Called only by owner. This mechanism allow you to manage price volatility by changing
     /// valid price timeframes
-    function setSharePriceParams(uint128 newValidityDuration, uint newSignatureThershold) external;
+    function setSharePriceParams(
+        uint128 newValidityDuration,
+        uint newSignatureThershold
+    )
+        external;
     /// @notice Method that changes permissions of accounts
     /// @param authority address whos permissions change
     /// @param forcePushSettlement allows to sign force push data if true
