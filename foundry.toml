@@ -1,7 +1,7 @@
 [profile.default]
 optimizer = true
 optimizer_runs = 500
-gas_reports = ["Multipool", "MultipoolRouter"]
+gas_reports = ["Multipool", "MultipoolRouter", "Trader"]
 fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
 remappings = [
     "ds-test/=lib/forge-std/lib/ds-test/src/",
@@ -9,6 +9,7 @@ remappings = [
     "openzeppelin/=lib/openzeppelin-contracts/contracts/",
     "oz-proxy/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "uniswapv3/=lib/v3-core/contracts/",
+    "uniswapv3-router/=lib/v3-periphery/contracts/",
 ]
 build_info = true
 extra_output = ["storageLayout"]

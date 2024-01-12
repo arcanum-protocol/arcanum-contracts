@@ -453,4 +453,29 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         );
         snapMultipool("BurnWhenDeviationExceedsAccuracy2");
     }
+
+    //function test_SwapHappyPathWithLowOutput() public {
+    //    bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+
+    //    tokens[0].mint(address(mp), 2e18);
+
+    //    changePrice(address(tokens[2]), toX96(0.000001e18));
+
+    //    // swap 2 tokens for 2 tokens
+    //    SharePriceParams memory sp;
+    //    swap(
+    //        sort(
+    //            dynamic(
+    //                [
+    //                    AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+    //                    AssetArgs({assetAddress: address(tokens[2]), amount: int(-1e7)})
+    //                ]
+    //            )
+    //        ),
+    //        100e18,
+    //        users[0],
+    //        sp
+    //    );
+    //}
+
 }
