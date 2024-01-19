@@ -1,0 +1,10 @@
+{
+  "transactions": [
+    {
+      "rpc": "https://arbitrum.llamarpc.com"
+    },
+    {
+      "rpc": "https://arbitrum.llamarpc.com"
+    }
+  ]
+}
