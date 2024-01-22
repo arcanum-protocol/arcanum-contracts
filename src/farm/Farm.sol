@@ -1,124 +1,139 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "openzeppelin/token/ERC20/ERC20.sol";
-import "openzeppelin/access/Ownable.sol";
+import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-contract LpFarm is Ownable {
-    struct UserInfo {
-        uint amount;
-        uint rewardDebt;
+import {FarmingMath, PoolInfo, UserInfo} from "../lib/Farm.sol";
+
+import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
+import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
+
+contract Farming is 
+    Initializable,
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    using SafeERC20 for IERC20;
+    using FarmingMath for PoolInfo;
+
+    constructor() {
+        _disableInitializers();
     }
 
-    struct PoolInfo {
-        IERC20 lpToken;
-        uint lastRewardBlock;
-        uint distributeTill;
-        uint distributionAmountLeft;
-        uint arps; // Accumulated rewards per share, times 1e12. See below.
-        uint totalLpSupply;
+    function initialize()
+        public
+        initializer
+    {
+        __ReentrancyGuard_init();
+        __Ownable_init();
     }
-
-    IERC20 public rewardToken;
 
     mapping(uint => PoolInfo) public poolInfo;
     mapping(uint => mapping(address => UserInfo)) public userInfo;
-
     uint public poolNumber;
+    bool public isPaused;
+
+    error IsPaused();
+    error CallbackFailed(bytes reason);
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event PauseChange(bool isPaused);
 
-    constructor(IERC20 _rewardToken) {
-        rewardToken = _rewardToken;
+    modifier notPaused() {
+        if (isPaused) revert IsPaused();
+        _;
     }
 
-    function calculateReward(
-        PoolInfo memory pool,
-        uint blockNumber
-    )
-        internal
-        pure
-        returns (uint rewards)
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function deposit(uint256 poolId, uint256 depositAmount) 
+        external
+        notPaused
+        nonReentrant
     {
-        rewards = ((blockNumber - pool.lastRewardBlock) * 1e12 * pool.distributionAmountLeft)
-            / (pool.distributeTill - pool.lastRewardBlock);
+        PoolInfo storage pool = poolInfo[poolId];
+        UserInfo storage user = userInfo[poolId][msg.sender];
+
+        IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
+        pool.deposit(user, block.number, depositAmount);
+
+        poolInfo[poolId] = pool;
+        userInfo[poolId][msg.sender] = user;
+        
+        emit Deposit(msg.sender, poolId, depositAmount);
     }
 
-    function updatePool(uint _pid) public {
-        PoolInfo storage pool = poolInfo[_pid];
-        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
-            uint newRewards = calculateReward(pool, block.number);
-            pool.arps += newRewards / pool.totalLpSupply;
+    function withdraw(
+        uint256 poolId, 
+        uint256 withdrawAmount, 
+        bool claimRewards, 
+        address callback, 
+        bytes calldata callbackData
+    ) 
+        external 
+        payable 
+        notPaused
+        nonReentrant
+    {
+        PoolInfo storage pool = poolInfo[poolId];
+        UserInfo storage user = userInfo[poolId][msg.sender];
+
+        pool.withdraw(user, block.number, withdrawAmount);
+
+        uint rewards;
+        if (claimRewards) {
+            rewards = user.accRewards;
+            user.accRewards = 0;
         }
-        pool.lastRewardBlock = block.number;
-    }
 
-    function pendingRewards(uint _pid, address _user) external view returns (uint amount) {
-        PoolInfo memory pool = poolInfo[_pid];
-        UserInfo memory user = userInfo[_pid][_user];
-        if (pool.distributeTill > pool.lastRewardBlock && pool.totalLpSupply != 0) {
-            uint newRewards = calculateReward(pool, block.number);
-            pool.arps += newRewards / pool.totalLpSupply;
-        }
-        amount = (user.amount * pool.arps) / 1e12 - user.rewardDebt;
-    }
+        poolInfo[poolId] = pool;
+        userInfo[poolId][msg.sender] = user;
+        
+        emit Withdraw(msg.sender, poolId, withdrawAmount);
 
-    function deposit(uint256 _pid, uint256 _amount) public {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][msg.sender];
-        updatePool(_pid);
-        if (user.amount > 0) {
-            uint pending = (user.amount * pool.arps) / 1e12 - user.rewardDebt;
-            if (pending > 0) {
-                rewardToken.transfer(msg.sender, pending);
+        IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
+        if (rewards != 0) {
+            if (callback == address(0)) {
+                IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+            } else {
+                IERC20(pool.rewardAsset).safeTransfer(callback, rewards);
+                (bool success, bytes memory data) = callback.call{value: msg.value}(callbackData);
+                if (!success) {
+                    revert CallbackFailed(data);
+                }
             }
         }
-        if (_amount > 0) {
-            pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
-            user.amount += _amount;
-            pool.totalLpSupply += _amount;
-        }
-        user.rewardDebt = (user.amount * pool.arps) / 1e12;
-        emit Deposit(msg.sender, _pid, _amount);
     }
 
-    function withdraw(uint256 _pid, uint256 _amount) public {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][msg.sender];
-        require(user.amount >= _amount, "withdraw: not good");
+    function updateDistribution(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
+        PoolInfo storage pool = poolInfo[poolId];
 
-        updatePool(_pid);
-        uint pending = (user.amount * pool.arps) / 1e12 - user.rewardDebt;
-        if (pending > 0) {
-            rewardToken.transfer(msg.sender, pending);
+        pool.updateDistribution(block.number, rewardsDelta, newRpb);
+
+        if (rewardsDelta >= 0) {
+            IERC20(pool.rewardAsset).safeTransferFrom(msg.sender, address(this), uint(rewardsDelta));
+        } else {
+            IERC20(pool.rewardAsset).safeTransfer(msg.sender, uint(-rewardsDelta));
         }
-        if (_amount > 0) {
-            user.amount -= _amount;
-            pool.totalLpSupply -= _amount;
-            pool.lpToken.transfer(address(msg.sender), _amount);
-        }
-        user.rewardDebt = (user.amount * pool.arps) / 1e12;
-        emit Withdraw(msg.sender, _pid, _amount);
+        
+        poolInfo[poolId] = pool;
     }
 
-    function setDistribution(uint _pid, uint _amount, uint _distributionTime) public onlyOwner {
-        PoolInfo storage pool = poolInfo[_pid];
-        updatePool(_pid);
-        rewardToken.transferFrom(msg.sender, address(this), _amount);
-        pool.distributionAmountLeft += _amount;
-        pool.distributeTill += _distributionTime;
-    }
-
-    function add(IERC20 _lpToken) public onlyOwner {
-        poolInfo[poolNumber] = PoolInfo({
-            lpToken: _lpToken,
-            lastRewardBlock: block.number,
-            distributeTill: block.number,
-            distributionAmountLeft: 0,
-            totalLpSupply: 0,
-            arps: 0
-        });
+    function addPool(address lockAsset, address rewardAsset) external onlyOwner {
+        PoolInfo memory pool;
+        pool.lockAsset = lockAsset;
+        pool.rewardAsset = rewardAsset;
+        poolInfo[poolNumber] = pool;
         poolNumber += 1;
+    }
+
+    function togglePause() external onlyOwner {
+        isPaused = !isPaused;
+        emit PauseChange(isPaused);
     }
 }
