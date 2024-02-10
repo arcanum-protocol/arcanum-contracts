@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "forge-std/Test.sol";
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
@@ -11,7 +12,7 @@ import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
 
-contract Farming is 
+contract Farm is 
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -32,8 +33,8 @@ contract Farming is
         __Ownable_init();
     }
 
-    mapping(uint => PoolInfo) public poolInfo;
-    mapping(uint => mapping(address => UserInfo)) public userInfo;
+    mapping(uint => PoolInfo) private poolInfo;
+    mapping(uint => mapping(address => UserInfo)) private userInfo;
     uint public poolNumber;
     bool public isPaused;
 
@@ -49,6 +50,21 @@ contract Farming is
         _;
     }
 
+    function getUser(uint poolId, address userAddress) external view returns (UserInfo memory user) {
+        user = userInfo[poolId][userAddress];
+    }
+
+    function getPool(uint poolId) external view returns (PoolInfo memory pool) {
+        pool = poolInfo[poolId];
+    }
+
+    function availableRewards(uint poolId, address userAddress) external view returns (uint rewards) {
+        PoolInfo memory pool = poolInfo[poolId];
+        UserInfo memory user = userInfo[poolId][userAddress];
+        pool.updateRewards(user, block.timestamp);
+        rewards = user.accRewards;
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function deposit(uint256 poolId, uint256 depositAmount) 
@@ -56,11 +72,11 @@ contract Farming is
         notPaused
         nonReentrant
     {
-        PoolInfo storage pool = poolInfo[poolId];
-        UserInfo storage user = userInfo[poolId][msg.sender];
+        PoolInfo memory pool = poolInfo[poolId];
+        UserInfo memory user = userInfo[poolId][msg.sender];
 
         IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
-        pool.deposit(user, block.number, depositAmount);
+        pool.deposit(user, block.timestamp, depositAmount);
 
         poolInfo[poolId] = pool;
         userInfo[poolId][msg.sender] = user;
@@ -80,10 +96,10 @@ contract Farming is
         notPaused
         nonReentrant
     {
-        PoolInfo storage pool = poolInfo[poolId];
-        UserInfo storage user = userInfo[poolId][msg.sender];
+        PoolInfo memory pool = poolInfo[poolId];
+        UserInfo memory user = userInfo[poolId][msg.sender];
 
-        pool.withdraw(user, block.number, withdrawAmount);
+        pool.withdraw(user, block.timestamp, withdrawAmount);
 
         uint rewards;
         if (claimRewards) {
@@ -111,9 +127,9 @@ contract Farming is
     }
 
     function updateDistribution(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
-        PoolInfo storage pool = poolInfo[poolId];
+        PoolInfo memory pool = poolInfo[poolId];
 
-        pool.updateDistribution(block.number, rewardsDelta, newRpb);
+        pool.updateDistribution(block.timestamp, rewardsDelta, newRpb);
 
         if (rewardsDelta >= 0) {
             IERC20(pool.rewardAsset).safeTransferFrom(msg.sender, address(this), uint(rewardsDelta));
