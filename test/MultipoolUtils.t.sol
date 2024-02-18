@@ -126,7 +126,9 @@ contract MultipoolUtils is Test {
             quoteSum += quoteValues[i];
             uint val = (quoteValues[i] << 96) / p[i];
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
-            tokens[i].mint(address(mp), val);
+            if (val > 0) {
+                tokens[i].mint(address(mp), val);
+            }
             args[i] = AssetArgs({assetAddress: address(tokens[i]), amount: int(val)});
         }
 

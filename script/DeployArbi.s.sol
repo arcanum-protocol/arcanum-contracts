@@ -9,6 +9,37 @@ import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
 
+contract RemoveAssetQuantity is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address contractAddress = vm.envAddress("CONTRACT");
+
+        Multipool mp = Multipool(contractAddress);
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        address[] memory tokenAddresses = new address[](6);
+        tokenAddresses[0] = address(0x51fC0f6660482Ea73330E414eFd7808811a57Fa2);
+        tokenAddresses[1] = address(0x0341C0C0ec423328621788d4854119B97f44E391);
+        tokenAddresses[2] = address(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8);
+        tokenAddresses[3] = address(0x539bdE0d7Dbd336b79148AA742883198BBF60342);
+        tokenAddresses[4] = address(0x3082CC23568eA640225c2467653dB90e9250AaA0);
+        tokenAddresses[5] = address(0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a);
+
+        uint[] memory targetShares = new uint[](6);
+        targetShares[0] = 0;
+        targetShares[1] = 0;
+        targetShares[2] = 1;
+        targetShares[3] = 1;
+        targetShares[4] = 1;
+        targetShares[5] = 1;
+
+        mp.updateTargetShares(tokenAddresses, targetShares);
+
+        vm.stopBroadcast();
+    }
+}
+
 contract UpdateTargetShares is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
