@@ -110,6 +110,7 @@ library ContextMath {
         uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
 
         if (dNew > dOld && ctx.oldTotalSupply != 0) {
+            if (targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
             if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
             uint deviationFee = (
                 ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)

@@ -47,6 +47,9 @@ interface IMultipoolErrors {
     /// @notice Is thrown if uniswap v3 twap price fetching resulted in error that was not "OLD"
     error UniV3PriceFetchingReverted();
 
+    /// @notice Is thrown if you are trying to increase the deviation while target share is set to 0
+    error TargetShareIsZero();
+
     /// @notice Is thrown if the number of signatures is lower than threshold
     error InvalidForcePushSignatureNumber();
 

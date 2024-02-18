@@ -215,7 +215,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             users[3],
             true,
             false,
-            abi.encodeWithSignature("DeviationExceedsLimit()")
+            abi.encodeWithSignature("TargetShareIsZero()")
         );
 
         swapExt(
@@ -469,6 +469,51 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
                     [
                         AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
                         AssetArgs({assetAddress: address(tokens[2]), amount: int(-1e7)})
+                    ]
+                )
+            ),
+            100e18,
+            users[0],
+            sp
+        );
+    }
+
+    function test_MintFromZeroTargetShareToken() public {
+        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+
+        SharePriceParams memory sp;
+        changeShare(address(tokens[0]), 0);
+        
+        vm.prank(users[3]);
+        mp.transfer(address(mp), 4000e18 + 100);
+
+        swapExt(
+            sort(
+                dynamic(
+                    [
+                        AssetArgs({assetAddress: address(tokens[0]), amount: -int(40e18)}),
+                        AssetArgs({assetAddress: address(mp), amount: int(4000e18 + 100)})
+                    ]
+                )
+            ), 
+            100e18, 
+            users[0], 
+            sp, 
+            users[3], 
+            false, 
+            false, 
+            abi.encode(0)
+        );
+
+        tokens[0].mint(address(mp), 1e18);
+
+        vm.expectRevert(abi.encodeWithSignature("TargetShareIsZero()"));
+        swap(
+            sort(
+                dynamic(
+                    [
+                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+                        AssetArgs({assetAddress: address(mp), amount: -int(0.5e18)})
                     ]
                 )
             ),
