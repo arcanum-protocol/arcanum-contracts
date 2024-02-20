@@ -25,12 +25,13 @@ contract Farm is
         _disableInitializers();
     }
 
-    function initialize()
+    function initialize(address owner)
         public
         initializer
     {
         __ReentrancyGuard_init();
         __Ownable_init();
+        transferOwnership(owner);
     }
 
     mapping(uint => PoolInfo) private poolInfo;

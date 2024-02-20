@@ -21,7 +21,7 @@ contract FarmingTests is Test {
         Farm impl = new Farm();
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(impl),
-            abi.encodeWithSignature("initialize()")
+            abi.encodeWithSignature("initialize(address)", address(this))
         );
         farm = Farm(address(proxy));
         asset = new MockERC20("asset", "asset", 0);
