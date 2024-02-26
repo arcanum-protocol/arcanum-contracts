@@ -12,12 +12,7 @@ import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
 
-contract Farm is 
-    Initializable,
-    OwnableUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using FarmingMath for PoolInfo;
 
@@ -25,10 +20,7 @@ contract Farm is
         _disableInitializers();
     }
 
-    function initialize(address owner)
-        public
-        initializer
-    {
+    function initialize(address owner) public initializer {
         __ReentrancyGuard_init();
         __Ownable_init();
         transferOwnership(owner);
@@ -51,7 +43,14 @@ contract Farm is
         _;
     }
 
-    function getUser(uint poolId, address userAddress) external view returns (UserInfo memory user) {
+    function getUser(
+        uint poolId,
+        address userAddress
+    )
+        external
+        view
+        returns (UserInfo memory user)
+    {
         user = userInfo[poolId][userAddress];
     }
 
@@ -59,7 +58,14 @@ contract Farm is
         pool = poolInfo[poolId];
     }
 
-    function availableRewards(uint poolId, address userAddress) external view returns (uint rewards) {
+    function availableRewards(
+        uint poolId,
+        address userAddress
+    )
+        external
+        view
+        returns (uint rewards)
+    {
         PoolInfo memory pool = poolInfo[poolId];
         UserInfo memory user = userInfo[poolId][userAddress];
         pool.updateRewards(user, block.timestamp);
@@ -68,11 +74,7 @@ contract Farm is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function deposit(uint256 poolId, uint256 depositAmount) 
-        external
-        notPaused
-        nonReentrant
-    {
+    function deposit(uint256 poolId, uint256 depositAmount) external notPaused nonReentrant {
         PoolInfo memory pool = poolInfo[poolId];
         UserInfo memory user = userInfo[poolId][msg.sender];
 
@@ -81,19 +83,19 @@ contract Farm is
 
         poolInfo[poolId] = pool;
         userInfo[poolId][msg.sender] = user;
-        
+
         emit Deposit(msg.sender, poolId, depositAmount);
     }
 
     function withdraw(
-        uint256 poolId, 
-        uint256 withdrawAmount, 
-        bool claimRewards, 
-        address callback, 
+        uint256 poolId,
+        uint256 withdrawAmount,
+        bool claimRewards,
+        address callback,
         bytes calldata callbackData
-    ) 
-        external 
-        payable 
+    )
+        external
+        payable
         notPaused
         nonReentrant
     {
@@ -110,7 +112,7 @@ contract Farm is
 
         poolInfo[poolId] = pool;
         userInfo[poolId][msg.sender] = user;
-        
+
         emit Withdraw(msg.sender, poolId, withdrawAmount);
 
         IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
@@ -137,7 +139,7 @@ contract Farm is
         } else {
             IERC20(pool.rewardAsset).safeTransfer(msg.sender, uint(-rewardsDelta));
         }
-        
+
         poolInfo[poolId] = pool;
     }
 
