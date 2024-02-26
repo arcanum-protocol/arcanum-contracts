@@ -7,7 +7,6 @@ import "openzeppelin/access/Ownable.sol";
 import {UserInfo, PoolInfo, FarmingMath} from "../../src/lib/Farm.sol";
 
 contract FarmingMathTests is Test {
-
     receive() external payable {}
 
     function assertUser(UserInfo memory a, UserInfo memory b) public {
@@ -18,12 +17,14 @@ contract FarmingMathTests is Test {
 
     function assertPool(PoolInfo memory a, PoolInfo memory b) public {
         assertEq(a.lockAsset, b.lockAsset, "lock assets don't match");
-        assertEq(a.lockAssetTotalNumber, b.lockAssetTotalNumber, "lock assets total number don't match");
-        assertEq(a.rewardAsset, b.rewardAsset,  "reward asset");
-        assertEq(a.rpb, b.rpb,  "rpb don't match");
-        assertEq(a.arps, b.arps,  "arps don't match");
-        assertEq(a.availableRewards, b.availableRewards,  "available rewards don't match");
-        assertEq(a.lastUpdateBlock, b.lastUpdateBlock,  "last update block don't match");
+        assertEq(
+            a.lockAssetTotalNumber, b.lockAssetTotalNumber, "lock assets total number don't match"
+        );
+        assertEq(a.rewardAsset, b.rewardAsset, "reward asset");
+        assertEq(a.rpb, b.rpb, "rpb don't match");
+        assertEq(a.arps, b.arps, "arps don't match");
+        assertEq(a.availableRewards, b.availableRewards, "available rewards don't match");
+        assertEq(a.lastUpdateBlock, b.lastUpdateBlock, "last update block don't match");
     }
 
     function test_FarmingHappyPath1() public {

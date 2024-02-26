@@ -483,7 +483,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         SharePriceParams memory sp;
         changeShare(address(tokens[0]), 0);
-        
+
         vm.prank(users[3]);
         mp.transfer(address(mp), 4000e18 + 100);
 
@@ -495,13 +495,13 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
                         AssetArgs({assetAddress: address(mp), amount: int(4000e18 + 100)})
                     ]
                 )
-            ), 
-            100e18, 
-            users[0], 
-            sp, 
-            users[3], 
-            false, 
-            false, 
+            ),
+            100e18,
+            users[0],
+            sp,
+            users[3],
+            false,
+            false,
             abi.encode(0)
         );
 

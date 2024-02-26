@@ -10,7 +10,6 @@ import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 
 contract FarmingTests is Test {
-
     receive() external payable {}
 
     Farm farm;
@@ -20,8 +19,7 @@ contract FarmingTests is Test {
     function setUp() public {
         Farm impl = new Farm();
         ERC1967Proxy proxy = new ERC1967Proxy(
-            address(impl),
-            abi.encodeWithSignature("initialize(address)", address(this))
+            address(impl), abi.encodeWithSignature("initialize(address)", address(this))
         );
         farm = Farm(address(proxy));
         asset = new MockERC20("asset", "asset", 0);

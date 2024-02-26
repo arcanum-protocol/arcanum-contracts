@@ -23,8 +23,7 @@ contract FarmingHandler is Test {
     constructor() {
         Farm impl = new Farm();
         ERC1967Proxy proxy = new ERC1967Proxy(
-            address(impl),
-            abi.encodeWithSignature("initialize(address)", address(this))
+            address(impl), abi.encodeWithSignature("initialize(address)", address(this))
         );
         farm = Farm(address(proxy));
 
@@ -34,7 +33,7 @@ contract FarmingHandler is Test {
         startBalance = 500e18;
 
         for (uint i = 0; i < assetNumber; ++i) {
-            assets.push(new MockERC20("asset", "asset", 0)); 
+            assets.push(new MockERC20("asset", "asset", 0));
         }
 
         for (uint i = 0; i < userNumber; ++i) {
@@ -46,7 +45,14 @@ contract FarmingHandler is Test {
         farm.addPool(address(assets[0]), address(assets[1]));
     }
 
-    function getPoolId(uint seed, uint chanceOfInvalidity) internal view returns (uint poolId, bool isInvalid) {
+    function getPoolId(
+        uint seed,
+        uint chanceOfInvalidity
+    )
+        internal
+        view
+        returns (uint poolId, bool isInvalid)
+    {
         if (seed % 100 < chanceOfInvalidity) {
             poolId = seed + farm.poolNumber();
             isInvalid = true;
@@ -56,12 +62,18 @@ contract FarmingHandler is Test {
         }
     }
 
-    function getAsset(uint seed, uint chanceOfInvalidity) internal returns (address asset, bool isInvalid) {
+    function getAsset(
+        uint seed,
+        uint chanceOfInvalidity
+    )
+        internal
+        returns (address asset, bool isInvalid)
+    {
         if (seed % 100 < chanceOfInvalidity) {
             asset = makeAddr("invalid asset");
             isInvalid = true;
         } else {
-            asset = address(assets[bound(seed, 0, assets.length-1)]);
+            asset = address(assets[bound(seed, 0, assets.length - 1)]);
             isInvalid = false;
         }
     }
@@ -88,7 +100,7 @@ contract FarmingHandler is Test {
     // this function will be called by the pool during the flashloan
     function deposit(uint poolIdSeed, uint userSeed, uint amountSeed) external payable {
         (uint poolId, bool isInvalid) = getPoolId(poolIdSeed, 0);
-        address user = users[bound(userSeed, 0, users.length-1)];
+        address user = users[bound(userSeed, 0, users.length - 1)];
         uint amount = bound(amountSeed, 0, startBalance);
         if (isInvalid) {
             return;
@@ -101,11 +113,18 @@ contract FarmingHandler is Test {
         asset.approve(address(farm), amount);
         farm.deposit(poolId, amount);
     }
-    
+
     // used for withdrawing ether balance in the pool
-    function withdraw(uint poolIdSeed, uint userSeed, uint amountSeed, uint claimRewardsSeed) external {
+    function withdraw(
+        uint poolIdSeed,
+        uint userSeed,
+        uint amountSeed,
+        uint claimRewardsSeed
+    )
+        external
+    {
         (uint poolId, bool isInvalid) = getPoolId(poolIdSeed, 0);
-        address user = users[bound(userSeed, 0, users.length-1)];
+        address user = users[bound(userSeed, 0, users.length - 1)];
 
         if (isInvalid) {
             return;
@@ -123,7 +142,14 @@ contract FarmingHandler is Test {
         farm.withdraw(poolId, amount, claimRewards, address(0), abi.encode(0));
     }
 
-    function addRewards(uint poolIdSeed, int amountSeed, uint intervalSeed, uint removeSeed) external {
+    function addRewards(
+        uint poolIdSeed,
+        int amountSeed,
+        uint intervalSeed,
+        uint removeSeed
+    )
+        external
+    {
         (uint poolId, bool isInvalid) = getPoolId(poolIdSeed, 0);
         PoolInfo memory poolInfo = farm.getPool(poolId);
         int amount = bound(amountSeed, -int(startBalance), int(startBalance));
@@ -135,7 +161,6 @@ contract FarmingHandler is Test {
         } else {
             amountAbs = uint(-amount);
         }
-
 
         if (amount > 0) {
             MockERC20(poolInfo.rewardAsset).mint(farm.owner(), uint(amount));
@@ -151,7 +176,6 @@ contract FarmingHandler is Test {
 }
 
 contract FarmingTests is Test {
-
     FarmingHandler actor;
 
     receive() external payable {}
@@ -161,7 +185,5 @@ contract FarmingTests is Test {
         targetContract(address(actor));
     }
 
-    function invariant_farming() external {
-        
-    }
+    function invariant_farming() external {}
 }

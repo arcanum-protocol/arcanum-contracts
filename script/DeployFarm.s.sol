@@ -12,7 +12,7 @@ import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t
 
 contract DeployFarm is Script {
     function run() external {
-        // test deployer private key 
+        // test deployer private key
         uint256 pkey = uint(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
         address deployer = vm.addr(pkey);
 
@@ -26,21 +26,24 @@ contract DeployFarm is Script {
         MockERC20 spi = new MockERC20{salt: spiSalt}("SPI", "Sharpe Portfolio Index", 0);
         spi.mint(deployer, 1000e18);
 
-        
         Farm farmImpl = new Farm();
         bytes32 farmSalt = keccak256(abi.encode("dubi dubi"));
 
-        Farm farm = Farm(address(new ERC1967Proxy{salt: farmSalt}(
-            address(farmImpl),
-            abi.encodeWithSignature("initialize(address)", deployer)
-        )));
+        Farm farm = Farm(
+            address(
+                new ERC1967Proxy{salt: farmSalt}(
+                    address(farmImpl), abi.encodeWithSignature("initialize(address)", deployer)
+                )
+            )
+        );
 
         bytes32 arbSalt = keccak256(abi.encode("daba daba"));
         MockERC20 arb = new MockERC20{salt: arbSalt}("Arb", "Arbitrum", 0);
         arb.mint(deployer, 1000e18);
 
         bytes32 wbtcSalt = keccak256(abi.encode("magic pony"));
-        MockERC20WithDecimals wbtc = new MockERC20WithDecimals{salt: wbtcSalt}("WBTC", "Wrapped bitcoin", 8);
+        MockERC20WithDecimals wbtc =
+            new MockERC20WithDecimals{salt: wbtcSalt}("WBTC", "Wrapped bitcoin", 8);
         wbtc.mint(deployer, 1000e18);
 
         farm.addPool(address(arbi), address(arb));
@@ -63,4 +66,3 @@ contract DeployFarm is Script {
         vm.stopBroadcast();
     }
 }
-
