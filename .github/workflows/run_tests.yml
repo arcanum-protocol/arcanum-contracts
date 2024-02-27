@@ -17,7 +17,7 @@ jobs:
           version: nightly
 
       - name: Add fork cache
-        run: mkdir ~/.foundry && cp -r .cache ~/.foundry/cache
+        run: mkdir -p ~/.foundry && cp -r .cache ~/.foundry/cache
 
       - name: Run tests
         run: forge test -vvv
