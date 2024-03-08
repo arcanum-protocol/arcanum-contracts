@@ -72,3 +72,56 @@ contract DeployTestEnv is Script {
         vm.stopBroadcast();
     }
 }
+
+contract DeployEtfWithFactory is Script {
+    function run() external {
+        // test deployer private key
+        uint256 pkey = uint(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
+        address deployer = vm.addr(pkey);
+        MultipoolFactory factory = MultipoolFactory(0x6fab5332a5F677613C1Eba902d82B1BE15DE4D07);
+
+        vm.startBroadcast(pkey);
+
+        address[] memory oracleAddresses = new address[](1);
+        oracleAddresses[0] = deployer;
+
+        address[] memory assetAddresses = new address[](2);
+        assetAddresses[0] = address(0xE08568d896e1F4bd589f0D62Cf1e5eC28eD03512);
+        assetAddresses[1] = address(0x501E089d6343dd5f5afC7cf522F026C0Bf6aaBa2);
+
+        FeedType[] memory priceFeedKinds = new FeedType[](2);
+        priceFeedKinds[0] = FeedType.FixedValue;
+        priceFeedKinds[1] = FeedType.FixedValue;
+
+        bytes[] memory feedData = new bytes[](2);
+        feedData[0] = abi.encode(toX96(0.1e18));
+        feedData[1] = abi.encode(toX96(0.5e18));
+
+        uint[] memory targetShares = new uint[](2);
+        targetShares[0] = 2;
+        targetShares[1] = 1;
+
+        factory.spawnMultipool(
+            MultipoolFactory.MultipoolSetupArgs({
+                name: "Test",
+                symbol: "TEST",
+                signatureThershold: 1,
+                sharePriceValidity: 600,
+                initialSharePrice: toX32(1e18),
+                deviationLimit: toX32(0.15e18),
+                halfDeviationFee: toX32(0.003e18),
+                depegBaseFee: toX32(0.3e18),
+                baseFee: toX32(0.01e18),
+                developerBaseFee: toX32(0.01e18),
+                developerAddress: deployer,
+                oracleAddresses: oracleAddresses,
+                assetAddresses: assetAddresses,
+                priceFeedKinds: priceFeedKinds,
+                feedData: feedData,
+                targetShares: targetShares
+            })
+        );
+
+        vm.stopBroadcast();
+    }
+}
