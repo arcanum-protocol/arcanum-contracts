@@ -13,7 +13,8 @@ package-lock.json
 out/
 
 #Hardhat files
-cache
+!cache/solidity-files-cache.json
+cache/*
 artifacts
 pnpm-lock.yaml
 abi
