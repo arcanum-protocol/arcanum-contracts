@@ -20,18 +20,26 @@ contract DeployTestEnv is Script {
 
         vm.startBroadcast(pkey);
 
-        Multipool mpImpl = new Multipool();
+        bytes32 salt = keccak256(abi.encode("chipipi", 1));
+        console.log("salt", uint(salt));
+
+        console.log("creation code", uint(keccak256(abi.encodePacked(type(Multipool).creationCode))));
+
+        Multipool mpImpl = new Multipool{salt: salt}();
+        console.log("mp impl", address(mpImpl));
 
         {
-            bytes32 salt = keccak256(abi.encode("chipi chipi", 1));
-            MultipoolFactory factoryImpl = new MultipoolFactory();
+            bytes32 salt = keccak256(abi.encode("chipi daba", 1));
+            MultipoolFactory factoryImpl = new MultipoolFactory{salt: salt}();
+            console.log("factory impl", address(factoryImpl));
+            salt = keccak256(abi.encode("chipi chipi", 1));
             ERC1967Proxy factoryProxy = new ERC1967Proxy{salt: salt}(address(factoryImpl), "");
             MultipoolFactory factory = MultipoolFactory(address(factoryProxy));
             factory.initialize(deployer, address(mpImpl));
             console.log("factory ", address(factory));
         }
 
-        bytes32 salt = keccak256(abi.encode("chipi chipi"));
+        salt = keccak256(abi.encode("chipi chipi"));
         Multicall3 multicall = new Multicall3{salt: salt}();
         console.log(address(multicall));
 
