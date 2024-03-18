@@ -23,13 +23,15 @@ contract DeployTestEnv is Script {
         bytes32 salt = keccak256(abi.encode("chipipi", 1));
         console.log("salt", uint(salt));
 
-        console.log("creation code", uint(keccak256(abi.encodePacked(type(Multipool).creationCode))));
+        console.log(
+            "creation code", uint(keccak256(abi.encodePacked(type(Multipool).creationCode)))
+        );
 
         Multipool mpImpl = new Multipool{salt: salt}();
         console.log("mp impl", address(mpImpl));
 
         {
-            bytes32 salt = keccak256(abi.encode("chipi daba", 1));
+            salt = keccak256(abi.encode("chipi daba", 1));
             MultipoolFactory factoryImpl = new MultipoolFactory{salt: salt}();
             console.log("factory impl", address(factoryImpl));
             salt = keccak256(abi.encode("chipi chipi", 1));
@@ -86,7 +88,7 @@ contract DeployEtfWithFactory is Script {
         // test deployer private key
         uint256 pkey = uint(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
         address deployer = vm.addr(pkey);
-        MultipoolFactory factory = MultipoolFactory(0x6fab5332a5F677613C1Eba902d82B1BE15DE4D07);
+        MultipoolFactory factory = MultipoolFactory(0xAfef20a6b3e05d6bc9b9541d9BF692E7914406F0);
 
         vm.startBroadcast(pkey);
 
@@ -94,8 +96,8 @@ contract DeployEtfWithFactory is Script {
         oracleAddresses[0] = deployer;
 
         address[] memory assetAddresses = new address[](2);
-        assetAddresses[0] = address(0xE08568d896e1F4bd589f0D62Cf1e5eC28eD03512);
-        assetAddresses[1] = address(0x501E089d6343dd5f5afC7cf522F026C0Bf6aaBa2);
+        assetAddresses[0] = address(0x65177a42ce789f8111C879Bd53e96DEBED63c685);
+        assetAddresses[1] = address(0x3a822B7099a4D43099D26A2A5de655692F854fc0);
 
         FeedType[] memory priceFeedKinds = new FeedType[](2);
         priceFeedKinds[0] = FeedType.FixedValue;
