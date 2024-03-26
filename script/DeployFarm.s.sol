@@ -37,6 +37,10 @@ contract DeployFarm is Script {
             )
         );
 
+        bytes32 pointSalt = keccak256(abi.encode("dab dab"));
+        MockERC20 points = new MockERC20{salt: pointSalt}("APOINTS", "Arcanum points", 0);
+        points.mint(deployer, 1000e18);
+
         bytes32 arbSalt = keccak256(abi.encode("daba daba"));
         MockERC20 arb = new MockERC20{salt: arbSalt}("Arb", "Arbitrum", 0);
         arb.mint(deployer, 1000e18);
@@ -46,15 +50,18 @@ contract DeployFarm is Script {
             new MockERC20WithDecimals{salt: wbtcSalt}("WBTC", "Wrapped bitcoin", 8);
         wbtc.mint(deployer, 1000e18);
 
-        farm.addPool(address(arbi), address(arb));
+        farm.addPool(address(arbi), address(arb), address(0));
 
         arb.approve(address(farm), 100e18);
         farm.updateDistribution(0, 100e18, 1585489599188);
 
-        farm.addPool(address(spi), address(wbtc));
+        farm.addPool(address(spi), address(wbtc), address(points));
 
         wbtc.approve(address(farm), 100e8);
         farm.updateDistribution(1, 100e8, 158);
+
+        points.approve(address(farm), 100e18);
+        farm.updateDistribution2(1, 100e18, 158);
 
         console.log("farm", address(farm));
         console.log("deployer", address(deployer));
@@ -62,7 +69,33 @@ contract DeployFarm is Script {
         console.log("spi", address(spi));
         console.log("wbtc", address(wbtc));
         console.log("arb", address(arb));
+        console.log("points", address(points));
 
+        vm.stopBroadcast();
+    }
+}
+
+contract DeployFarmToProd is Script {
+    function run() external {
+        uint256 pkey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(pkey);
+
+        vm.startBroadcast(pkey);
+        bytes32 farmImplSalt = keccak256(abi.encode("dubi dubi impl"));
+        bytes32 farmSalt = keccak256(abi.encode("dubi dubi"));
+
+        Farm farmImpl = new Farm{salt: farmImplSalt }();
+
+        Farm farm = Farm(
+            address(
+                new ERC1967Proxy{salt: farmSalt}(
+                    address(farmImpl), abi.encodeWithSignature("initialize(address)", deployer)
+                )
+            )
+        );
+        console.log("farm", address(farm));
+        console.log("farm impl", address(farmImpl));
+        console.log("deployer", address(deployer));
         vm.stopBroadcast();
     }
 }

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {FarmingMath, PoolInfo, UserInfo} from "../lib/Farm.sol";
-
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
 
+/// @custom:security-contact badconfig@arcanum.to
 contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using FarmingMath for PoolInfo;
@@ -32,7 +31,7 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     bool public isPaused;
 
     error IsPaused();
-    error CallbackFailed(bytes reason);
+    error CantCompound();
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -64,12 +63,11 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     )
         external
         view
-        returns (uint rewards)
+        returns (uint reward, uint reward2)
     {
         PoolInfo memory pool = poolInfo[poolId];
         UserInfo memory user = userInfo[poolId][userAddress];
-        pool.updateRewards(user, block.timestamp);
-        rewards = user.accRewards;
+        (reward, reward2) = pool.updateRewards(user, block.timestamp);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -78,8 +76,19 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         PoolInfo memory pool = poolInfo[poolId];
         UserInfo memory user = userInfo[poolId][msg.sender];
 
-        IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
-        pool.deposit(user, block.timestamp, depositAmount);
+        if (depositAmount > 0) {
+            IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
+        }
+
+        (uint rewards, uint rewards2) = pool.deposit(user, block.timestamp, depositAmount);
+
+        if (rewards > 0) {
+            IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+        }
+
+        if (rewards2 > 0) {
+            IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
+        }
 
         poolInfo[poolId] = pool;
         userInfo[poolId][msg.sender] = user;
@@ -90,9 +99,7 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     function withdraw(
         uint256 poolId,
         uint256 withdrawAmount,
-        bool claimRewards,
-        address callback,
-        bytes calldata callbackData
+        bool compoundRewards
     )
         external
         payable
@@ -102,31 +109,30 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         PoolInfo memory pool = poolInfo[poolId];
         UserInfo memory user = userInfo[poolId][msg.sender];
 
-        pool.withdraw(user, block.timestamp, withdrawAmount);
+        (uint rewards, uint rewards2) = pool.withdraw(user, block.timestamp, withdrawAmount);
 
-        uint rewards;
-        if (claimRewards) {
-            rewards = user.accRewards;
-            user.accRewards = 0;
+        if (rewards > 0) {
+            if (!compoundRewards) {
+                IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+            } else if (pool.lockAsset == pool.rewardAsset) {
+                pool.deposit(user, block.timestamp, rewards);
+            } else {
+                revert CantCompound();
+            }
+        }
+
+        if (rewards2 > 0) {
+            IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
+        }
+
+        if (withdrawAmount > 0) {
+            IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
         }
 
         poolInfo[poolId] = pool;
         userInfo[poolId][msg.sender] = user;
 
         emit Withdraw(msg.sender, poolId, withdrawAmount);
-
-        IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
-        if (rewards != 0) {
-            if (callback == address(0)) {
-                IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
-            } else {
-                IERC20(pool.rewardAsset).safeTransfer(callback, rewards);
-                (bool success, bytes memory data) = callback.call{value: msg.value}(callbackData);
-                if (!success) {
-                    revert CallbackFailed(data);
-                }
-            }
-        }
     }
 
     function updateDistribution(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
@@ -143,10 +149,34 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         poolInfo[poolId] = pool;
     }
 
-    function addPool(address lockAsset, address rewardAsset) external onlyOwner {
+    function updateDistribution2(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
+        PoolInfo memory pool = poolInfo[poolId];
+
+        pool.updateDistribution2(block.timestamp, rewardsDelta, newRpb);
+
+        if (rewardsDelta >= 0) {
+            IERC20(pool.rewardAsset2).safeTransferFrom(
+                msg.sender, address(this), uint(rewardsDelta)
+            );
+        } else {
+            IERC20(pool.rewardAsset2).safeTransfer(msg.sender, uint(-rewardsDelta));
+        }
+
+        poolInfo[poolId] = pool;
+    }
+
+    function addPool(
+        address lockAsset,
+        address rewardAsset,
+        address rewardAsset2
+    )
+        external
+        onlyOwner
+    {
         PoolInfo memory pool;
         pool.lockAsset = lockAsset;
         pool.rewardAsset = rewardAsset;
+        pool.rewardAsset2 = rewardAsset2;
         poolInfo[poolNumber] = pool;
         poolNumber += 1;
     }

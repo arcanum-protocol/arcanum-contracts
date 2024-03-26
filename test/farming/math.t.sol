@@ -9,25 +9,32 @@ import {UserInfo, PoolInfo, FarmingMath} from "../../src/lib/Farm.sol";
 contract FarmingMathTests is Test {
     receive() external payable {}
 
-    function assertUser(UserInfo memory a, UserInfo memory b) public {
+    function assertUser(UserInfo memory a, UserInfo memory b) public pure {
         assertEq(a.amount, b.amount, "amount don't match");
         assertEq(a.rd, b.rd, "rd don't match");
-        assertEq(a.accRewards, b.accRewards, "accRewards don't match");
+        assertEq(a.rd2, b.rd2, "rd 2 don't match");
     }
 
-    function assertPool(PoolInfo memory a, PoolInfo memory b) public {
+    function assertPool(PoolInfo memory a, PoolInfo memory b) public pure {
         assertEq(a.lockAsset, b.lockAsset, "lock assets don't match");
         assertEq(
             a.lockAssetTotalNumber, b.lockAssetTotalNumber, "lock assets total number don't match"
         );
         assertEq(a.rewardAsset, b.rewardAsset, "reward asset");
+        assertEq(a.rewardAsset2, b.rewardAsset2, "reward asset 2");
+
         assertEq(a.rpb, b.rpb, "rpb don't match");
         assertEq(a.arps, b.arps, "arps don't match");
         assertEq(a.availableRewards, b.availableRewards, "available rewards don't match");
+
+        assertEq(a.rpb2, b.rpb2, "rpb 2 don't match");
+        assertEq(a.arps2, b.arps2, "arps 2 don't match");
+        assertEq(a.availableRewards2, b.availableRewards2, "available rewards 2 don't match");
+
         assertEq(a.lastUpdateBlock, b.lastUpdateBlock, "last update block don't match");
     }
 
-    function test_FarmingHappyPath1() public {
+    function test_FarmingHappyPath1() public pure {
         PoolInfo memory pool;
         PoolInfo memory ethalon;
         UserInfo memory alice;
@@ -56,7 +63,6 @@ contract FarmingMathTests is Test {
         pool.withdraw(alice, 7, 0);
 
         aliceEthalon.rd = 0.5e18;
-        aliceEthalon.accRewards = 0.5e18;
         assertUser(alice, aliceEthalon);
 
         ethalon.lastUpdateBlock = 7;
@@ -68,7 +74,6 @@ contract FarmingMathTests is Test {
         pool.withdraw(bob, 200, 0);
 
         bobEthalon.rd = 50e18;
-        bobEthalon.accRewards = 50e18;
         assertUser(bob, bobEthalon);
 
         pool.withdraw(bob, 200, 0);
@@ -96,13 +101,11 @@ contract FarmingMathTests is Test {
 
         aliceEthalon.amount = 0;
         aliceEthalon.rd = 50e18 + 6666666666666666666;
-        aliceEthalon.accRewards = 50e18 + 6666666666666666666;
 
         pool.withdraw(bob, 251, 0.5e18);
 
         bobEthalon.amount = 0;
         bobEthalon.rd = 50e18 + (1e18 - 6666666666666666666);
-        bobEthalon.accRewards = 50e18 + (1e18 - 6666666666666666666);
 
         ethalon.lastUpdateBlock = 251;
         ethalon.lockAssetTotalNumber = 0;
