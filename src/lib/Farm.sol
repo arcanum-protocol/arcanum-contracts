@@ -4,16 +4,20 @@ pragma solidity ^0.8.0;
 struct UserInfo {
     uint amount;
     uint rd;
-    uint accRewards;
+    uint rd2;
 }
 
 struct PoolInfo {
     address lockAsset;
     uint lockAssetTotalNumber;
     address rewardAsset;
+    address rewardAsset2;
     uint rpb;
     uint arps; // Accumulated rewards per share, times 1e18. See below.
     uint availableRewards;
+    uint rpb2;
+    uint arps2; // Accumulated rewards per share, times 1e18. See below.
+    uint availableRewards2;
     uint lastUpdateBlock;
 }
 
@@ -30,12 +34,21 @@ library FarmingMath {
             rewards = pool.availableRewards;
         }
 
+        uint rewards2 = pool.rpb2 * (currentBlockNumber - pool.lastUpdateBlock);
+        if (rewards2 > pool.availableRewards2) {
+            rewards2 = pool.availableRewards2;
+        }
+
         pool.lastUpdateBlock = currentBlockNumber;
         if (pool.lockAssetTotalNumber > 0) {
             pool.arps += rewards * 1e18 / pool.lockAssetTotalNumber;
             pool.availableRewards -= rewards;
+
+            pool.arps2 += rewards2 * 1e18 / pool.lockAssetTotalNumber;
+            pool.availableRewards2 -= rewards2;
         } else {
             pool.arps = 0;
+            pool.arps2 = 0;
         }
     }
 
@@ -46,10 +59,14 @@ library FarmingMath {
     )
         internal
         pure
+        returns (uint accRewards, uint accRewards2)
     {
         updatePool(pool, currentBlockNumber);
         uint amount = user.amount * pool.arps / 1e18 - user.rd;
-        user.accRewards += amount;
+        accRewards += amount;
+
+        uint amount2 = user.amount * pool.arps2 / 1e18 - user.rd2;
+        accRewards2 += amount2;
     }
 
     function deposit(
@@ -60,10 +77,12 @@ library FarmingMath {
     )
         internal
         pure
+        returns (uint accRewards, uint accRewards2)
     {
-        updateRewards(pool, user, currentBlockNumber);
+        (accRewards, accRewards2) = updateRewards(pool, user, currentBlockNumber);
         user.amount += depositAmount;
         user.rd = user.amount * pool.arps / 1e18;
+        user.rd2 = user.amount * pool.arps2 / 1e18;
         pool.lockAssetTotalNumber += depositAmount;
     }
 
@@ -75,10 +94,12 @@ library FarmingMath {
     )
         internal
         pure
+        returns (uint accRewards, uint accRewards2)
     {
-        updateRewards(pool, user, currentBlockNumber);
+        (accRewards, accRewards2) = updateRewards(pool, user, currentBlockNumber);
         user.amount -= withdrawAmount;
         user.rd = user.amount * pool.arps / 1e18;
+        user.rd2 = user.amount * pool.arps2 / 1e18;
         pool.lockAssetTotalNumber -= withdrawAmount;
     }
 
@@ -98,5 +119,23 @@ library FarmingMath {
             pool.availableRewards -= uint(-rewardsDelta);
         }
         pool.rpb = newRpb;
+    }
+
+    function updateDistribution2(
+        PoolInfo memory pool,
+        uint currentBlockNumber,
+        int rewardsDelta,
+        uint newRpb
+    )
+        internal
+        pure
+    {
+        updatePool(pool, currentBlockNumber);
+        if (rewardsDelta >= 0) {
+            pool.availableRewards2 += uint(rewardsDelta);
+        } else {
+            pool.availableRewards2 -= uint(-rewardsDelta);
+        }
+        pool.rpb2 = newRpb;
     }
 }
