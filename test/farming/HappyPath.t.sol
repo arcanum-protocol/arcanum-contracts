@@ -39,7 +39,7 @@ contract FarmingTests is Test {
         asset.mint(address(this), 1e18);
         asset.approve(address(farm), 1e18);
 
-        farm.deposit(0, 1e18);
+        farm.deposit(0, 1e18, false);
 
         skip(50);
 
@@ -61,7 +61,7 @@ contract FarmingTests is Test {
         asset.mint(address(this), 1e18);
         asset.approve(address(farm), 1e18);
 
-        farm.deposit(0, 1e18);
+        farm.deposit(0, 1e18, false);
 
         skip(50);
 
@@ -92,11 +92,11 @@ contract FarmingTests is Test {
         farm.updateDistribution(0, 100e18, 1e18);
 
         vm.prank(alice);
-        farm.deposit(0, 10e18);
+        farm.deposit(0, 10e18, false);
 
         vm.prank(alice);
         vm.expectRevert();
-        farm.deposit(0, 100e18);
+        farm.deposit(0, 100e18, false);
 
         skip(50);
 
@@ -110,7 +110,7 @@ contract FarmingTests is Test {
         assertEq(50e18, reward.balanceOf(alice));
 
         vm.prank(bob);
-        farm.deposit(0, 100e18);
+        farm.deposit(0, 100e18, false);
 
         skip(150);
 
@@ -179,7 +179,7 @@ contract FarmingTests is Test {
         asset.approve(address(farm), 10e18);
 
         vm.prank(alice);
-        farm.deposit(0, 10e18);
+        farm.deposit(0, 10e18, false);
 
         (uint rewards, uint rewards2) = farm.availableRewards(0, alice);
         assertEq(0e18, rewards);
@@ -222,13 +222,17 @@ contract FarmingTests is Test {
         asset.approve(address(farm), 10e18);
 
         vm.prank(alice);
-        farm.deposit(0, 10e18);
+        farm.deposit(0, 10e18, false);
 
         skip(10);
 
         vm.prank(alice);
         vm.expectRevert(Farm.CantCompound.selector);
         farm.withdraw(0, 10e18, true);
+
+        vm.prank(alice);
+        vm.expectRevert(Farm.CantCompound.selector);
+        farm.deposit(0, 0e18, true);
     }
 
     function test_FarmRewardCompoundingWithTwoTokens() public {
@@ -252,14 +256,14 @@ contract FarmingTests is Test {
         asset.approve(address(farm), 10e18);
 
         vm.prank(alice);
-        farm.deposit(0, 10e18);
+        farm.deposit(0, 10e18, false);
 
         asset.mint(bob, 100e18);
         vm.prank(bob);
         asset.approve(address(farm), 10e18);
 
         vm.prank(bob);
-        farm.deposit(0, 10e18);
+        farm.deposit(0, 10e18, false);
 
         skip(10);
 
@@ -313,5 +317,34 @@ contract FarmingTests is Test {
         (rewards, rewards2) = farm.availableRewards(0, bob);
         assertEq(0e18, rewards);
         assertEq(0e18, rewards2);
+    }
+
+    function test_CompoundingOnDeposit() public {
+        farm.addPool(address(asset), address(asset), address(points));
+        address alice = makeAddr("alice");
+
+        asset.mint(address(this), 20e18);
+        asset.approve(address(farm), 20e18);
+
+        points.mint(address(this), 100e18);
+        points.approve(address(farm), 100e18);
+
+        farm.updateDistribution(0, 20e18, 1e18);
+        farm.updateDistribution2(0, 100e18, 0.5e18);
+
+        asset.mint(alice, 100e18);
+        vm.prank(alice);
+        asset.approve(address(farm), 20e18);
+
+        vm.prank(alice);
+        farm.deposit(0, 10e18, false);
+
+        skip(10);
+
+        vm.prank(alice);
+        farm.deposit(0, 10e18, true);
+
+        vm.prank(alice);
+        farm.withdraw(0, 20e18, true);
     }
 }

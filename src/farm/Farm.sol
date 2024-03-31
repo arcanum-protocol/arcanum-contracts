@@ -72,7 +72,15 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function deposit(uint256 poolId, uint256 depositAmount) external notPaused nonReentrant {
+    function deposit(
+        uint256 poolId,
+        uint256 depositAmount,
+        bool compoundRewards
+    )
+        external
+        notPaused
+        nonReentrant
+    {
         PoolInfo memory pool = poolInfo[poolId];
         UserInfo memory user = userInfo[poolId][msg.sender];
 
@@ -83,7 +91,13 @@ contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         (uint rewards, uint rewards2) = pool.deposit(user, block.timestamp, depositAmount);
 
         if (rewards > 0) {
-            IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+            if (!compoundRewards) {
+                IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+            } else if (pool.lockAsset == pool.rewardAsset) {
+                pool.deposit(user, block.timestamp, rewards);
+            } else {
+                revert CantCompound();
+            }
         }
 
         if (rewards2 > 0) {
