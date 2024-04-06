@@ -1,7 +1,7 @@
 [profile.default]
 optimizer = true
 optimizer_runs = 500
-gas_reports = ["Multipool", "MultipoolRouter", "Trader", "ContextMath"]
+gas_reports = ["Multipool", "MultipoolRouter", "Trader", "ContextMath", "CashbackVault"]
 fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
 remappings = [
     "ds-test/=lib/forge-std/lib/ds-test/src/",

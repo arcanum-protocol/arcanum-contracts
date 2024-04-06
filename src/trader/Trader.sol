@@ -5,6 +5,8 @@ import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
+import {ICashbackVault} from "../interfaces/ICashbackVault.sol";
+import {IWrapper} from "../interfaces/IWrapper.sol";
 import {Multipool} from "../multipool/Multipool.sol";
 import {AssetArgs, ForcePushArgs} from "../types/SwapArgs.sol";
 import {ISwapRouter} from "../interfaces/IUniswapRouter.sol";
@@ -24,20 +26,33 @@ uint160 constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970
 contract Trader {
     receive() external payable {}
 
+    error Reverted(bytes data);
+
+    struct Call {
+        IWrapper wrapper;
+        bytes data;
+    }
+
     struct Args {
         IERC20 tokenIn;
-        bool zeroForOneIn;
         IERC20 tokenOut;
-        bool zeroForOneOut;
+        IERC20 multipoolTokenIn;
+        IERC20 multipoolTokenOut;
+        Call firstCall;
+        Call secondCall;
+        uint tmpAmount;
         IUniswapV3Pool poolIn;
+        bool zeroForOneIn;
         IUniswapV3Pool poolOut;
-        uint multipoolAmountIn;
-        uint multipoolAmountOut;
+        bool zeroForOneOut;
+        uint multipoolSleepage;
         uint multipoolFee;
         Multipool multipool;
         ForcePushArgs fp;
         uint gasLimit;
         WETH weth;
+        ICashbackVault cashback;
+        address[] assets;
     }
 
     function uniswapV3SwapCallback(
@@ -47,31 +62,43 @@ contract Trader {
     )
         external
     {
-        (Args memory args, uint value) = abi.decode(_data, (Args, uint));
-        if (msg.sender == address(args.poolIn)) {
+        (Args memory args, uint value, bool firstCall) = abi.decode(_data, (Args, uint, bool));
+        if (firstCall) {
+            if (address(args.cashback) != address(0)) {
+                args.cashback.payCashback(address(args.multipool), args.assets);
+            }
             WETH weth = WETH(args.weth);
             weth.deposit{value: value - args.multipoolFee}();
             uint amountToPay = amount0Delta > 0 ? uint(amount0Delta) : uint(amount1Delta);
             weth.transfer(msg.sender, amountToPay);
 
+            int amount;
+            if (args.tokenIn != args.multipoolTokenIn) {
+                args.tokenIn.transfer(address(args.firstCall.wrapper), args.tmpAmount);
+                amount = int(
+                    args.firstCall.wrapper.wrap(
+                        args.tmpAmount, address(args.multipool), args.firstCall.data
+                    )
+                );
+            } else {
+                args.tokenIn.transfer(address(args.multipool), args.tmpAmount);
+                amount = int(args.tmpAmount);
+            }
+
             AssetArgs[] memory assetArgs = new AssetArgs[](2);
-            if (args.tokenIn < args.tokenOut) {
-                assetArgs[0] = AssetArgs({
-                    assetAddress: address(args.tokenIn),
-                    amount: int(args.multipoolAmountIn)
-                });
+            if (args.multipoolTokenIn < args.multipoolTokenOut) {
+                assetArgs[0] =
+                    AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
                 assetArgs[1] = AssetArgs({
-                    assetAddress: address(args.tokenOut),
-                    amount: -int(args.multipoolAmountOut)
+                    assetAddress: address(args.multipoolTokenOut),
+                    amount: -int(args.multipoolSleepage)
                 });
             } else {
-                assetArgs[1] = AssetArgs({
-                    assetAddress: address(args.tokenIn),
-                    amount: int(args.multipoolAmountIn)
-                });
+                assetArgs[1] =
+                    AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
                 assetArgs[0] = AssetArgs({
-                    assetAddress: address(args.tokenOut),
-                    amount: -int(args.multipoolAmountOut)
+                    assetAddress: address(args.multipoolTokenOut),
+                    amount: -int(args.multipoolSleepage)
                 });
             }
 
@@ -79,14 +106,13 @@ contract Trader {
                 args.fp, assetArgs, true, address(this), false, address(this)
             );
 
-            uint amountIn = args.tokenOut.balanceOf(address(this));
-            args.poolOut.swap(
-                address(this),
-                args.zeroForOneOut,
-                int(amountIn),
-                args.zeroForOneOut ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1,
-                abi.encode(args, amountIn)
-            );
+            uint amountOut = args.multipoolTokenOut.balanceOf(address(this));
+
+            if (args.tokenOut != args.multipoolTokenOut) {
+                args.multipoolTokenOut.transfer(address(args.secondCall.wrapper), amountOut);
+                amountOut =
+                    args.secondCall.wrapper.unwrap(amountOut, address(this), args.secondCall.data);
+            }
         } else {
             args.tokenOut.transfer(msg.sender, value);
             args.weth.withdraw(args.weth.balanceOf(address(this)));
@@ -94,14 +120,24 @@ contract Trader {
     }
 
     function trade(Args calldata args) external payable returns (uint profit, uint gasUsed) {
-        uint suppliedValue = address(this).balance;
+        uint suppliedValue = msg.value;
         args.poolIn.swap(
-            address(args.multipool),
+            address(this),
             args.zeroForOneIn,
-            -int(args.multipoolAmountIn),
+            -int(args.tmpAmount),
             args.zeroForOneIn ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1,
-            abi.encode(args, msg.value)
+            abi.encode(args, msg.value, true)
         );
+
+        uint amountOut = args.tokenOut.balanceOf(address(this));
+        args.poolOut.swap(
+            address(this),
+            args.zeroForOneOut,
+            int(amountOut),
+            args.zeroForOneOut ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1,
+            abi.encode(args, amountOut, false)
+        );
+
         unchecked {
             require(address(this).balance > suppliedValue, "no profit");
             profit = address(this).balance - suppliedValue;

@@ -74,7 +74,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                     targetOrOrigin: address(mocked),
                     amount: 0.5e18
                 })
-                )
+            )
         });
 
         calls[1] = MultipoolRouter.Call({
@@ -85,7 +85,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                     target: address(mocked),
                     amount: 0.5e18
                 })
-                )
+            )
         });
 
         calls[2] = MultipoolRouter.Call({
@@ -98,7 +98,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                         MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
                     )
                 )
-                )
+            )
         });
 
         address[] memory tokensArg = new address[](2);
@@ -117,7 +117,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                     targetOrOrigin: address(mocked),
                     amount: 0.5e18
                 })
-                )
+            )
         });
 
         calls[4] = MultipoolRouter.Call({
@@ -128,7 +128,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                     targetOrOrigin: address(mocked),
                     amount: 0.25e18
                 })
-                )
+            )
         });
 
         calls[5] = MultipoolRouter.Call({
@@ -139,7 +139,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                 abi.encodeCall(
                     MockCallSomething.mockTransferAllFunds, (amountsArg, tokensArg, address(mp))
                 )
-                )
+            )
         });
 
         calls[6] = MultipoolRouter.Call({
@@ -150,7 +150,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                     targetOrOrigin: address(mp),
                     amount: 0.25e18
                 })
-                )
+            )
         });
 
         MultipoolRouter.Call[] memory callsAfter;
@@ -188,7 +188,7 @@ contract MultipoolRouterCases is Test, MultipoolUtils {
                 abi.encodeCall(
                     MockCallSomething.callWithEther, (0.5e18, address(tokens[0]), address(mp))
                 )
-                )
+            )
         });
 
         vm.prank(users[0]);

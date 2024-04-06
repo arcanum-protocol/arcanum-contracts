@@ -1,4 +1,4 @@
-on: [push, pull_request]
+on: push
 
 name: test
 
@@ -19,8 +19,11 @@ jobs:
       - name: Add fork cache
         run: mkdir -p ~/.foundry && cp -r .cache ~/.foundry/cache
 
+      - name: Run build
+        run: forge build
+
       - name: Run tests
-        run: forge test -vvv
+        run: forge test -vvv --offline
 
       - name: Check format
         run: forge fmt --check

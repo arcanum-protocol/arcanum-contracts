@@ -59,7 +59,7 @@ contract SiloAdapterTests is Test {
                         reversed: false,
                         twapInterval: 60
                     })
-                    )
+                )
             })
         );
         assertEq(priceX96, siloAdapter.getPrice(0));

@@ -7,6 +7,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {FeedInfo, FeedType, UniV3Feed, PriceMath} from "../lib/Price.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
+import {IWrapper} from "../interfaces/IWrapper.sol";
 import {ISilo, ISiloLens} from "../interfaces/ISiloPool.sol";
 
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
@@ -17,6 +18,7 @@ import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgra
 /// @custom:security-contact badconfig@arcanum.to
 contract SiloPriceAdapter is
     IPriceAdapter,
+    IWrapper,
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -65,5 +67,37 @@ contract SiloPriceAdapter is
         uint totalSupply = IERC20(feed.siloCollateralToken).totalSupply();
         uint basePrice = feed.baseFeed.getPrice();
         priceX96 = basePrice * quoteValue / totalSupply;
+    }
+
+    function wrap(
+        uint baseAmount,
+        address to,
+        bytes calldata data
+    )
+        external
+        override
+        returns (uint wrappedAmount)
+    {
+        (address pool, address baseToken, address wrappedToken) =
+            abi.decode(data, (address, address, address));
+        IERC20(baseToken).approve(pool, baseAmount);
+        (, wrappedAmount) = ISilo(pool).deposit(baseToken, baseAmount, false);
+        IERC20(wrappedToken).transfer(to, wrappedAmount);
+    }
+
+    function unwrap(
+        uint wrappedAmount,
+        address to,
+        bytes calldata data
+    )
+        external
+        override
+        returns (uint baseAmount)
+    {
+        (address pool, address baseToken, address wrappedToken) =
+            abi.decode(data, (address, address, address));
+        IERC20(wrappedToken).approve(pool, wrappedAmount);
+        (baseAmount,) = ISilo(pool).withdraw(baseToken, wrappedAmount, false);
+        IERC20(baseToken).transfer(to, baseAmount);
     }
 }
