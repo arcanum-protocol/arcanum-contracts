@@ -39,8 +39,8 @@ contract CashbackVault is
     error InsufficientAmount();
     error InvalidAsset(address asset);
 
-    mapping(address => CashbackDistributor) internal distributors;
-    mapping(address => mapping(address => uint)) internal lastUpdated;
+    mapping(address => CashbackDistributor) distributors;
+    mapping(address => mapping(address => uint)) lastUpdated;
     bool public isPaused;
 
     modifier notPaused() {
@@ -77,6 +77,7 @@ contract CashbackVault is
             }
         }
         distributors[multipool] = distributor;
+        emit CashbackPayed(multipool, assets, values);
     }
 
     function updateDistributionParams(

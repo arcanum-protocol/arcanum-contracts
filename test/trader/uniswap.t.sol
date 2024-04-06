@@ -5,11 +5,14 @@ import "forge-std/Test.sol";
 import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {SiloPriceAdapter} from "../../src/multipool/SiloAdapter.sol";
 import {Trader, WETH} from "../../src/trader/Trader.sol";
 import {FeedInfo, FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "../../src/interfaces/IUniswapRouter.sol";
+import {IWrapper} from "../../src/interfaces/IWrapper.sol";
+import {ICashbackVault} from "../../src/interfaces/ICashbackVault.sol";
 import {ForcePushArgs} from "../../src/types/SwapArgs.sol";
 
 /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to
@@ -102,10 +105,16 @@ contract MultipoolPriceFetching is Test {
         s[0] =
             hex"cf1efb7ec342bd4ed3401265ffac80b501d640e19c2f47c64a021b4812ccd7e6621e512608e828eed20778a9f4d963f5007196cbbe0f44a4e135bd7d0ab4e6011b";
 
+        address[] memory assets;
+
+        Trader.Call memory c;
+
         Trader.Args memory args = Trader.Args({
             tokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
+            multipoolTokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
             zeroForOneIn: false,
             tokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
+            multipoolTokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
             zeroForOneOut: true,
             // magic/eth 3000 0x59d72ddb29da32847a4665d08ffc8464a7185fae
             // magic/eth 10000 0x7e7fb3cceca5f2ac952edf221fd2a9f62e411980
@@ -113,8 +122,8 @@ contract MultipoolPriceFetching is Test {
             // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
             // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
             poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
-            multipoolAmountIn: 2902027515851877489,
-            multipoolAmountOut: 10000,
+            tmpAmount: 2902027515851877489,
+            multipoolSleepage: 10000,
             multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
             fp: ForcePushArgs({
@@ -124,7 +133,11 @@ contract MultipoolPriceFetching is Test {
                 signatures: s
             }),
             gasLimit: 600000,
-            weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1)
+            weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
+            cashback: ICashbackVault(address(0)),
+            assets: assets,
+            firstCall: c,
+            secondCall: c
         });
         vm.warp(1704676035);
         //vm.expectRevert("no profit");
@@ -136,21 +149,26 @@ contract MultipoolPriceFetching is Test {
 
         Trader t = new Trader();
 
+        address[] memory assets;
+
         bytes[] memory s = new bytes[](1);
         s[0] =
             hex"85323389dc46ab062d52d2ce9846626489239c2768b237fbddd03647e4625af8663a0988039dd9c8f4b1acb0935da7429c563a2c2197bb04ff10070e5a670c2e1c";
 
+        Trader.Call memory c;
         Trader.Args memory args = Trader.Args({
             tokenIn: IERC20(0x3082CC23568eA640225c2467653dB90e9250AaA0),
+            multipoolTokenIn: IERC20(0x3082CC23568eA640225c2467653dB90e9250AaA0),
             zeroForOneIn: false,
             tokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
+            multipoolTokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
             zeroForOneOut: true,
             poolIn: IUniswapV3Pool(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
             // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
             // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
             poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
-            multipoolAmountIn: 235459495774334240,
-            multipoolAmountOut: 10000,
+            tmpAmount: 235459495774334240,
+            multipoolSleepage: 10000,
             multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
             fp: ForcePushArgs({
@@ -160,7 +178,11 @@ contract MultipoolPriceFetching is Test {
                 signatures: s
             }),
             gasLimit: 5000000,
-            weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1)
+            weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
+            cashback: ICashbackVault(address(0)),
+            assets: assets,
+            firstCall: c,
+            secondCall: c
         });
         vm.warp(1704728497);
         //vm.expectRevert("no profit");
