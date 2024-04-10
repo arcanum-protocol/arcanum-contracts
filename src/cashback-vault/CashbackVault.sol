@@ -39,13 +39,32 @@ contract CashbackVault is
     error InsufficientAmount();
     error InvalidAsset(address asset);
 
-    mapping(address => CashbackDistributor) distributors;
-    mapping(address => mapping(address => uint)) lastUpdated;
+    mapping(address => CashbackDistributor) internal distributors;
+    mapping(address => mapping(address => uint)) internal lastUpdated;
     bool public isPaused;
 
     modifier notPaused() {
         if (isPaused) revert IsPaused();
         _;
+    }
+
+    function getDistrubutor(address distributorAddress)
+        external
+        view
+        returns (CashbackDistributor memory distributor)
+    {
+        distributor = distributors[distributorAddress];
+    }
+
+    function getLastUpdated(
+        address distributorAddress,
+        address token
+    )
+        external
+        view
+        returns (uint lastUpdatedTime)
+    {
+        lastUpdatedTime = lastUpdated[distributorAddress][token];
     }
 
     /// @inheritdoc ICashbackVault
