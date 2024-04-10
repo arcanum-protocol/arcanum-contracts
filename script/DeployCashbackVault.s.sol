@@ -21,6 +21,9 @@ contract MigrateCashbackVault is Script {
         CashbackVault vault = CashbackVault(0xB9cb365F599885F6D97106918bbd406FE09b8590);
         vault.upgradeTo(address(vaultImpl));
 
+        uint val = vault.getLastUpdated(address(0), address(0));
+        console.log(val);
+
         vm.stopBroadcast();
     }
 }
