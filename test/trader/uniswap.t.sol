@@ -101,10 +101,6 @@ contract MultipoolPriceFetching is Test {
 
         Trader t = new Trader();
 
-        bytes[] memory s = new bytes[](1);
-        s[0] =
-            hex"cf1efb7ec342bd4ed3401265ffac80b501d640e19c2f47c64a021b4812ccd7e6621e512608e828eed20778a9f4d963f5007196cbbe0f44a4e135bd7d0ab4e6011b";
-
         address[] memory assets;
 
         Trader.Call memory c;
@@ -130,7 +126,8 @@ contract MultipoolPriceFetching is Test {
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
                 timestamp: 1704676035,
                 sharePrice: 49764838329715057682058381,
-                signatures: s
+                signature: 
+                    hex"cf1efb7ec342bd4ed3401265ffac80b501d640e19c2f47c64a021b4812ccd7e6621e512608e828eed20778a9f4d963f5007196cbbe0f44a4e135bd7d0ab4e6011b"
             }),
             gasLimit: 600000,
             weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
@@ -150,10 +147,6 @@ contract MultipoolPriceFetching is Test {
         Trader t = new Trader();
 
         address[] memory assets;
-
-        bytes[] memory s = new bytes[](1);
-        s[0] =
-            hex"85323389dc46ab062d52d2ce9846626489239c2768b237fbddd03647e4625af8663a0988039dd9c8f4b1acb0935da7429c563a2c2197bb04ff10070e5a670c2e1c";
 
         Trader.Call memory c;
         Trader.Args memory args = Trader.Args({
@@ -175,7 +168,8 @@ contract MultipoolPriceFetching is Test {
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
                 timestamp: 1704739268,
                 sharePrice: 49432770753888933655371916,
-                signatures: s
+                signature: 
+                    hex"85323389dc46ab062d52d2ce9846626489239c2768b237fbddd03647e4625af8663a0988039dd9c8f4b1acb0935da7429c563a2c2197bb04ff10070e5a670c2e1c"
             }),
             gasLimit: 5000000,
             weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),

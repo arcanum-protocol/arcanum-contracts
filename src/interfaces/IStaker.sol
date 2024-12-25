@@ -7,6 +7,9 @@ import {ForcePushArgs} from "../types/SwapArgs.sol";
 
 /// @title Interface that contains all multipool events
 interface IStaker {
+    /// @notice Thrown when force push signed contract address doesn't match msg.sender
+    error InvalidSender();
+
     /// @notice Thrown when force push signature verification fails
     error InvalidForcePushAuthority();
 

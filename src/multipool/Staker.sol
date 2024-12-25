@@ -63,6 +63,9 @@ contract Staker is
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function commitPrice(ForcePushArgs calldata forcePushArgs) external payable {
+    }
+
+    function commitPrice1(ForcePushArgs calldata forcePushArgs) external payable {
             // 1 is added to thershold to prevent it being zeroed.
             // This makes sense to prevent passing price with no signatures
             bytes memory data = abi.encodePacked(
@@ -73,6 +76,10 @@ contract Staker is
             );
             address oracleAddress = keccak256(data).toEthSignedMessageHash().recover(forcePushArgs.signature);
             OracleData memory oracle = oracles[oracleAddress];
+
+            if (forcePushArgs.contractAddress != msg.sender) {
+                revert InvalidSender();
+            }
 
             if (oracle.stake == 0) {
                 revert InvalidForcePushAuthority();

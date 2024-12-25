@@ -79,41 +79,41 @@ contract MultipoolFactory is
         uint16[] targetShares;
     }
 
-    function spawnMultipool(MultipoolSetupArgs calldata args) external {
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementationAddress), "");
-        Multipool mp = Multipool(address(proxy));
+   // function spawnMultipool(MultipoolSetupArgs calldata args) external {
+   //     ERC1967Proxy proxy = new ERC1967Proxy(address(implementationAddress), "");
+   //     Multipool mp = Multipool(address(proxy));
 
-        mp.initialize(args.name, args.symbol, args.initialSharePrice);
+   //     mp.initialize(args.name, args.symbol, args.initialSharePrice);
 
-        mp.setAuthorityRights(address(this), true, true);
+   //     mp.setAuthorityRights(address(this), true, true);
 
-        mp.setAuthorityRights(msg.sender, false, true);
-        mp.setSharePriceParams(args.sharePriceValidity, args.signatureThershold);
-        for (uint i = 0; i < args.oracleAddresses.length; ++i) {
-            mp.setAuthorityRights(args.oracleAddresses[i], true, false);
-        }
+   //     mp.setAuthorityRights(msg.sender, false, true);
+   //     mp.setSharePriceParams(args.sharePriceValidity, args.signatureThershold);
+   //     for (uint i = 0; i < args.oracleAddresses.length; ++i) {
+   //         mp.setAuthorityRights(args.oracleAddresses[i], true, false);
+   //     }
 
-        mp.setFeeParams(
-            args.deviationLimit,
-            args.halfDeviationFee,
-            args.depegBaseFee,
-            args.baseFee,
-            args.developerBaseFee,
-            args.developerAddress
-        );
+   //     mp.setFeeParams(
+   //         args.deviationLimit,
+   //         args.halfDeviationFee,
+   //         args.depegBaseFee,
+   //         args.baseFee,
+   //         args.developerBaseFee,
+   //         args.developerAddress
+   //     );
 
-        mp.updateTargetShares(args.assetAddresses, args.targetShares);
-        mp.updatePrices(args.assetAddresses, args.priceFeedKinds, args.feedData);
+   //     mp.updateTargetShares(args.assetAddresses, args.targetShares);
+   //     mp.updatePrices(args.assetAddresses, args.priceFeedKinds, args.feedData);
 
-        mp.setAuthorityRights(address(this), false, false);
-        mp.transferOwnership(msg.sender);
+   //     mp.setAuthorityRights(address(this), false, false);
+   //     mp.transferOwnership(msg.sender);
 
-        uint multipoolIndex = multipoolNumber;
+   //     uint multipoolIndex = multipoolNumber;
 
-        multipools[multipoolIndex] = address(mp);
+   //     multipools[multipoolIndex] = address(mp);
 
-        emit MultipoolSpawned(address(mp), multipoolIndex);
+   //     emit MultipoolSpawned(address(mp), multipoolIndex);
 
-        multipoolNumber = (multipoolIndex + 1);
-    }
+   //     multipoolNumber = (multipoolIndex + 1);
+   // }
 }

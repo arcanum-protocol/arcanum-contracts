@@ -12,22 +12,21 @@ interface IMultipoolEvents {
     event AssetChange(address indexed asset, uint quantity, uint128 collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
-    /// @param developerAddress address to send arcanum protocol development and maintaince fees
-    /// @param deviationParam curve parameter that is a fee ratio at the half of the curve divided
-    /// by deviation limit
-    /// @param deviationLimit curve parameter that shows maximum deviation changes that may be made
+    /// @param newManagementFeeRecepientAddress address to send management fees to
+    /// @param newDeviationLimit curve parameter determines fee in middle of deviation limit
+    /// @param newDeviationLimit curve parameter that shows maximum deviation changes that may be made
     /// by callers
-    /// @param depegBaseFee parameter that shows ratio of value taken from deviation fee as base fee
-    /// @param baseFee parameter that shows ratio of value taken from each operation quote value
-    /// @param developerBaseFee parameter that shows ratio of value that is taken from base fee
-    /// share for arcanum protocol developers and maintainers
+    /// @param newDepegBaseFee parameter that shows ratio of value taken from deviation fee as base fee
+    /// @param newBaseFee parameter that shows ratio of value taken from each operation quote value
+    /// @param newManagementFee parameter that shows ratio of value that is taken from base fee
+    /// as management fee
     event FeesChange(
-        address indexed developerAddress,
-        uint64 deviationParam,
-        uint64 deviationLimit,
-        uint64 depegBaseFee,
-        uint64 baseFee,
-        uint64 developerBaseFee
+        uint16 newDeviationLimit,
+        uint16 newHalfDeviationFee,
+        uint16 newDepegBaseFee,
+        uint16 newBaseFee,
+        uint16 newManagementFee,
+        address newManagementFeeRecepientAddress
     );
 
     /// @notice Thrown when target share of any asset got updated
@@ -41,26 +40,23 @@ interface IMultipoolEvents {
     /// @param newFeed updated price feed data
     event PriceFeedChange(address indexed targetAsset, FeedInfo newFeed);
 
-    /// @notice Thrown when expiration time for share price force push change
-    /// @param validityDuration time in seconds when force push data is valid
-    event SharePriceExpirationChange(uint validityDuration);
-
     /// @notice Thrown when permissions of authorities were changed per each authority.
     /// event provides addresses new permissions
     /// @param account address of toggled authority
-    /// @param isForcePushAuthority true if is trused to sign force push price data
-    /// @param isTargetShareAuthority true if is trusted to change target shares
-    event AuthorityRightsChange(
-        address indexed account, bool isForcePushAuthority, bool isTargetShareAuthority
+    /// @param isTargetShareAuthority true if is trusted to change target shares for now
+    event StrategyManagerToggled(
+        address indexed account, bool isTargetShareAuthority
     );
 
-    /// @notice Thrown when contract is paused or unpaused
-    /// @param isPaused shows new value of pause
-    event PauseChange(bool isPaused);
-
     /// @notice Thrown every time new fee gets collected
-    /// @param totalCollectedBalance shows contracts native token balance which is sum of all fees
-    /// and cashbacks
-    /// @param totalCollectedCashbacks shows sum of all collected cashbacks
-    event CollectedFeesChange(uint totalCollectedBalance, uint totalCollectedCashbacks);
+    /// @param collectedManagementFees shows how much fees are earned for manager
+    /// @param collectedOracleFees shows how much fees are earned for oracle
+    event Swapped(uint collectedManagementFees, uint collectedOracleFees);
+
+    /// @notice Thrown when price verifier is updated.
+    /// @param oldPriceVerifierAddress address of old price verifier contract
+    /// @param newPriceVerifierAddress address of new price verifier contract
+    event PriceVerifierUpdated(
+        address oldPriceVerifierAddress, address newPriceVerifierAddress
+    );
 }

@@ -22,10 +22,10 @@ enum FeedType {
 struct UniV3Feed {
     // Pool address
     address oracle;
-    // Shows wether to flip the price
+    // Shows whether to flip the price
     bool reversed;
     // Interval of aggregation in seconds
-    uint twapInterval;
+    uint64 twapInterval;
 }
 
 // Any price should have a 2^96 decimals
@@ -51,7 +51,7 @@ library PriceMath {
             UniV3Feed memory data = abi.decode(priceFeed.data, (UniV3Feed));
             price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
         } else if (priceFeed.kind == FeedType.Adapter) {
-            (address adapterContract, uint feedId) = abi.decode(priceFeed.data, (address, uint));
+            (address adapterContract, uint64 feedId) = abi.decode(priceFeed.data, (address, uint64));
             price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
             revert IMultipoolErrors.NoPriceOriginSet();

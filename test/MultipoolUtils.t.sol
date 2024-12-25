@@ -10,6 +10,8 @@ import {FeedInfo, FeedType} from "../src/lib/Price.sol";
 import {ForcePushArgs, AssetArgs} from "../src/types/SwapArgs.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
 
+import {Staker} from "../src/multipool/Staker.sol";
+
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 function toX96(uint val) pure returns (uint valX96) {
@@ -20,6 +22,14 @@ function toX32(uint val) pure returns (uint64 valX32) {
     valX32 = uint64((val << 32) / 1e18);
 }
 
+function toX16(uint val) pure returns (uint16 valX16) {
+    valX16 = uint16((val << 16) / 1e18);
+}
+
+function toX16RatioTick(uint val) pure returns (uint16 valX16) {
+    valX16 = uint16(val / 5);
+}
+
 contract AbstractFixedValueOracle is IPriceAdapter {
     uint p;
 
@@ -28,7 +38,7 @@ contract AbstractFixedValueOracle is IPriceAdapter {
     }
 
     function getPrice(uint feedId) external view override returns (uint price) {
-        require(feedId == 10000000000000000123212, "invalid id");
+        require(feedId == 10000123212, "invalid id");
         price = p;
     }
 }
@@ -47,16 +57,23 @@ contract MultipoolUtils is Test {
     using ECDSA for bytes32;
 
     function initMultipool() public {
+        Staker stakerImpl = new Staker();
+
+        ERC1967Proxy stakerProxy = new ERC1967Proxy(
+            address(stakerImpl),
+            abi.encodeWithSignature("initialize()")
+        );
+
         Multipool mpImpl = new Multipool();
         implementation = address(mpImpl);
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(mpImpl),
             abi.encodeWithSignature(
-                "initialize(string,string,uint128)", "Name", "SYMBOL", uint128(toX96(0.1e18))
+                "initialize(string,string,address,uint96)", "Name", "SYMBOL", address(stakerProxy), uint96(toX32(0.1e18))
             )
         );
         mp = Multipool(address(proxy));
-        //mp.initialize("Name", "SYMBOL", uint128(toX96(0.1e18)));
+        //mp.initialize("Name", "SYMBOL", uint96(toX32(0.1e18)));
     }
 
     function assertEq(MpAsset memory a, MpAsset memory b) public {
@@ -91,9 +108,9 @@ contract MultipoolUtils is Test {
 
     function bootstrapTokens(uint[5] memory quoteValues, address to) public {
         vm.startPrank(owner);
-        mp.setFeeParams(toX32(1e18), 0, 0, 0, 0, address(0));
+        mp.setFeeParams(toX16RatioTick(1e5), 0, 0, 0, 0, address(0));
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
-        mp.setAuthorityRights(owner, true, true);
+        mp.toggleStrategyManager(owner);
 
         uint[] memory p = new uint[](5);
         p[0] = toX96(10e18);
@@ -142,7 +159,7 @@ contract MultipoolUtils is Test {
         priceAdapterType[0] = FeedType.Adapter;
         priceAdapterType[1] = FeedType.FixedValue;
         bytes[] memory priceAdapterBytes = new bytes[](2);
-        priceAdapterBytes[0] = abi.encode(priceAdapter10, uint(10000000000000000123212));
+        priceAdapterBytes[0] = abi.encode(priceAdapter10, uint64(10000123212));
         priceAdapterBytes[1] = abi.encode(p[1]);
         mp.updatePrices(priceAdapterAddresses, priceAdapterType, priceAdapterBytes);
 
@@ -154,7 +171,7 @@ contract MultipoolUtils is Test {
         ForcePushArgs memory fp;
         mp.swap(fp, args, true, to, false, users[3]);
         mp.setFeeParams(
-            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), toX32(0.1e18), users[2]
+            toX16RatioTick(0.15e5), toX16RatioTick(0.0003e5), toX16RatioTick(0.6e5), toX16RatioTick(0.01e5), toX16RatioTick(0.1e5), users[2]
         );
         vm.stopPrank();
     }
@@ -197,9 +214,7 @@ contract MultipoolUtils is Test {
                 abi.encodePacked(fp.contractAddress, uint(sp.ts), uint(sp.value), block.chainid)
             ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
-            bytes memory signature = abi.encodePacked(r, s, v);
-            fp.signatures = new bytes[](1);
-            fp.signatures[0] = signature;
+            fp.signature = abi.encodePacked(r, s, v);
         }
         if (keccak256(error) != keccak256(abi.encode(0))) {
             vm.expectRevert(error);
@@ -224,9 +239,7 @@ contract MultipoolUtils is Test {
             bytes32 message =
                 keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
-            bytes memory signature = abi.encodePacked(r, s, v);
-            fp.signatures = new bytes[](1);
-            fp.signatures[0] = signature;
+            fp.signature = abi.encodePacked(r, s, v);
         }
         (fee, amounts) = mp.checkSwap(fp, assets, isExactInput);
     }
@@ -247,10 +260,10 @@ contract MultipoolUtils is Test {
         vm.stopPrank();
     }
 
-    function setCurveParams(uint64 dl, uint64 hf, uint64 bf, uint64 dbf) public {
+    function setCurveParams(uint16 dl, uint16 hf, uint16 bf, uint16 dbf) public {
         vm.startPrank(owner);
-        (,,,, uint64 developerFee, address developerAddress) = mp.getFeeParams();
-        mp.setFeeParams(dl, hf, dbf, bf, developerFee, developerAddress);
+        (,,,,address managementFeeRecepient,uint16 managementFee,) = mp.slot1();
+        mp.setFeeParams(dl, hf, dbf, bf, managementFee, managementFeeRecepient);
         vm.stopPrank();
     }
 
@@ -300,10 +313,8 @@ contract MultipoolUtils is Test {
         }
 
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
-        vm.serializeString("multipool", "totalCashback", jsonString(mp.totalCollectedCashbacks()));
-        vm.serializeString("multipool", "totalFees", jsonString(mp.collectedFees()));
-        vm.serializeString("multipool", "totalDevFees", jsonString(mp.collectedDeveloperFees()));
-        mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.totalTargetShares()));
+        //mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.slot1()));
+        //mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.slot2()));
 
         string memory snapJson;
         vm.serializeString("snap", "users", usersJson);

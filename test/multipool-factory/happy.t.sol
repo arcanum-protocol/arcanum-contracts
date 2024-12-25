@@ -74,68 +74,68 @@ contract MultipoolCoreDeviationTests is Test {
             })
         );
 
-        factory.spawnMultipool(
-            MultipoolFactory.MultipoolSetupArgs({
-                name: "Test multipool",
-                symbol: "TMP",
-                signatureThershold: 3,
-                sharePriceValidity: 600,
-                initialSharePrice: 123456,
-                halfDeviationFee: 1,
-                deviationLimit: 2,
-                depegBaseFee: 3,
-                baseFee: 4,
-                developerBaseFee: 5,
-                developerAddress: address(1),
-                oracleAddresses: oracleAddresses,
-                assetAddresses: assetAddresses,
-                priceFeedKinds: feedTypes,
-                feedData: feedData,
-                targetShares: targetShares
-            })
-        );
+      //  factory.spawnMultipool(
+      //      MultipoolFactory.MultipoolSetupArgs({
+      //          name: "Test multipool",
+      //          symbol: "TMP",
+      //          signatureThershold: 3,
+      //          sharePriceValidity: 600,
+      //          initialSharePrice: 123456,
+      //          halfDeviationFee: 1,
+      //          deviationLimit: 2,
+      //          depegBaseFee: 3,
+      //          baseFee: 4,
+      //          developerBaseFee: 5,
+      //          developerAddress: address(1),
+      //          oracleAddresses: oracleAddresses,
+      //          assetAddresses: assetAddresses,
+      //          priceFeedKinds: feedTypes,
+      //          feedData: feedData,
+      //          targetShares: targetShares
+      //      })
+      //  );
 
-        Multipool multipool = Multipool(factory.multipools(0));
-        assertEq(multipool.isPaused(), false);
-        (
-            uint64 deviationParam,
-            uint64 deviationLimit,
-            uint64 depegBaseFee,
-            uint64 baseFee,
-            uint64 developerBaseFee,
-            address developerAddress
-        ) = multipool.getFeeParams();
+      //  Multipool multipool = Multipool(factory.multipools(0));
+      //  assertEq(multipool.isPaused(), false);
+      //  (
+      //      uint64 deviationParam,
+      //      uint64 deviationLimit,
+      //      uint64 depegBaseFee,
+      //      uint64 baseFee,
+      //      uint64 developerBaseFee,
+      //      address developerAddress
+      //  ) = multipool.getFeeParams();
 
-        assertEq(deviationParam, 2147483648);
-        assertEq(deviationLimit, 2);
-        assertEq(depegBaseFee, 3);
-        assertEq(baseFee, 4);
-        assertEq(developerBaseFee, 5);
-        assertEq(developerAddress, address(1));
+      //  assertEq(deviationParam, 2147483648);
+      //  assertEq(deviationLimit, 2);
+      //  assertEq(depegBaseFee, 3);
+      //  assertEq(baseFee, 4);
+      //  assertEq(developerBaseFee, 5);
+      //  assertEq(developerAddress, address(1));
 
-        assertEq(multipool.getAsset(address(4)).targetShare, 1);
-        assertEq(multipool.getAsset(address(5)).targetShare, 2);
-        assertEq(multipool.getAsset(address(6)).targetShare, 3);
+      //  assertEq(multipool.getAsset(address(4)).targetShare, 1);
+      //  assertEq(multipool.getAsset(address(5)).targetShare, 2);
+      //  assertEq(multipool.getAsset(address(6)).targetShare, 3);
 
-        assertEq(
-            keccak256(abi.encode(multipool.getPriceFeed(address(4)))),
-            keccak256(abi.encode(FeedInfo({kind: feedTypes[0], data: feedData[0]})))
-        );
-        assertEq(
-            keccak256(abi.encode(multipool.getPriceFeed(address(5)))),
-            keccak256(abi.encode(FeedInfo({kind: feedTypes[1], data: feedData[1]})))
-        );
-        assertEq(
-            keccak256(abi.encode(multipool.getPriceFeed(address(6)))),
-            keccak256(abi.encode(FeedInfo({kind: feedTypes[2], data: feedData[2]})))
-        );
+      //  assertEq(
+      //      keccak256(abi.encode(multipool.getPriceFeed(address(4)))),
+      //      keccak256(abi.encode(FeedInfo({kind: feedTypes[0], data: feedData[0]})))
+      //  );
+      //  assertEq(
+      //      keccak256(abi.encode(multipool.getPriceFeed(address(5)))),
+      //      keccak256(abi.encode(FeedInfo({kind: feedTypes[1], data: feedData[1]})))
+      //  );
+      //  assertEq(
+      //      keccak256(abi.encode(multipool.getPriceFeed(address(6)))),
+      //      keccak256(abi.encode(FeedInfo({kind: feedTypes[2], data: feedData[2]})))
+      //  );
 
-        assertEq(multipool.isTargetShareSetter(address(1)), false);
-        assertEq(multipool.isTargetShareSetter(address(2)), false);
-        assertEq(multipool.isTargetShareSetter(address(3)), false);
+      //  assertEq(multipool.isTargetShareSetter(address(1)), false);
+      //  assertEq(multipool.isTargetShareSetter(address(2)), false);
+      //  assertEq(multipool.isTargetShareSetter(address(3)), false);
 
-        assertEq(multipool.isPriceSetter(address(1)), true);
-        assertEq(multipool.isPriceSetter(address(2)), true);
-        assertEq(multipool.isPriceSetter(address(3)), true);
+      //  assertEq(multipool.isPriceSetter(address(1)), true);
+      //  assertEq(multipool.isPriceSetter(address(2)), true);
+      //  assertEq(multipool.isPriceSetter(address(3)), true);
     }
 }

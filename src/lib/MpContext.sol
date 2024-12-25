@@ -91,16 +91,16 @@ library ContextMath {
         uint price
     )
         internal
-        pure
+        view
     {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
-        uint targetShare = (asset.targetShare << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
+        uint targetShare = (uint(asset.targetShare) << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
 
         uint dOld = ctx.oldTotalSupply == 0
             ? 0
             : subAbs(
-                (asset.quantity * price << FixedPoint32.RESOLUTION) / ctx.oldTotalSupply
+                (uint(asset.quantity) * price << FixedPoint32.RESOLUTION) / ctx.oldTotalSupply
                     / ctx.sharePrice,
                 targetShare
             );

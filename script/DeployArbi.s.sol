@@ -92,8 +92,8 @@ contract DeployArbi is Script {
         console.log("ARBI address: ", address(mp));
         console.log("Instructions address: ", address(mpImpl));
 
-        mp.setAuthorityRights(deployerPublicKey, true, true);
-        mp.setSharePriceParams(600, 0);
+        //mp.setAuthorityRights(deployerPublicKey, true, true);
+        //mp.setSharePriceParams(600, 0);
 
         address[] memory tokenAddresses = new address[](6);
         tokenAddresses[0] = address(0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a);
@@ -166,14 +166,14 @@ contract DeployArbi is Script {
         mp.updatePrices(tokenAddresses, feedTypes, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
-        mp.setFeeParams(
-            toX32(0.15e18),
-            toX32(0.0003e18),
-            toX32(0.6e18),
-            toX32(0.0001e18),
-            toX32(0.15e18),
-            deployerPublicKey
-        );
+        //mp.setFeeParams(
+        //    toX32(0.15e18),
+        //    toX32(0.0003e18),
+        //    toX32(0.6e18),
+        //    toX32(0.0001e18),
+        //    toX32(0.15e18),
+        //    deployerPublicKey
+        //);
         MultipoolRouter router = new MultipoolRouter();
 
         console.log("Router address: ", address(router));

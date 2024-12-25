@@ -24,11 +24,6 @@ import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20Permi
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
-
-import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
-//TODO: move << 16 curve params 
-//TODO: move initial price
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
@@ -37,10 +32,8 @@ contract Multipool is
     ERC20Upgradeable,
     ERC20PermitUpgradeable,
     OwnableUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    UUPSUpgradeable
 {
-    using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
     // slot 1
@@ -49,7 +42,7 @@ contract Multipool is
     uint16 internal depegBaseFee;
     uint16 internal baseFee;
     address internal managementFeeRecepientAddress;
-    uint16 internal managementFeeRatio;
+    uint16 internal managementFee;
     uint16 internal totalTargetShares;
 
     // slot 2
@@ -68,16 +61,17 @@ contract Multipool is
     function initialize(
         string memory name,
         string memory symbol,
-        uint96 startSharePrice
+        address _priceVerifierAddress,
+        uint96 _sharePrice
     )
         public
         initializer
     {
         __ERC20_init(name, symbol);
         __ERC20Permit_init(name);
-        __ReentrancyGuard_init();
         __Ownable_init();
-        initialSharePrice = startSharePrice;
+        priceVerifierAddress = _priceVerifierAddress;
+        initialSharePrice = _sharePrice;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -100,13 +94,14 @@ contract Multipool is
     function slot1()
         public
         view
+        override
         returns (
             uint16 _halfDeviationFee,
             uint16 _deviationLimit,
             uint16 _depegBaseFee,
             uint16 _baseFee,
             address _managementFeeRecepientAddress,
-            uint16 _managementFeeRatio,
+            uint16 _managementFee,
             uint16 _totalTargetShares
         )
     {
@@ -115,13 +110,14 @@ contract Multipool is
         _depegBaseFee = depegBaseFee;
         _baseFee = baseFee;
         _managementFeeRecepientAddress = managementFeeRecepientAddress;
-        _managementFeeRatio = managementFeeRatio;
+        _managementFee = managementFee;
         _totalTargetShares = totalTargetShares;
     }
 
     function slot2()
         public
         view
+        override
         returns (
             address _priceVerifierAddress,
             uint96 _initialSharePrice
@@ -147,12 +143,6 @@ contract Multipool is
         returns (MpContext memory ctx)
     {
         uint _totalSupply = totalSupply();
-        uint price;
-        if (forcePushArgs.contractAddress == address(this)) {
-            price = forcePushArgs.sharePrice;
-        } else {
-            price = _totalSupply == 0 ? initialSharePrice : prices[address(this)].getPrice();
-        }
 
         (
             uint16 _halfDeviationFee,
@@ -160,7 +150,7 @@ contract Multipool is
             uint16 _depegBaseFee,
             uint16 _baseFee,
             address _managementFeeRecepientAddress,
-            uint16 _managementFeeRatio,
+            uint16 _managementFee,
             uint16 _totalTargetShares
         ) = slot1();
 
@@ -169,15 +159,22 @@ contract Multipool is
             uint96 _initialSharePrice
         ) = slot2();
 
-        ctx.totalTargetShares = _totalTargetShares;
+        uint price;
+        if (forcePushArgs.contractAddress == address(this)) {
+            price = forcePushArgs.sharePrice;
+        } else {
+            // we move initial share price by 64 as it's x32 and prices should be x96
+            price = _totalSupply == 0 ? uint(_initialSharePrice) << 64 : prices[address(this)].getPrice();
+        }
 
+        ctx.totalTargetShares = _totalTargetShares;
         ctx.sharePrice = price;
         ctx.oldTotalSupply = _totalSupply;
-        ctx.deviationParam = (uint256(_halfDeviationFee) << 16) / _deviationLimit;
-        ctx.deviationLimit = _deviationLimit;
-        ctx.depegBaseFee = _depegBaseFee;
-        ctx.baseFee = _baseFee;
-        ctx.managementBaseFee = _managementFeeRatio;
+        ctx.deviationParam = _deviationLimit != 0 ? ((uint(_halfDeviationFee) * (5 << 32) / 1e5) << 32) / (uint(_deviationLimit) * (5 << 32) / 1e5) : 0;
+        ctx.deviationLimit = uint(_deviationLimit) * (5 << 32) / 1e5;
+        ctx.depegBaseFee = uint(_depegBaseFee) * (5 << 32) / 1e5;
+        ctx.baseFee = uint(_baseFee) * (5 << 32) / 1e5;
+        ctx.managementBaseFee = uint(_managementFee) * (5 << 32) / 1e5;
         ctx.unusedEthBalance = int(msg.value);
 
         ctx.managementFeeRecepient = _managementFeeRecepientAddress;
@@ -269,6 +266,7 @@ contract Multipool is
         }
     }
 
+    //TODO: emit swap prices
     /// @inheritdoc IMultipoolMethods
     function swap(
         ForcePushArgs calldata forcePushArgs,
@@ -281,7 +279,6 @@ contract Multipool is
         external
         payable
         override
-        nonReentrant
     {
         MpContext memory ctx = getContext(forcePushArgs);
         uint[] memory currentPrices = getPricesAndSumQuotes(ctx, assetsToSwap);
@@ -329,7 +326,7 @@ contract Multipool is
 
         payable(ctx.managementFeeRecepient).transfer(ctx.collectedManagementFees);
         IStaker(ctx.oracleAddress).commitPrice{value: ctx.collectedOracleFees}(forcePushArgs);
-        //emit CollectedFeesChange(address(this).balance,);
+        emit Swapped(ctx.collectedManagementFees, ctx.collectedOracleFees);
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -383,17 +380,12 @@ contract Multipool is
         external
         payable
         override
-        nonReentrant
-        returns (uint128 amount)
     {
-        amount = uint128(msg.value);
+        uint128 amount = uint128(msg.value);
         MpAsset memory asset = assets[assetAddress];
         asset.collectedCashbacks += uint112(amount);
         emit AssetChange(assetAddress, asset.quantity, amount);
         assets[assetAddress] = asset;
-
-        //TODO: ?
-        //emit CollectedFeesChange(address(this).balance);
     }
 
     /// @inheritdoc IMultipoolManagerMethods
@@ -403,8 +395,8 @@ contract Multipool is
         bytes[] calldata feedData
     )
         external
+        override
         onlyOwner
-        nonReentrant
     {
         uint len = assetAddresses.length;
         for (uint i; i < len; ++i) {
@@ -421,7 +413,7 @@ contract Multipool is
         uint16[] calldata targetShares
     )
         external
-        nonReentrant
+        override
     {
         if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareAuthority();
 
@@ -445,10 +437,11 @@ contract Multipool is
         uint16 newHalfDeviationFee,
         uint16 newDepegBaseFee,
         uint16 newBaseFee,
-        uint16 newManagementFeeRatio,
+        uint16 newManagementFee,
         address newManagementFeeRecepientAddress
     )
         external
+        override
         onlyOwner
     {
         halfDeviationFee = newHalfDeviationFee;
@@ -456,28 +449,39 @@ contract Multipool is
         depegBaseFee = newDepegBaseFee;
         baseFee = newBaseFee;
         managementFeeRecepientAddress = newManagementFeeRecepientAddress;
-        managementFeeRatio = newManagementFeeRatio;
+        managementFee = newManagementFee;
 
-        //TODO:
-      //  emit FeesChange(
-      //      newHalfDeviationFee,
-      //      newDeviationLimit,
-      //      newDepegBaseFee,
-      //      newBaseFee,
-      //      newManagementFeeRecepientAddress,
-      //      newManagementFeeRatio
-      //  );
+        emit FeesChange(
+            newHalfDeviationFee,
+            newDeviationLimit,
+            newDepegBaseFee,
+            newBaseFee,
+            newManagementFee,
+            newManagementFeeRecepientAddress
+        );
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function setAuthorityRights(
-        address authority,
-        bool targetShareSettlement
+    function toggleStrategyManager(
+        address authority
     )
         external
+        override
         onlyOwner
     {
-        isTargetShareSetter[authority] = targetShareSettlement;
-        emit AuthorityRightsChange(authority, false, targetShareSettlement);
+        bool value = isTargetShareSetter[authority];
+        isTargetShareSetter[authority] = !value;
+        emit StrategyManagerToggled(authority, !value);
+    }
+
+    function updatePriceVerifierAddress(
+        address _priceVerifierAddress
+    )
+        external
+        override
+        onlyOwner
+    {
+        emit PriceVerifierUpdated(priceVerifierAddress, _priceVerifierAddress);
+        priceVerifierAddress = _priceVerifierAddress;
     }
 }
