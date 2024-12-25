@@ -141,7 +141,7 @@ contract DeployYield is Script {
         feedData[2] = abi.encode(address(siloAdapter), uint256(2));
         feedData[3] = abi.encode(address(siloAdapter), uint256(3));
 
-        uint[] memory targetShares = new uint[](4);
+        uint16[] memory targetShares = new uint16[](4);
         targetShares[0] = 100;
         targetShares[1] = 100;
         targetShares[2] = 100;

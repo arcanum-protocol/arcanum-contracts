@@ -31,8 +31,8 @@ contract DeployTestnet is Script {
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(price));
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
-            uint[] memory am = new uint[](1);
-            am[0] = 10e18;
+            uint16[] memory am = new uint16[](1);
+            am[0] = 1000;
             mp.updateTargetShares(tk, am);
             console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);

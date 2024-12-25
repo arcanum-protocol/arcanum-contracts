@@ -66,7 +66,7 @@ contract DeploySpi is Script {
             })
         );
 
-        uint[] memory targetShares = new uint[](3);
+        uint16[] memory targetShares = new uint16[](3);
         targetShares[0] = 48079;
         targetShares[1] = 34299;
         targetShares[2] = 17621;

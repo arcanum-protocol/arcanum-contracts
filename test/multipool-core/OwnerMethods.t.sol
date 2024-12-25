@@ -30,7 +30,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         mp.setAuthorityRights(owner, false, false);
 
         address[] memory a;
-        uint[] memory b;
+        uint16[] memory b;
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSignature("InvalidTargetShareAuthority()"));

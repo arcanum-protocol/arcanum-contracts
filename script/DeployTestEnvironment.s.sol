@@ -64,8 +64,8 @@ contract DeployTestEnv is Script {
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(price));
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
-            uint[] memory am = new uint[](1);
-            am[0] = 10e18;
+            uint16[] memory am = new uint16[](1);
+            am[0] = 1000;
             mp.updateTargetShares(tk, am);
             console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);
@@ -107,7 +107,7 @@ contract DeployEtfWithFactory is Script {
         feedData[0] = abi.encode(toX96(0.1e18));
         feedData[1] = abi.encode(toX96(0.5e18));
 
-        uint[] memory targetShares = new uint[](2);
+        uint16[] memory targetShares = new uint16[](2);
         targetShares[0] = 2;
         targetShares[1] = 1;
 

@@ -7,9 +7,9 @@ import {FixedPoint32} from "./FixedPoint32.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
 struct MpAsset {
-    uint quantity;
-    uint128 targetShare;
-    uint128 collectedCashbacks;
+    uint128 quantity;
+    uint16 targetShare;
+    uint112 collectedCashbacks;
 }
 
 struct MpContext {
@@ -21,13 +21,16 @@ struct MpContext {
     uint deviationLimit;
     uint depegBaseFee;
     uint baseFee;
-    uint collectedDeveloperFees;
-    uint developerBaseFee;
+    uint managementBaseFee;
+
     int unusedEthBalance;
-    uint totalCollectedCashbacks;
-    uint collectedFees;
+    uint collectedManagementFees;
+    uint collectedOracleFees;
     uint cummulativeInAmount;
     uint cummulativeOutAmount;
+
+    address managementFeeRecepient;
+    address oracleAddress;
 }
 
 using {
@@ -75,10 +78,10 @@ library ContextMath {
         uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
         uint newCollectedFee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
         ctx.unusedEthBalance -= int(newCollectedFee);
-        uint newCollectedDeveloperFees =
-            newCollectedFee * ctx.developerBaseFee >> FixedPoint32.RESOLUTION;
-        ctx.collectedFees += newCollectedFee - newCollectedDeveloperFees;
-        ctx.collectedDeveloperFees += newCollectedDeveloperFees;
+        uint newCollectedManagementFees =
+            newCollectedFee * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
+        ctx.collectedOracleFees += newCollectedFee - newCollectedManagementFees;
+        ctx.collectedManagementFees += newCollectedManagementFees;
     }
 
     function calculateDeviationFee(
@@ -117,21 +120,19 @@ library ContextMath {
             ) >> FixedPoint32.RESOLUTION;
             uint basePart = (deviationFee * ctx.depegBaseFee) >> FixedPoint32.RESOLUTION;
             ctx.unusedEthBalance -= int(deviationFee);
-            ctx.collectedFees += basePart;
-            ctx.totalCollectedCashbacks += (deviationFee - basePart);
+            ctx.collectedOracleFees += basePart;
 
-            asset.collectedCashbacks += uint128(deviationFee - basePart);
+            asset.collectedCashbacks += uint112(deviationFee - basePart);
         } else if (dNew <= dOld) {
             uint cashback = dOld == 0
                 ? asset.collectedCashbacks
                 : (dOld - dNew) * asset.collectedCashbacks / dOld;
 
             ctx.unusedEthBalance += int(cashback);
-            ctx.totalCollectedCashbacks -= cashback;
 
-            asset.collectedCashbacks -= uint128(cashback);
+            asset.collectedCashbacks -= uint112(cashback);
         }
-        asset.quantity = newQuantity;
+        asset.quantity = uint128(newQuantity);
     }
 
     function applyCollected(MpContext memory ctx, address payable refundTo) internal {

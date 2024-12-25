@@ -109,12 +109,12 @@ contract MultipoolUtils is Test {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        uint[] memory s = new uint[](5);
-        s[0] = 10e18;
-        s[1] = 10e18;
-        s[2] = 10e18;
-        s[3] = 10e18;
-        s[4] = 10e18;
+        uint16[] memory s = new uint16[](5);
+        s[0] = 1000;
+        s[1] = 1000;
+        s[2] = 1000;
+        s[3] = 1000;
+        s[4] = 1000;
 
         mp.updateTargetShares(t, s);
 
@@ -237,11 +237,11 @@ contract MultipoolUtils is Test {
         vm.stopPrank();
     }
 
-    function changeShare(address asset, uint share) public {
+    function changeShare(address asset, uint16 share) public {
         vm.startPrank(owner);
         address[] memory addresses = new address[](1);
         addresses[0] = asset;
-        uint[] memory shares = new uint[](1);
+        uint16[] memory shares = new uint16[](1);
         shares[0] = share;
         mp.updateTargetShares(addresses, shares);
         vm.stopPrank();

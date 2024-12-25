@@ -31,12 +31,12 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        uint[] memory s = new uint[](5);
-        s[0] = 10e18;
-        s[1] = 10e18;
-        s[2] = 10e18;
-        s[3] = 10e18;
-        s[4] = 10e18;
+        uint16[] memory s = new uint16[](5);
+        s[0] = 1000;
+        s[1] = 1000;
+        s[2] = 1000;
+        s[3] = 1000;
+        s[4] = 1000;
 
         mp.updateTargetShares(t, s);
 
@@ -97,12 +97,12 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        uint[] memory s = new uint[](5);
-        s[0] = 10e18;
-        s[1] = 10e18;
-        s[2] = 10e18;
-        s[3] = 10e18;
-        s[4] = 10e18;
+        uint16[] memory s = new uint16[](5);
+        s[0] = 1000;
+        s[1] = 1000;
+        s[2] = 1000;
+        s[3] = 1000;
+        s[4] = 1000;
 
         mp.updateTargetShares(t, s);
 
@@ -161,12 +161,12 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        uint[] memory s = new uint[](5);
-        s[0] = 10e18;
-        s[1] = 10e18;
-        s[2] = 10e18;
-        s[3] = 10e18;
-        s[4] = 10e18;
+        uint16[] memory s = new uint16[](5);
+        s[0] = 1000;
+        s[1] = 1000;
+        s[2] = 1000;
+        s[3] = 1000;
+        s[4] = 1000;
 
         mp.updateTargetShares(t, s);
 

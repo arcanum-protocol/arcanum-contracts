@@ -5,16 +5,9 @@ import {FeedInfo} from "../../lib/Price.sol";
 
 /// @title Interface that contains all multipool events
 interface IMultipoolErrors {
-    /// @notice Thrown when force push signature verification fails
-    error InvalidForcePushAuthority();
-
     /// @notice Thrown when target share change initiator is invalid
     error InvalidTargetShareAuthority();
 
-    /// @notice Thrown when force push signature verification fails
-    /// @param blockTimestamp current block timestamp
-    /// @param priceTimestamp signed with price timestamp
-    error ForcePushPriceExpired(uint blockTimestamp, uint priceTimestamp);
 
     /// @notice Thrown when zero amount supplied for any asset token
     error ZeroAmountSupplied();

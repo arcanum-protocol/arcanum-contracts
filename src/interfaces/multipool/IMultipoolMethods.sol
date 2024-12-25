@@ -13,14 +13,14 @@ interface IMultipoolMethods {
     /// @return _signatureThreshold Minimal signature number required for force push price
     /// verification
     /// @dev Fetches data by reading a single slot
-    function getSharePriceParams()
-        external
-        view
-        returns (
-            uint128 _sharePriceValidityDuration,
-            uint128 _initialSharePrice,
-            uint _signatureThreshold
-        );
+ //   function getSharePriceParams()
+ //       external
+ //       view
+ //       returns (
+ //           uint128 _sharePriceValidityDuration,
+ //           uint128 _initialSharePrice,
+ //           uint _signatureThreshold
+ //       );
 
     /// @notice Gets price feed data
     /// @param asset Asset for wich to get price feed
@@ -44,17 +44,17 @@ interface IMultipoolMethods {
     /// @return _developerAddress Address to send arcanum protocol development and maintaince fees
     /// share for arcanum protocol developers and maintainers
     /// @dev Fetches data by reading a single slot for first integers
-    function getFeeParams()
-        external
-        view
-        returns (
-            uint64 _deviationParam,
-            uint64 _deviationLimit,
-            uint64 _depegBaseFee,
-            uint64 _baseFee,
-            uint64 _developerBaseFee,
-            address _developerAddress
-        );
+ //   function getFeeParams()
+ //       external
+ //       view
+ //       returns (
+ //           uint64 _deviationParam,
+ //           uint64 _deviationLimit,
+ //           uint64 _depegBaseFee,
+ //           uint64 _baseFee,
+ //           uint64 _developerBaseFee,
+ //           address _developerAddress
+ //       );
 
     /// @notice Gets asset related info
     /// @param assetAddress address of asset wich data to provide

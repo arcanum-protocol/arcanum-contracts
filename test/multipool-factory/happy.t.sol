@@ -41,7 +41,7 @@ contract MultipoolCoreDeviationTests is Test {
         assetAddresses[1] = address(5);
         assetAddresses[2] = address(6);
 
-        uint[] memory targetShares = new uint[](3);
+        uint16[] memory targetShares = new uint16[](3);
         targetShares[0] = 1;
         targetShares[1] = 2;
         targetShares[2] = 3;

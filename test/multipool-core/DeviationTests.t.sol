@@ -245,7 +245,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         MockERC20 newOne = new MockERC20("NEW", "NEW", 0);
 
-        changeShare(address(newOne), 10e18);
+        changeShare(address(newOne), 1000);
 
         //uint newPrice = toX96(10e18);
         //uint quoteSum = 10e18;
@@ -334,7 +334,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("AddNewTokenAndTryToBurnWithIt");
         assertEq(
             mp.getAsset(address(newOne)),
-            MpAsset({quantity: 1e18, targetShare: 10e18, collectedCashbacks: 0})
+            MpAsset({quantity: 1e18, targetShare: 1000, collectedCashbacks: 0})
         );
         assertEq(newOne.balanceOf(address(mp)), 1e18);
 
@@ -360,7 +360,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("AddNewTokenAndTryToBurnWithIt2");
         assertEq(
             mp.getAsset(address(newOne)),
-            MpAsset({quantity: 26e18, targetShare: 10e18, collectedCashbacks: 0})
+            MpAsset({quantity: 26e18, targetShare: 1000, collectedCashbacks: 0})
         );
         assertEq(newOne.balanceOf(address(mp)), 26e18);
     }

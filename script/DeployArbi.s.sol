@@ -26,7 +26,7 @@ contract RemoveAssetQuantity is Script {
         tokenAddresses[4] = address(0x3082CC23568eA640225c2467653dB90e9250AaA0);
         tokenAddresses[5] = address(0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a);
 
-        uint[] memory targetShares = new uint[](6);
+        uint16[] memory targetShares = new uint16[](6);
         targetShares[0] = 0;
         targetShares[1] = 0;
         targetShares[2] = 1;
@@ -57,7 +57,7 @@ contract UpdateTargetShares is Script {
         tokenAddresses[4] = address(0x3082CC23568eA640225c2467653dB90e9250AaA0);
         tokenAddresses[5] = address(0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a);
 
-        uint[] memory targetShares = new uint[](6);
+        uint16[] memory targetShares = new uint16[](6);
         targetShares[0] = 0;
         targetShares[1] = 0;
         targetShares[2] = 1;
@@ -155,7 +155,7 @@ contract DeployArbi is Script {
             })
         );
 
-        uint[] memory targetShares = new uint[](6);
+        uint16[] memory targetShares = new uint16[](6);
         targetShares[0] = 2000;
         targetShares[1] = 960;
         targetShares[2] = 352;

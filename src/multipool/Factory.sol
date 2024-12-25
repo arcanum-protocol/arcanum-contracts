@@ -76,7 +76,7 @@ contract MultipoolFactory is
         address[] assetAddresses;
         FeedType[] priceFeedKinds;
         bytes[] feedData;
-        uint[] targetShares;
+        uint16[] targetShares;
     }
 
     function spawnMultipool(MultipoolSetupArgs calldata args) external {
