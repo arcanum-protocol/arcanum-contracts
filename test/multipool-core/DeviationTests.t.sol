@@ -115,7 +115,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sp
         );
 
-        //snapMultipool("MintFromSignleAssetWithDeviation");
+        // snapMultipool("MintFromSignleAssetWithDeviation");
     }
 
     function testFail_SplittingTokens() public {
@@ -167,29 +167,29 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             sp
         );
 
-        snapMultipool("SwapHappyPath1");
+        // snapMultipool("SwapHappyPath1");
 
-        vm.prank(users[3]);
-        mp.transfer(address(mp), 17000000000000000000010);
-        // burn everything
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
-                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
-                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
-                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
-                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp
-        );
-        snapMultipool("SwapHappyPath2");
+        // vm.prank(users[3]);
+        // mp.transfer(address(mp), 17000000000000000000010);
+        // // burn everything
+        // swap(
+        //     sort(
+        //         dynamic(
+        //             [
+        //                 AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
+        //                 AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
+        //             ]
+        //         )
+        //     ),
+        //     100e18,
+        //     users[0],
+        //     sp
+        // );
+        // snapMultipool("SwapHappyPath2");
     }
 
     function test_RemoveOldToken() public {

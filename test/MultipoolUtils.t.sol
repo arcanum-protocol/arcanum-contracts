@@ -425,3 +425,10 @@ function dynamic(AssetArgs[6] memory assets) pure returns (AssetArgs[] memory dy
         dynarray[i] = assets[i];
     }
 }
+
+function dynamic(AssetArgs[7] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
+    for (uint i; i < assets.length; ++i) {
+        dynarray[i] = assets[i];
+    }
+}

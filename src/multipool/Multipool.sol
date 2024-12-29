@@ -132,7 +132,7 @@ contract Multipool is
     function getAsset(address assetAddress) public view override returns (MpAsset memory asset) {
         asset = assets[assetAddress];
     }
-
+    
     /// @notice Assembles context for swappping
     /// @param forcePushArgs price force push related data
     /// @return ctx state memory context used across swapping
