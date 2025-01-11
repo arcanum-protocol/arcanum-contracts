@@ -43,7 +43,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(40e18)));
+        updatePrice(address(mp), address(tokens[0]), abi.encode(FeedType.FixedValue, uint128(toX96(40e18))));
 
         tokens[0].mint(address(mp), 1e18);
         tokens[1].mint(address(mp), 0.5e18);
@@ -73,7 +73,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.prank(owner);
         updatePrice(
-            address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(10e18 + 1000))
+            address(mp), address(tokens[0]), abi.encode(FeedType.FixedValue, uint128(toX96(10e18 + 1000)))
         );
         swapExt(
             sort(
@@ -101,9 +101,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(15e18)));
+        updatePrice(address(mp), address(tokens[0]), abi.encode(FeedType.FixedValue, uint128(toX96(15e18))));
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.11e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.11e18))));
 
         swapExt(
             sort(
@@ -131,9 +131,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(5e18)));
+        updatePrice(address(mp), address(tokens[0]), abi.encode(FeedType.FixedValue, uint128(toX96(5e18))));
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.09e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.09e18))));
 
         swapExt(
             sort(
@@ -161,7 +161,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(tokens[0]), abi.encode(FeedType.FixedValue, uint128(toX96(0.1e18))));
 
         swapExt(
             sort(
@@ -189,7 +189,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.prank(owner);
         updatePrice(
-            address(mp), address(tokens[2]), FeedType.FixedValue, abi.encode(toX96(0.01e18))
+            address(mp), address(tokens[2]), abi.encode(FeedType.FixedValue, uint128(toX96(0.01e18)))
         );
 
         swapExt(
@@ -222,7 +222,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         uint256 snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(1e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(1e18))));
 
         SharePriceParams memory sp;
         swapExt(
@@ -248,7 +248,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.001e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.001e18))));
 
         swapExt(
             sort(
@@ -273,7 +273,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.11e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.11e18))));
 
         swapExt(
             sort(
@@ -300,7 +300,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.09e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.09e18))));
 
         swapExt(
             sort(
@@ -327,7 +327,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.09e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.09e18))));
 
         sp.ts = uint128(block.timestamp);
         sp.value = uint128(toX96(0.1e18));

@@ -106,10 +106,28 @@ contract MultipoolUtils is Test {
         }
     }
 
+    function setBytes(bytes32 data, bytes32 bytesToSet, uint offset, uint size) public view returns (bytes32 updatedData) {
+        console.log("v", uint(((1 << (size * 8)) - 1)));
+        bytes32 mask = bytes32(((1 << (size * 8)) - 1) << ((32 - offset - size) * 8));
+        console.log("m", uint(mask));
+        updatedData = (data & ~mask) | ((bytesToSet << ((32 - offset - size) * 8)) & mask);
+    }
+
+    function fixedValuePrice(uint128 val) public view returns (bytes32 v) {
+        v = setBytes(v, bytes32(uint(FeedType.FixedValue)), 0, 1);
+        v = setBytes(v, bytes32(uint(val)), 1, 16);
+    }
+
+    function adapterPrice(address _addr, uint64 _feedId) public view returns (bytes32 v) {
+        v = setBytes(v, bytes32(uint(FeedType.Adapter)), 0, 1);
+        v = setBytes(v, bytes32(uint(uint160(_addr))), 1, 20);
+        v = setBytes(v, bytes32(uint(uint64(_feedId))), 21, 8);
+    }
+
     function bootstrapTokens(uint[5] memory quoteValues, address to) public {
         vm.startPrank(owner);
         mp.setFeeParams(toX16RatioTick(1e5), 0, 0, 0, 0, address(0));
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
         mp.toggleStrategyManager(owner);
 
         uint[] memory p = new uint[](5);
@@ -142,7 +160,8 @@ contract MultipoolUtils is Test {
         for (uint i = 0; i < t.length; i++) {
             quoteSum += quoteValues[i];
             uint val = (quoteValues[i] << 96) / p[i];
-            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            console.log("P", p[i]);
+            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(p[1])));
             if (val > 0) {
                 tokens[i].mint(address(mp), val);
             }
@@ -152,16 +171,8 @@ contract MultipoolUtils is Test {
         // insert adapter for token 1 here
         address priceAdapter10 = address(new AbstractFixedValueOracle(p[0]));
 
-        address[] memory priceAdapterAddresses = new address[](2);
-        priceAdapterAddresses[0] = address(tokens[0]);
-        priceAdapterAddresses[1] = address(tokens[1]);
-        FeedType[] memory priceAdapterType = new FeedType[](2);
-        priceAdapterType[0] = FeedType.Adapter;
-        priceAdapterType[1] = FeedType.FixedValue;
-        bytes[] memory priceAdapterBytes = new bytes[](2);
-        priceAdapterBytes[0] = abi.encode(priceAdapter10, uint64(10000123212));
-        priceAdapterBytes[1] = abi.encode(p[1]);
-        mp.updatePrices(priceAdapterAddresses, priceAdapterType, priceAdapterBytes);
+        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
+        updatePrice(address(mp), address(tokens[1]), abi.encodePacked(FeedType.FixedValue, uint128(p[1])));
 
         args[5] =
             AssetArgs({assetAddress: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
@@ -246,7 +257,7 @@ contract MultipoolUtils is Test {
 
     function changePrice(address asset, uint price) public {
         vm.startPrank(owner);
-        updatePrice(address(mp), asset, FeedType.FixedValue, abi.encode(price));
+        updatePrice(address(mp), asset, abi.encodePacked(FeedType.FixedValue, uint128(price)));
         vm.stopPrank();
     }
 
@@ -341,17 +352,19 @@ contract MultipoolUtils is Test {
     }
 }
 
-function updatePrice(address multipoolAddress, address asset, FeedType kind, bytes memory data) {
+function updatePrice(address multipoolAddress, address asset, bytes memory data) {
     address[] memory priceAddresses = new address[](1);
     priceAddresses[0] = asset;
 
-    FeedType[] memory priceTypes = new FeedType[](1);
-    priceTypes[0] = kind;
+    bytes32 val;
+    assembly {
+        val := mload(add(data, 32))
+    }
 
-    bytes[] memory priceDatas = new bytes[](1);
-    priceDatas[0] = data;
+    bytes32[] memory priceData = new bytes32[](1);
+    priceData[0] = val;
 
-    Multipool(multipoolAddress).updatePrices(priceAddresses, priceTypes, priceDatas);
+    Multipool(multipoolAddress).updatePrices(priceAddresses, priceData);
 }
 
 function sort(AssetArgs[] memory arr) pure returns (AssetArgs[] memory a) {

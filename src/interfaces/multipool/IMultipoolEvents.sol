@@ -38,7 +38,7 @@ interface IMultipoolEvents {
     /// @notice Thrown when price feed for an asset got updated
     /// @param targetAsset address of asset wich price feed data is changed
     /// @param newFeed updated price feed data
-    event PriceFeedChange(address indexed targetAsset, FeedInfo newFeed);
+    event PriceFeedChange(address indexed targetAsset, bytes32 newFeed);
 
     /// @notice Thrown when permissions of authorities were changed per each authority.
     /// event provides addresses new permissions

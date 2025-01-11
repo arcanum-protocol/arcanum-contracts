@@ -131,6 +131,9 @@ contract Staker is
     }
 
     function commitPrice(ForcePushArgs calldata forcePushArgs) external payable {
+    }
+
+    function commitPrice1(ForcePushArgs calldata forcePushArgs) external payable {
             bytes memory data = abi.encodePacked(
                 address(msg.sender),
                 uint(forcePushArgs.timestamp),

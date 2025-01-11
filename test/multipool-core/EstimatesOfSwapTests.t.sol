@@ -14,7 +14,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
     function test_CheckEstimatesZeroBalances() public {
         vm.startPrank(owner);
         mp.toggleStrategyManager(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.1e18))));
         uint[] memory p = new uint[](5);
         p[0] = toX96(0.01e18);
         p[1] = toX96(0.02e18);
@@ -39,7 +39,7 @@ contract MultipoolSwapEstimate is Test, MultipoolUtils {
         mp.updateTargetShares(t, s);
 
         for (uint i = 0; i < t.length; i++) {
-            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            updatePrice(address(mp), address(tokens[i]), abi.encode(FeedType.FixedValue, uint128(p[i])));
         }
         setCurveParams(toX16RatioTick(0.15e5), toX16RatioTick(0.0003e5), toX16RatioTick(0.01e5), toX16RatioTick(0.6e5));
         vm.stopPrank();
