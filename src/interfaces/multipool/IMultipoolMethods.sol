@@ -47,7 +47,7 @@ interface IMultipoolMethods {
     /// @notice Gets price feed data
     /// @param asset Asset for wich to get price feed
     /// @return priceFeed Returns price feed data
-    function getPriceFeed(address asset) external view returns (FeedInfo memory priceFeed);
+    function getPriceFeed(address asset) external view returns (bytes32 priceFeed);
 
     /// @notice Gets current asset price
     /// @param asset Asset for wich to get price

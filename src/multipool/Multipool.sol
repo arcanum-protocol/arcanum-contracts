@@ -8,7 +8,7 @@ import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {MpAsset, MpContext} from "../lib/MpContext.sol";
-import {FeedInfo, FeedType} from "../lib/Price.sol";
+import {FeedInfo, FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 
 import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManagerMethods.sol";
@@ -35,6 +35,7 @@ contract Multipool is
     UUPSUpgradeable
 {
     using SafeERC20 for IERC20;
+    using {PriceMath.getPrice} for bytes32;
 
     // slot 1
     uint16 internal halfDeviationFee;
@@ -50,7 +51,7 @@ contract Multipool is
     uint96 internal initialSharePrice;
 
     mapping(address => MpAsset) internal assets;
-    mapping(address => FeedInfo) internal prices;
+    mapping(address => bytes32) internal prices;
 
     mapping(address => bool) public isTargetShareSetter;
 
@@ -81,9 +82,9 @@ contract Multipool is
         external
         view
         override
-        returns (FeedInfo memory priceFeed)
+        returns (bytes32 priceFeed)
     {
-        priceFeed = prices[asset];
+        priceFeed = bytes32(prices[asset]);
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -391,8 +392,7 @@ contract Multipool is
     /// @inheritdoc IMultipoolManagerMethods
     function updatePrices(
         address[] calldata assetAddresses,
-        FeedType[] calldata kinds,
-        bytes[] calldata feedData
+        bytes32[] calldata priceData
     )
         external
         override
@@ -401,9 +401,9 @@ contract Multipool is
         uint len = assetAddresses.length;
         for (uint i; i < len; ++i) {
             address assetAddress = assetAddresses[i];
-            FeedInfo memory feed = FeedInfo({kind: kinds[i], data: feedData[i]});
-            prices[assetAddress] = feed;
-            emit PriceFeedChange(assetAddress, feed);
+            bytes32 _priceData = priceData[i];
+            prices[assetAddress] = _priceData;
+            emit PriceFeedChange(assetAddress, _priceData);
         }
     }
 

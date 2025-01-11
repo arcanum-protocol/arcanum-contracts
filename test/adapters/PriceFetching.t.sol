@@ -48,20 +48,20 @@ contract SiloAdapterTests is Test {
 
         uint priceX96 = price * (value) / IERC20(info.collateralToken).totalSupply();
 
-        siloAdapter.createFeed(
-            address(baseToken),
-            ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A),
-            FeedInfo({
-                kind: FeedType.UniV3,
-                data: abi.encode(
-                    UniV3Feed({
-                        oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
-                        reversed: false,
-                        twapInterval: 60
-                    })
-                )
-            })
-        );
+        //siloAdapter.createFeed(
+        //    address(baseToken),
+        //    ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A),
+        //    FeedInfo({
+        //        kind: FeedType.UniV3,
+        //        data: abi.decode(abi.encode(
+        //            UniV3Feed({
+        //                oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
+        //                reversed: false,
+        //                twapInterval: 60
+        //            })), (bytes31)
+        //        )
+        //    })
+        //);
         assertEq(priceX96, siloAdapter.getPrice(0));
     }
 }

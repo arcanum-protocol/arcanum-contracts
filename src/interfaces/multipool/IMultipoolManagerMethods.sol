@@ -7,14 +7,12 @@ import {FeedInfo, FeedType} from "../../lib/Price.sol";
 interface IMultipoolManagerMethods {
     /// @notice Updates price feeds for multiple tokens.
     /// @param assetAddresses Addresses of assets for wich to update feeds
-    /// @param kinds Price feed extraction strategy type
-    /// @param feedData Data with encoded payload for price extraction
+    /// @param priceData Packed data of price feed
     /// @dev Values in each of these arrays should match with indexes (e.g. index 1 contains all
     /// data for asset 1)
     function updatePrices(
         address[] calldata assetAddresses,
-        FeedType[] calldata kinds,
-        bytes[] calldata feedData
+        bytes32[] calldata priceData
     )
         external;
 

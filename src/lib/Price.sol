@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "forge-std/Test.sol";
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
@@ -33,10 +34,14 @@ struct UniV3Feed {
 // depend on feed type
 struct FeedInfo {
     FeedType kind;
-    bytes data;
+    bytes31 data;
 }
 
-using {PriceMath.getPrice} for FeedInfo global;
+//using {PriceMath.getPrice} for FeedInfo global;
+
+function extractBytes(bytes32 data, uint offset, uint size) pure returns (uint part) {
+    part = (uint(data) >> ((32 - offset - size) * 8)) & ((1 << (size * 8)) - 1);
+}
 
 /// @title Price calculation and provision library
 library PriceMath {
@@ -44,14 +49,22 @@ library PriceMath {
     /// @dev Processed the provided `prceFeed` to get it's current price value.
     /// @param priceFeed struct with data of supplied price feed
     /// @return price value is represented as a Q96 value
-    function getPrice(FeedInfo memory priceFeed) internal view returns (uint price) {
-        if (priceFeed.kind == FeedType.FixedValue) {
-            price = abi.decode(priceFeed.data, (uint));
-        } else if (priceFeed.kind == FeedType.UniV3) {
-            UniV3Feed memory data = abi.decode(priceFeed.data, (UniV3Feed));
-            price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
-        } else if (priceFeed.kind == FeedType.Adapter) {
-            (address adapterContract, uint64 feedId) = abi.decode(priceFeed.data, (address, uint64));
+    function getPrice(bytes32 priceFeed) internal view returns (uint price) {
+        FeedType kind = FeedType(extractBytes(priceFeed, 0, 1));
+        if (kind == FeedType.FixedValue) {
+            price = extractBytes(priceFeed, 1, 16);
+            console.log(price);
+            console.log(uint(priceFeed));
+        } else if (kind == FeedType.UniV3) {
+            //UniV3Feed memory data = abi.decode(abi.encodePacked(priceFeed.data), (UniV3Feed));
+            address oracle = address(uint160(extractBytes(priceFeed, 1, 20)));
+            bool reversed = extractBytes(priceFeed, 1 + 20, 1) == 1;
+            uint64 twapInterval = uint64(extractBytes(priceFeed, 1 + 20 + 1, 8));
+            price = getTwapX96(oracle, reversed, twapInterval);
+        } else if (kind == FeedType.Adapter) {
+            //(address adapterContract, uint64 feedId) = abi.decode(abi.encodePacked(priceFeed.data), (address, uint64));
+            address adapterContract = address(uint160(extractBytes(priceFeed, 1, 20)));
+            uint64 feedId = uint64(extractBytes(priceFeed, 1 + 20, 8));
             price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
             revert IMultipoolErrors.NoPriceOriginSet();

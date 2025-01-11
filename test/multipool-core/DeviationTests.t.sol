@@ -89,7 +89,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         tokens[0].mint(address(mp), val);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.09e18)));
+        updatePrice(address(mp), address(mp), abi.encode(FeedType.FixedValue, uint128(toX96(0.09e18))));
 
         SharePriceParams memory sp;
         sp.ts = uint128(block.timestamp);
