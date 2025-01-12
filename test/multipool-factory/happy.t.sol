@@ -7,11 +7,9 @@ import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {MultipoolFactory} from "../../src/multipool/Factory.sol";
-import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
+import {FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
 import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
-
-import {UniV3Feed} from "../../src/lib/Price.sol";
 
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -52,27 +50,27 @@ contract MultipoolCoreDeviationTests is Test {
         feedTypes[2] = FeedType.UniV3;
 
         bytes[] memory feedData = new bytes[](3);
-        feedData[0] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x1aEEdD3727A6431b8F070C0aFaA81Cc74f273882),
-                reversed: true,
-                twapInterval: 60
-            })
-        );
-        feedData[1] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
-        feedData[2] = abi.encode(
-            UniV3Feed({
-                oracle: address(0xd3E11119d2680c963F1CDCffeCe0c4adE823Fb58),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
+    //    feedData[0] = abi.encode(
+    //        UniV3Feed({
+    //            oracle: address(0x1aEEdD3727A6431b8F070C0aFaA81Cc74f273882),
+    //            reversed: true,
+    //            twapInterval: 60
+    //        })
+    //    );
+    //    feedData[1] = abi.encode(
+    //        UniV3Feed({
+    //            oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
+    //            reversed: false,
+    //            twapInterval: 60
+    //        })
+    //    );
+    //    feedData[2] = abi.encode(
+    //        UniV3Feed({
+    //            oracle: address(0xd3E11119d2680c963F1CDCffeCe0c4adE823Fb58),
+    //            reversed: false,
+    //            twapInterval: 60
+    //        })
+    //    );
 
       //  factory.spawnMultipool(
       //      MultipoolFactory.MultipoolSetupArgs({

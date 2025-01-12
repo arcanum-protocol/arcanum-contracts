@@ -2,7 +2,7 @@
   "multipool": "",
   "tokens": {
     "token0": {
-      "cashbacks": "\"0\"",
+      "cashbacks": "\"4586318330454359\"",
       "quantity": "\"41000000000000000000\"",
       "share": "\"1000\""
     },
@@ -29,7 +29,7 @@
   },
   "users": {
     "multipool": {
-      "ethBalance": "\"0\"",
+      "ethBalance": "\"4586318330454359\"",
       "tokenBalance0": "\"41000000000000000000\"",
       "tokenBalance1": "\"15000000000000000000\"",
       "tokenBalance2": "\"60000000000000000000\"",
@@ -65,13 +65,13 @@
       "tokenBalanceMultipool": "\"0\""
     },
     "user3": {
-      "ethBalance": "\"99900000002235174180\"",
+      "ethBalance": "\"99888534206413042666\"",
       "tokenBalance0": "\"100000000000000000000\"",
       "tokenBalance1": "\"100000000000000000000\"",
       "tokenBalance2": "\"100000000000000000000\"",
       "tokenBalance3": "\"100000000000000000000\"",
       "tokenBalance4": "\"100000000000000000000\"",
-      "tokenBalanceMultipool": "\"49000000068452209329890\""
+      "tokenBalanceMultipool": "\"16000000022351741822005\""
     }
   }
 }

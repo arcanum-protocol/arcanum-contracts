@@ -18,28 +18,8 @@ enum FeedType {
     Adapter
 }
 
-// Data of uniswap v3 feed
-struct UniV3Feed {
-    // Pool address
-    address oracle;
-    // Shows whether to flip the price
-    bool reversed;
-    // Interval of aggregation in seconds
-    uint64 twapInterval;
-}
-
-// Any price should have a 2^96 decimals
-// Some unsafe shit here, generally feed type is a simple number and bytes that
-// depend on feed type
-struct FeedInfo {
-    FeedType kind;
-    bytes31 data;
-}
-
-//using {PriceMath.getPrice} for FeedInfo global;
-
 function extractBytes(bytes32 data, uint offset, uint size) pure returns (uint part) {
-    part = (uint(data) >> ((32 - offset - size) * 8)) & ((1 << (size * 8)) - 1);
+    part = (uint(data) >> (256 - offset * 8 - size * 8)) & ((1 << (size * 8)) - 1);
 }
 
 /// @title Price calculation and provision library
@@ -53,15 +33,13 @@ library PriceMath {
         if (kind == FeedType.FixedValue) {
             price = extractBytes(priceFeed, 1, 16);
         } else if (kind == FeedType.UniV3) {
-            //UniV3Feed memory data = abi.decode(abi.encodePacked(priceFeed.data), (UniV3Feed));
             address oracle = address(uint160(extractBytes(priceFeed, 1, 20)));
-            bool reversed = extractBytes(priceFeed, 1 + 20, 1) == 1;
-            uint64 twapInterval = uint64(extractBytes(priceFeed, 1 + 20 + 1, 8));
+            bool reversed = extractBytes(priceFeed, 21, 1) == 1;
+            uint64 twapInterval = uint64(extractBytes(priceFeed, 22, 8));
             price = getTwapX96(oracle, reversed, twapInterval);
         } else if (kind == FeedType.Adapter) {
-            //(address adapterContract, uint64 feedId) = abi.decode(abi.encodePacked(priceFeed.data), (address, uint64));
             address adapterContract = address(uint160(extractBytes(priceFeed, 1, 20)));
-            uint64 feedId = uint64(extractBytes(priceFeed, 1 + 20, 8));
+            uint64 feedId = uint64(extractBytes(priceFeed, 21, 8));
             price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
             revert IMultipoolErrors.NoPriceOriginSet();

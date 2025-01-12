@@ -6,7 +6,7 @@ import {MockERC20} from "../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {FeedInfo, FeedType} from "../src/lib/Price.sol";
+import {FeedType} from "../src/lib/Price.sol";
 import {ForcePushArgs, AssetArgs} from "../src/types/SwapArgs.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
 
@@ -160,8 +160,7 @@ contract MultipoolUtils is Test {
         for (uint i = 0; i < t.length; i++) {
             quoteSum += quoteValues[i];
             uint val = (quoteValues[i] << 96) / p[i];
-            console.log("P", p[i]);
-            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(p[1])));
+            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(p[i])));
             if (val > 0) {
                 tokens[i].mint(address(mp), val);
             }
@@ -172,7 +171,6 @@ contract MultipoolUtils is Test {
         address priceAdapter10 = address(new AbstractFixedValueOracle(p[0]));
 
         updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
-        updatePrice(address(mp), address(tokens[1]), abi.encodePacked(FeedType.FixedValue, uint128(p[1])));
 
         args[5] =
             AssetArgs({assetAddress: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});

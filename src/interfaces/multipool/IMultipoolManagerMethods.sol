@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FeedInfo, FeedType} from "../../lib/Price.sol";
+import {FeedType} from "../../lib/Price.sol";
 
 /// @title Interface that contains all multipool owner methods
 interface IMultipoolManagerMethods {

@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 // oh, if you wana fork, fuck you
 
 import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-import {FeedInfo, FeedType, UniV3Feed, PriceMath} from "../lib/Price.sol";
+import {FeedType, PriceMath} from "../lib/Price.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 import {IWrapper} from "../interfaces/IWrapper.sol";
 import {ISilo, ISiloLens} from "../interfaces/ISiloPool.sol";

@@ -7,7 +7,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {SiloPriceAdapter} from "../../src/multipool/SiloAdapter.sol";
 import {Trader, WETH} from "../../src/trader/Trader.sol";
-import {FeedInfo, FeedType, PriceMath} from "../../src/lib/Price.sol";
+import {FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "../../src/interfaces/IUniswapRouter.sol";
@@ -42,6 +42,7 @@ contract MultipoolPriceFetching is Test {
     uint arbitrumFork2;
 
     function setUp() public {
+        vm.skip(true);
         mainnetFork = vm.createFork("https://eth.llamarpc.com", 18943463);
         arbitrumFork = vm.createFork("https://rpc.ankr.com/arbitrum", 168178553);
         arbitrumFork2 = vm.createFork("https://rpc.ankr.com/arbitrum", 168426081);

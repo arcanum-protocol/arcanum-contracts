@@ -8,7 +8,7 @@ import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {MpAsset, MpContext} from "../lib/MpContext.sol";
-import {FeedInfo, FeedType, PriceMath} from "../lib/Price.sol";
+import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint96.sol";
 
 import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManagerMethods.sol";

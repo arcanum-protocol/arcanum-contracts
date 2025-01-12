@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FeedInfo} from "../../lib/Price.sol";
-
 /// @title Interface that contains all multipool events
 interface IMultipoolEvents {
     /// @notice Emitted when any quantity or cashback change happens even for multipool share

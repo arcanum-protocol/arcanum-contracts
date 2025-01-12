@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FeedInfo} from "../../lib/Price.sol";
 import {MpAsset} from "../../lib/MpContext.sol";
 import {ForcePushArgs, AssetArgs} from "../../types/SwapArgs.sol";
 

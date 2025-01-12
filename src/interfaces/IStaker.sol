@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FeedInfo} from "../lib/Price.sol";
-
 import {ForcePushArgs} from "../types/SwapArgs.sol";
 
 /// @title Interface that contains all multipool events
