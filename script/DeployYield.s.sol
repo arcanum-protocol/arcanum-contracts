@@ -117,9 +117,9 @@ contract DeployYield is Script {
         console.log("YIELD address: ", address(mp));
         console.log("Instructions address: ", address(mpImpl));
 
-        mp.setAuthorityRights(deployerPublicKey, false, true);
-        mp.setAuthorityRights(oracleAddress, true, false);
-        mp.setSharePriceParams(600, 0);
+        //mp.setAuthorityRights(deployerPublicKey, false, true);
+        //mp.setAuthorityRights(oracleAddress, true, false);
+        //mp.setSharePriceParams(600, 0);
 
         address[] memory tokenAddresses = new address[](4);
         tokenAddresses[0] = address(0x96E1301bd2536A3C56EBff8335FD892dD9bD02dC);
@@ -141,7 +141,7 @@ contract DeployYield is Script {
         feedData[2] = abi.encode(address(siloAdapter), uint256(2));
         feedData[3] = abi.encode(address(siloAdapter), uint256(3));
 
-        uint[] memory targetShares = new uint[](4);
+        uint16[] memory targetShares = new uint16[](4);
         targetShares[0] = 100;
         targetShares[1] = 100;
         targetShares[2] = 100;
@@ -150,14 +150,14 @@ contract DeployYield is Script {
         mp.updatePrices(tokenAddresses, feedTypes, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
-        mp.setFeeParams(
-            toX32(0.15e18),
-            toX32(0.0003e18),
-            toX32(0.6e18),
-            toX32(0.0001e18),
-            toX32(0.15e18),
-            deployerPublicKey
-        );
+       // mp.setFeeParams(
+       //     toX32(0.15e18),
+       //     toX32(0.0003e18),
+       //     toX32(0.6e18),
+       //     toX32(0.0001e18),
+       //     toX32(0.15e18),
+       //     deployerPublicKey
+       // );
         vm.stopBroadcast();
     }
 }

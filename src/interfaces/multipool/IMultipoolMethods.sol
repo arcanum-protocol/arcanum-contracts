@@ -7,54 +7,53 @@ import {ForcePushArgs, AssetArgs} from "../../types/SwapArgs.sol";
 
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
-    /// @notice Gets several share prive params
-    /// @return _sharePriceValidityDuration Time in seconds for signed share price to be valid
-    /// @return _initialSharePrice Price that is used when contract's total supply is zero
-    /// @return _signatureThreshold Minimal signature number required for force push price
-    /// verification
-    /// @dev Fetches data by reading a single slot
-    function getSharePriceParams()
+
+    /// @notice Gets the information about storage slot1 containing fee info
+    /// @return _halfDeviationFee curve parameter determines fee in middle of deviation limit
+    /// @return _deviationLimit curve parameter that shows maximum deviation changes that may be made
+    /// by callers
+    /// @return _depegBaseFee parameter that shows ratio of value taken from deviation fee as base fee
+    /// @return _baseFee parameter that shows ratio of value taken from each operation quote value
+    /// @return _managementFeeRecepientAddress address to send management fees to
+    /// @return _managementFee parameter that shows ratio of value that is taken from base fee
+    /// as management fee
+    /// @return _totalTargetShares parameter that determines total target share denominator
+    /// @dev Fetches data by reading a single memory slot
+    function slot1()
         external
         view
         returns (
-            uint128 _sharePriceValidityDuration,
-            uint128 _initialSharePrice,
-            uint _signatureThreshold
+            uint16 _halfDeviationFee,
+            uint16 _deviationLimit,
+            uint16 _depegBaseFee,
+            uint16 _baseFee,
+            address _managementFeeRecepientAddress,
+            uint16 _managementFee,
+            uint16 _totalTargetShares
+        );
+
+    /// @notice Gets the information about storage slot2 containing multipool price info
+    /// @return _priceVerifierAddress Address of contract that verifies price
+    /// @return _initialSharePrice Price that is used when contract's total supply is zero
+    /// @dev Fetches data by reading a single slot
+    function slot2()
+        external
+        view
+        returns (
+            address _priceVerifierAddress,
+            uint96 _initialSharePrice
         );
 
     /// @notice Gets price feed data
     /// @param asset Asset for wich to get price feed
     /// @return priceFeed Returns price feed data
-    function getPriceFeed(address asset) external view returns (FeedInfo memory priceFeed);
+    function getPriceFeed(address asset) external view returns (bytes32 priceFeed);
 
     /// @notice Gets current asset price
     /// @param asset Asset for wich to get price
     /// @return price Returns price data in a format of Q96 decimal value
     function getPrice(address asset) external view returns (uint price);
 
-    /// @notice Gets fee params from state. All ratios are Q32 values.
-    /// @return _deviationParam Curve parameter that is a fee ratio at the half of the curve divided
-    /// by deviation limit
-    /// @return _deviationLimit Curve parameter that shows maximum deviation changes that may be
-    /// made by callers
-    /// @return _depegBaseFee Parameter that shows ratio of value taken from deviation fee as base
-    /// @return _baseFee Parameter that shows ratio of value taken from each operation quote value
-    /// fee
-    /// @return _developerBaseFee Parameter that shows ratio of value that is taken from base fee
-    /// @return _developerAddress Address to send arcanum protocol development and maintaince fees
-    /// share for arcanum protocol developers and maintainers
-    /// @dev Fetches data by reading a single slot for first integers
-    function getFeeParams()
-        external
-        view
-        returns (
-            uint64 _deviationParam,
-            uint64 _deviationLimit,
-            uint64 _depegBaseFee,
-            uint64 _baseFee,
-            uint64 _developerBaseFee,
-            address _developerAddress
-        );
 
     /// @notice Gets asset related info
     /// @param assetAddress address of asset wich data to provide
@@ -107,10 +106,9 @@ interface IMultipoolMethods {
         view
         returns (int fee, int[] memory amounts);
 
-    /// @notice Method that dry runs swap execution and provides estimated fees and amounts
+    /// @notice Method that increases cashback for a specific asset
     /// @param assetAddress Address of asset selected to increase its cashback
-    /// @return amount Native token amount that was put into cashback
-    /// @dev Method is permissionless so anyone can boos incentives. Native token value can be
+    /// @dev Method is permissionless so anyone can boost incentives. Native token value can be
     /// transferred directly if used iva contract or via msg.value with any method
-    function increaseCashback(address assetAddress) external payable returns (uint128 amount);
+    function increaseCashback(address assetAddress) external payable;
 }

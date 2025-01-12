@@ -30,8 +30,8 @@ contract DeploySpi is Script {
         console.log("SPI address: ", address(mp));
         console.log("Instructions address: ", address(mpImpl));
 
-        mp.setAuthorityRights(deployerPublicKey, true, true);
-        mp.setSharePriceParams(600, 0);
+        //mp.setAuthorityRights(deployerPublicKey, true, true);
+        //mp.setSharePriceParams(600, 0);
 
         address[] memory tokenAddresses = new address[](3);
         tokenAddresses[0] = address(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f);
@@ -66,7 +66,7 @@ contract DeploySpi is Script {
             })
         );
 
-        uint[] memory targetShares = new uint[](3);
+        uint16[] memory targetShares = new uint16[](3);
         targetShares[0] = 48079;
         targetShares[1] = 34299;
         targetShares[2] = 17621;
@@ -74,14 +74,14 @@ contract DeploySpi is Script {
         mp.updatePrices(tokenAddresses, feedTypes, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
-        mp.setFeeParams(
-            toX32(0.15e18),
-            toX32(0.0003e18),
-            toX32(0.6e18),
-            toX32(0.0001e18),
-            toX32(0.15e18),
-            deployerPublicKey
-        );
+        //mp.setFeeParams(
+        //    toX32(0.15e18),
+        //    toX32(0.0003e18),
+        //    toX32(0.6e18),
+        //    toX32(0.0001e18),
+        //    toX32(0.15e18),
+        //    deployerPublicKey
+        //);
         //MultipoolRouter router = new MultipoolRouter();
 
         //console.log("Router address: ", address(router));

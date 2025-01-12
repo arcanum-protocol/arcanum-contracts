@@ -6,7 +6,7 @@ import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, toX16, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestnet is Script {
     function run() external {
@@ -17,9 +17,8 @@ contract DeployTestnet is Script {
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         Multipool mp = Multipool(address(proxy));
-        mp.initialize("Exchange tradable fund", "ETF", uint128(toX96(0.1e18)));
-        mp.setAuthorityRights(deployerPublicKey, true, true);
-        mp.setSharePriceParams(600, 0);
+        mp.initialize("Exchange tradable fund", "ETF", address(0), uint96(toX32(0.1e18)));
+        mp.toggleStrategyManager(deployerPublicKey);
         console.log("multipool address: ", address(mp));
 
         updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
@@ -31,18 +30,18 @@ contract DeployTestnet is Script {
             updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(price));
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
-            uint[] memory am = new uint[](1);
-            am[0] = 10e18;
+            uint16[] memory am = new uint16[](1);
+            am[0] = 1000;
             mp.updateTargetShares(tk, am);
             console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);
         }
         mp.setFeeParams(
-            toX32(0.15e18),
-            toX32(0.0003e18),
-            toX32(0.6e18),
-            toX32(0.0001e18),
-            toX32(0.15e18),
+            toX16(0.15e18),
+            toX16(0.0003e18),
+            toX16(0.6e18),
+            toX16(0.0001e18),
+            toX16(0.15e18),
             deployerPublicKey
         );
         MultipoolRouter router = new MultipoolRouter();

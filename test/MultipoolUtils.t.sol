@@ -10,6 +10,8 @@ import {FeedInfo, FeedType} from "../src/lib/Price.sol";
 import {ForcePushArgs, AssetArgs} from "../src/types/SwapArgs.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
 
+import {Staker} from "../src/multipool/Staker.sol";
+
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 function toX96(uint val) pure returns (uint valX96) {
@@ -20,6 +22,14 @@ function toX32(uint val) pure returns (uint64 valX32) {
     valX32 = uint64((val << 32) / 1e18);
 }
 
+function toX16(uint val) pure returns (uint16 valX16) {
+    valX16 = uint16((val << 16) / 1e18);
+}
+
+function toX16RatioTick(uint val) pure returns (uint16 valX16) {
+    valX16 = uint16(val / 5);
+}
+
 contract AbstractFixedValueOracle is IPriceAdapter {
     uint p;
 
@@ -28,7 +38,7 @@ contract AbstractFixedValueOracle is IPriceAdapter {
     }
 
     function getPrice(uint feedId) external view override returns (uint price) {
-        require(feedId == 10000000000000000123212, "invalid id");
+        require(feedId == 10000123212, "invalid id");
         price = p;
     }
 }
@@ -47,16 +57,23 @@ contract MultipoolUtils is Test {
     using ECDSA for bytes32;
 
     function initMultipool() public {
+        Staker stakerImpl = new Staker();
+
+        ERC1967Proxy stakerProxy = new ERC1967Proxy(
+            address(stakerImpl),
+            abi.encodeWithSignature("initialize()")
+        );
+
         Multipool mpImpl = new Multipool();
         implementation = address(mpImpl);
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(mpImpl),
             abi.encodeWithSignature(
-                "initialize(string,string,uint128)", "Name", "SYMBOL", uint128(toX96(0.1e18))
+                "initialize(string,string,address,uint96)", "Name", "SYMBOL", address(stakerProxy), uint96(toX32(0.1e18))
             )
         );
         mp = Multipool(address(proxy));
-        //mp.initialize("Name", "SYMBOL", uint128(toX96(0.1e18)));
+        //mp.initialize("Name", "SYMBOL", uint96(toX32(0.1e18)));
     }
 
     function assertEq(MpAsset memory a, MpAsset memory b) public {
@@ -89,11 +106,29 @@ contract MultipoolUtils is Test {
         }
     }
 
+    function setBytes(bytes32 data, bytes32 bytesToSet, uint offset, uint size) public view returns (bytes32 updatedData) {
+        console.log("v", uint(((1 << (size * 8)) - 1)));
+        bytes32 mask = bytes32(((1 << (size * 8)) - 1) << ((32 - offset - size) * 8));
+        console.log("m", uint(mask));
+        updatedData = (data & ~mask) | ((bytesToSet << ((32 - offset - size) * 8)) & mask);
+    }
+
+    function fixedValuePrice(uint128 val) public view returns (bytes32 v) {
+        v = setBytes(v, bytes32(uint(FeedType.FixedValue)), 0, 1);
+        v = setBytes(v, bytes32(uint(val)), 1, 16);
+    }
+
+    function adapterPrice(address _addr, uint64 _feedId) public view returns (bytes32 v) {
+        v = setBytes(v, bytes32(uint(FeedType.Adapter)), 0, 1);
+        v = setBytes(v, bytes32(uint(uint160(_addr))), 1, 20);
+        v = setBytes(v, bytes32(uint(uint64(_feedId))), 21, 8);
+    }
+
     function bootstrapTokens(uint[5] memory quoteValues, address to) public {
         vm.startPrank(owner);
-        mp.setFeeParams(toX32(1e18), 0, 0, 0, 0, address(0));
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
-        mp.setAuthorityRights(owner, true, true);
+        mp.setFeeParams(toX16RatioTick(1e5), 0, 0, 0, 0, address(0));
+        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
+        mp.toggleStrategyManager(owner);
 
         uint[] memory p = new uint[](5);
         p[0] = toX96(10e18);
@@ -109,12 +144,12 @@ contract MultipoolUtils is Test {
         t[3] = address(tokens[3]);
         t[4] = address(tokens[4]);
 
-        uint[] memory s = new uint[](5);
-        s[0] = 10e18;
-        s[1] = 10e18;
-        s[2] = 10e18;
-        s[3] = 10e18;
-        s[4] = 10e18;
+        uint16[] memory s = new uint16[](5);
+        s[0] = 1000;
+        s[1] = 1000;
+        s[2] = 1000;
+        s[3] = 1000;
+        s[4] = 1000;
 
         mp.updateTargetShares(t, s);
 
@@ -125,7 +160,8 @@ contract MultipoolUtils is Test {
         for (uint i = 0; i < t.length; i++) {
             quoteSum += quoteValues[i];
             uint val = (quoteValues[i] << 96) / p[i];
-            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(p[i]));
+            console.log("P", p[i]);
+            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(p[1])));
             if (val > 0) {
                 tokens[i].mint(address(mp), val);
             }
@@ -135,16 +171,8 @@ contract MultipoolUtils is Test {
         // insert adapter for token 1 here
         address priceAdapter10 = address(new AbstractFixedValueOracle(p[0]));
 
-        address[] memory priceAdapterAddresses = new address[](2);
-        priceAdapterAddresses[0] = address(tokens[0]);
-        priceAdapterAddresses[1] = address(tokens[1]);
-        FeedType[] memory priceAdapterType = new FeedType[](2);
-        priceAdapterType[0] = FeedType.Adapter;
-        priceAdapterType[1] = FeedType.FixedValue;
-        bytes[] memory priceAdapterBytes = new bytes[](2);
-        priceAdapterBytes[0] = abi.encode(priceAdapter10, uint(10000000000000000123212));
-        priceAdapterBytes[1] = abi.encode(p[1]);
-        mp.updatePrices(priceAdapterAddresses, priceAdapterType, priceAdapterBytes);
+        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
+        updatePrice(address(mp), address(tokens[1]), abi.encodePacked(FeedType.FixedValue, uint128(p[1])));
 
         args[5] =
             AssetArgs({assetAddress: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
@@ -154,7 +182,7 @@ contract MultipoolUtils is Test {
         ForcePushArgs memory fp;
         mp.swap(fp, args, true, to, false, users[3]);
         mp.setFeeParams(
-            toX32(0.15e18), toX32(0.0003e18), toX32(0.6e18), toX32(0.01e18), toX32(0.1e18), users[2]
+            toX16RatioTick(0.15e5), toX16RatioTick(0.0003e5), toX16RatioTick(0.6e5), toX16RatioTick(0.01e5), toX16RatioTick(0.1e5), users[2]
         );
         vm.stopPrank();
     }
@@ -197,9 +225,7 @@ contract MultipoolUtils is Test {
                 abi.encodePacked(fp.contractAddress, uint(sp.ts), uint(sp.value), block.chainid)
             ).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
-            bytes memory signature = abi.encodePacked(r, s, v);
-            fp.signatures = new bytes[](1);
-            fp.signatures[0] = signature;
+            fp.signature = abi.encodePacked(r, s, v);
         }
         if (keccak256(error) != keccak256(abi.encode(0))) {
             vm.expectRevert(error);
@@ -224,33 +250,31 @@ contract MultipoolUtils is Test {
             bytes32 message =
                 keccak256(abi.encodePacked(owner, sp.ts, sp.value)).toEthSignedMessageHash();
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
-            bytes memory signature = abi.encodePacked(r, s, v);
-            fp.signatures = new bytes[](1);
-            fp.signatures[0] = signature;
+            fp.signature = abi.encodePacked(r, s, v);
         }
         (fee, amounts) = mp.checkSwap(fp, assets, isExactInput);
     }
 
     function changePrice(address asset, uint price) public {
         vm.startPrank(owner);
-        updatePrice(address(mp), asset, FeedType.FixedValue, abi.encode(price));
+        updatePrice(address(mp), asset, abi.encodePacked(FeedType.FixedValue, uint128(price)));
         vm.stopPrank();
     }
 
-    function changeShare(address asset, uint share) public {
+    function changeShare(address asset, uint16 share) public {
         vm.startPrank(owner);
         address[] memory addresses = new address[](1);
         addresses[0] = asset;
-        uint[] memory shares = new uint[](1);
+        uint16[] memory shares = new uint16[](1);
         shares[0] = share;
         mp.updateTargetShares(addresses, shares);
         vm.stopPrank();
     }
 
-    function setCurveParams(uint64 dl, uint64 hf, uint64 bf, uint64 dbf) public {
+    function setCurveParams(uint16 dl, uint16 hf, uint16 bf, uint16 dbf) public {
         vm.startPrank(owner);
-        (,,,, uint64 developerFee, address developerAddress) = mp.getFeeParams();
-        mp.setFeeParams(dl, hf, dbf, bf, developerFee, developerAddress);
+        (,,,,address managementFeeRecepient,uint16 managementFee,) = mp.slot1();
+        mp.setFeeParams(dl, hf, dbf, bf, managementFee, managementFeeRecepient);
         vm.stopPrank();
     }
 
@@ -300,10 +324,8 @@ contract MultipoolUtils is Test {
         }
 
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
-        vm.serializeString("multipool", "totalCashback", jsonString(mp.totalCollectedCashbacks()));
-        vm.serializeString("multipool", "totalFees", jsonString(mp.collectedFees()));
-        vm.serializeString("multipool", "totalDevFees", jsonString(mp.collectedDeveloperFees()));
-        mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.totalTargetShares()));
+        //mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.slot1()));
+        //mpJson = vm.serializeString("multipool", "totalShares", jsonString(mp.slot2()));
 
         string memory snapJson;
         vm.serializeString("snap", "users", usersJson);
@@ -330,17 +352,19 @@ contract MultipoolUtils is Test {
     }
 }
 
-function updatePrice(address multipoolAddress, address asset, FeedType kind, bytes memory data) {
+function updatePrice(address multipoolAddress, address asset, bytes memory data) {
     address[] memory priceAddresses = new address[](1);
     priceAddresses[0] = asset;
 
-    FeedType[] memory priceTypes = new FeedType[](1);
-    priceTypes[0] = kind;
+    bytes32 val;
+    assembly {
+        val := mload(add(data, 32))
+    }
 
-    bytes[] memory priceDatas = new bytes[](1);
-    priceDatas[0] = data;
+    bytes32[] memory priceData = new bytes32[](1);
+    priceData[0] = val;
 
-    Multipool(multipoolAddress).updatePrices(priceAddresses, priceTypes, priceDatas);
+    Multipool(multipoolAddress).updatePrices(priceAddresses, priceData);
 }
 
 function sort(AssetArgs[] memory arr) pure returns (AssetArgs[] memory a) {
@@ -396,6 +420,13 @@ function dynamic(AssetArgs[5] memory assets) pure returns (AssetArgs[] memory dy
 }
 
 function dynamic(AssetArgs[6] memory assets) pure returns (AssetArgs[] memory dynarray) {
+    dynarray = new AssetArgs[](assets.length);
+    for (uint i; i < assets.length; ++i) {
+        dynarray[i] = assets[i];
+    }
+}
+
+function dynamic(AssetArgs[7] memory assets) pure returns (AssetArgs[] memory dynarray) {
     dynarray = new AssetArgs[](assets.length);
     for (uint i; i < assets.length; ++i) {
         dynarray[i] = assets[i];
