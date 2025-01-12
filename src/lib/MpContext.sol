@@ -14,8 +14,11 @@ struct MpAsset {
 
 struct MpContext {
     uint sharePrice;
+
     uint oldTotalSupply;
+
     int totalSupplyDelta;
+
     uint totalTargetShares;
     uint deviationParam;
     uint deviationLimit;
@@ -23,11 +26,9 @@ struct MpContext {
     uint baseFee;
     uint managementBaseFee;
 
-    int unusedEthBalance;
-    uint collectedManagementFees;
-    uint collectedOracleFees;
-    uint cummulativeInAmount;
-    uint cummulativeOutAmount;
+    uint deviationFees;
+    uint collectedCashbacks;
+    uint collectedFees;
 
     address managementFeeRecepient;
     address oracleAddress;
@@ -35,8 +36,6 @@ struct MpContext {
 
 using {
     ContextMath.calculateDeviationFee,
-    ContextMath.calculateBaseFee,
-    ContextMath.calculateTotalSupplyDelta,
     ContextMath.applyCollected
 } for MpContext global;
 
@@ -59,29 +58,32 @@ library ContextMath {
         }
     }
 
-    function calculateTotalSupplyDelta(MpContext memory ctx, bool isExactInput) internal pure {
-        int delta = ctx.totalSupplyDelta;
-        if (delta < 0) {
-            if (!isExactInput) {
-                ctx.totalSupplyDelta =
-                    int(ctx.cummulativeOutAmount) * delta / int(ctx.cummulativeInAmount);
-            }
-        } else {
-            if (isExactInput) {
-                ctx.totalSupplyDelta =
-                    int(ctx.cummulativeInAmount) * delta / int(ctx.cummulativeOutAmount);
-            }
-        }
-    }
+   // function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal pure {
+   //     uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
+   //     uint newCollectedFee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
+   //     ctx.unusedEthBalance -= int(newCollectedFee);
+   //     uint newCollectedManagementFees =
+   //         newCollectedFee * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
+   //     ctx.collectedOracleFees += newCollectedFee - newCollectedManagementFees;
+   //     ctx.collectedManagementFees += newCollectedManagementFees;
+   // }
 
-    function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal pure {
-        uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
-        uint newCollectedFee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
-        ctx.unusedEthBalance -= int(newCollectedFee);
-        uint newCollectedManagementFees =
-            newCollectedFee * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
-        ctx.collectedOracleFees += newCollectedFee - newCollectedManagementFees;
-        ctx.collectedManagementFees += newCollectedManagementFees;
+    function applyCollected(
+        MpContext memory ctx, 
+        uint quoteTradeValue, 
+        uint ethDeposit
+    ) internal pure returns (uint refund, uint managerEarnedFee, uint oracleEarnedFee) {
+        uint collectedBaseFees = (quoteTradeValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
+
+        refund = collectedBaseFees + ctx.deviationFees + ctx.collectedFees;
+
+        if (refund > ctx.collectedCashbacks + ethDeposit) revert IMultipoolErrors.FeeExceeded();
+        refund = ctx.collectedCashbacks + ethDeposit - refund;
+
+        uint totalEarnedFees = ctx.collectedFees + collectedBaseFees;
+        managerEarnedFee =
+            totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
+        oracleEarnedFee = totalEarnedFees - managerEarnedFee;
     }
 
     function calculateDeviationFee(
@@ -91,7 +93,7 @@ library ContextMath {
         uint price
     )
         internal
-        view
+        pure
     {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
@@ -115,31 +117,23 @@ library ContextMath {
         if (dNew > dOld && ctx.oldTotalSupply != 0) {
             if (targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
             if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
-            uint deviationFee = (
+            uint fullDeviationFee = (
                 ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)
             ) >> FixedPoint32.RESOLUTION;
-            uint basePart = (deviationFee * ctx.depegBaseFee) >> FixedPoint32.RESOLUTION;
-            ctx.unusedEthBalance -= int(deviationFee);
-            ctx.collectedOracleFees += basePart;
+            uint collectedFees = (fullDeviationFee * ctx.depegBaseFee) >> FixedPoint32.RESOLUTION;
 
-            asset.collectedCashbacks += uint112(deviationFee - basePart);
+            asset.collectedCashbacks += uint112(fullDeviationFee - collectedFees);
+            ctx.collectedFees = collectedFees;
+            ctx.deviationFees = fullDeviationFee - collectedFees;
         } else if (dNew <= dOld) {
             uint cashback = dOld == 0
                 ? asset.collectedCashbacks
                 : (dOld - dNew) * asset.collectedCashbacks / dOld;
 
-            ctx.unusedEthBalance += int(cashback);
-
+            ctx.collectedCashbacks += cashback;
             asset.collectedCashbacks -= uint112(cashback);
         }
         asset.quantity = uint128(newQuantity);
     }
 
-    function applyCollected(MpContext memory ctx, address payable refundTo) internal {
-        int balance = ctx.unusedEthBalance;
-        if (balance < 0) revert IMultipoolErrors.FeeExceeded();
-        if (refundTo != address(0) && balance > 0) {
-            refundTo.transfer(uint(balance));
-        }
-    }
 }

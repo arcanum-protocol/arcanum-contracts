@@ -76,16 +76,16 @@ interface IMultipoolMethods {
     /// execution. Should be used in other contracts only
     /// Fees are charged in native token equivalend via transferring them before invocation or in
     /// msg.value
-    function swap(
-        ForcePushArgs calldata forcePushArgs,
-        AssetArgs[] calldata assetsToSwap,
-        bool isExactInput,
-        address receiverAddress,
-        bool refundEthToReceiver,
-        address refundAddress
-    )
-        external
-        payable;
+  //  function swap(
+  //      ForcePushArgs calldata forcePushArgs,
+  //      AssetArgs[] calldata assetsToSwap,
+  //      bool isExactInput,
+  //      address receiverAddress,
+  //      bool refundEthToReceiver,
+  //      address refundAddress
+  //  )
+  //      external
+  //      payable;
 
     /// @notice Method that dry runs swap execution and provides estimated fees and amounts
     /// @param forcePushArgs Arguments for share price force push
@@ -96,14 +96,14 @@ interface IMultipoolMethods {
     /// behaves reversed
     /// @return fee Native token amount to cover swap fees
     /// @dev To avoid calculation errors don't provide small values to amount
-    function checkSwap(
-        ForcePushArgs calldata forcePushArgs,
-        AssetArgs[] calldata assetsToSwap,
-        bool isExactInput
-    )
-        external
-        view
-        returns (int fee, int[] memory amounts);
+  //  function checkSwap(
+  //      ForcePushArgs calldata forcePushArgs,
+  //      AssetArgs[] calldata assetsToSwap,
+  //      bool isExactInput
+  //  )
+  //      external
+  //      view
+  //      returns (int fee, int[] memory amounts);
 
     /// @notice Method that increases cashback for a specific asset
     /// @param assetAddress Address of asset selected to increase its cashback

@@ -2,7 +2,7 @@
   "multipool": "",
   "tokens": {
     "token0": {
-      "cashbacks": "\"223529371730161250\"",
+      "cashbacks": "\"0\"",
       "quantity": "\"14000000000000000000\"",
       "share": "\"1000\""
     },
@@ -29,7 +29,7 @@
   },
   "users": {
     "multipool": {
-      "ethBalance": "\"223529371730161250\"",
+      "ethBalance": "\"0\"",
       "tokenBalance0": "\"15000000000000000000\"",
       "tokenBalance1": "\"15000000000000000000\"",
       "tokenBalance2": "\"60000000000000000000\"",

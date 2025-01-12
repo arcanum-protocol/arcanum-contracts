@@ -85,26 +85,26 @@ contract Trader {
                 amount = int(args.tmpAmount);
             }
 
-            AssetArgs[] memory assetArgs = new AssetArgs[](2);
-            if (args.multipoolTokenIn < args.multipoolTokenOut) {
-                assetArgs[0] =
-                    AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
-                assetArgs[1] = AssetArgs({
-                    assetAddress: address(args.multipoolTokenOut),
-                    amount: -int(args.multipoolSleepage)
-                });
-            } else {
-                assetArgs[1] =
-                    AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
-                assetArgs[0] = AssetArgs({
-                    assetAddress: address(args.multipoolTokenOut),
-                    amount: -int(args.multipoolSleepage)
-                });
-            }
+          //  AssetArgs[] memory assetArgs = new AssetArgs[](2);
+          //  if (args.multipoolTokenIn < args.multipoolTokenOut) {
+          //      assetArgs[0] =
+          //          AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
+          //      assetArgs[1] = AssetArgs({
+          //          assetAddress: address(args.multipoolTokenOut),
+          //          amount: uint(args.multipoolSleepage)
+          //      });
+          //  } else {
+          //      assetArgs[1] =
+          //          AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
+          //      assetArgs[0] = AssetArgs({
+          //          assetAddress: address(args.multipoolTokenOut),
+          //          amount: uint(args.multipoolSleepage)
+          //      });
+          //  }
 
-            args.multipool.swap{value: args.multipoolFee}(
-                args.fp, assetArgs, true, address(this), false, address(this)
-            );
+          //  args.multipool.swap{value: args.multipoolFee}(
+          //      args.fp, assetArgs, true, address(this), false, address(this)
+          //  );
 
             uint amountOut = args.multipoolTokenOut.balanceOf(address(this));
 

@@ -133,12 +133,16 @@ contract Multipool is
         asset = assets[assetAddress];
     }
 
+    function expandToX64(uint16 val) internal pure returns (uint res) {
+        res = uint(val) * (5 << 32) / 1e5;
+    }
+
     /// @notice Assembles context for swappping
     /// @param forcePushArgs price force push related data
     /// @return ctx state memory context used across swapping
     /// @dev tries to apply force pushed share price if provided address matches otherwhise ignores
     /// struct
-    function getContext(ForcePushArgs calldata forcePushArgs)
+    function getContext(ForcePushArgs calldata forcePushArgs, int totalSupplyDelta)
         internal
         view
         returns (MpContext memory ctx)
@@ -171,54 +175,45 @@ contract Multipool is
         ctx.totalTargetShares = _totalTargetShares;
         ctx.sharePrice = price;
         ctx.oldTotalSupply = _totalSupply;
-        ctx.deviationParam = _deviationLimit != 0 ? ((uint(_halfDeviationFee) * (5 << 32) / 1e5) << 32) / (uint(_deviationLimit) * (5 << 32) / 1e5) : 0;
-        ctx.deviationLimit = uint(_deviationLimit) * (5 << 32) / 1e5;
-        ctx.depegBaseFee = uint(_depegBaseFee) * (5 << 32) / 1e5;
-        ctx.baseFee = uint(_baseFee) * (5 << 32) / 1e5;
-        ctx.managementBaseFee = uint(_managementFee) * (5 << 32) / 1e5;
-        ctx.unusedEthBalance = int(msg.value);
+        ctx.totalSupplyDelta = totalSupplyDelta;
+        ctx.deviationParam = _deviationLimit != 0 ? expandToX64(_halfDeviationFee) / expandToX64(_deviationLimit) : 0;
+        ctx.deviationLimit = expandToX64(_deviationLimit);
+        ctx.depegBaseFee = expandToX64(_depegBaseFee);
+        ctx.baseFee = expandToX64(_baseFee);
+        ctx.managementBaseFee = expandToX64(_managementFee);
 
         ctx.managementFeeRecepient = _managementFeeRecepientAddress;
         ctx.oracleAddress = _priceVerifierAddress;
     }
 
     /// @notice Assembles context for swappping
-    /// @param ctx Multipool calculation context
     /// @return fetchedPrices Array of prices per each supplied asset
     /// @dev Also checks that assets are unique via asserting that they are sorted and each element
     /// address is stricly bigger
-    function getPricesAndSumQuotes(
-        MpContext memory ctx,
+    function getQuotedSum(
         AssetArgs[] memory selectedAssets
     )
         internal
         view
-        returns (uint[] memory fetchedPrices)
+        returns (uint[] memory fetchedPrices, uint quotedSum)
     {
         uint arrayLen = selectedAssets.length;
         address prevAddress = address(0);
         fetchedPrices = new uint[](arrayLen);
-        for (uint i; i < arrayLen; ++i) {
+        for (uint i; i < arrayLen;) {
             address assetAddress = selectedAssets[i].assetAddress;
-            int amount = selectedAssets[i].amount;
+            uint amount = selectedAssets[i].amount;
 
+            // nesessary? 
             if (prevAddress >= assetAddress) revert AssetsNotSortedOrNotUnique();
             prevAddress = assetAddress;
 
-            uint price;
-            if (assetAddress == address(this)) {
-                price = ctx.sharePrice;
-                ctx.totalSupplyDelta = -amount;
-            } else {
-                price = prices[assetAddress].getPrice();
-            }
+            uint price = prices[assetAddress].getPrice();
             fetchedPrices[i] = price;
+
             if (amount == 0) revert ZeroAmountSupplied();
-            if (amount > 0) {
-                ctx.cummulativeInAmount += price * uint(amount) >> FixedPoint96.RESOLUTION;
-            } else {
-                ctx.cummulativeOutAmount += price * uint(-amount) >> FixedPoint96.RESOLUTION;
-            }
+            quotedSum += price * amount >> FixedPoint96.RESOLUTION; 
+            unchecked { ++i; }
         }
     }
 
@@ -267,114 +262,235 @@ contract Multipool is
         }
     }
 
-    //TODO: emit swap prices
-    /// @inheritdoc IMultipoolMethods
-    function swap(
+    function transferFees(
+        MpContext memory ctx,
+        ForcePushArgs calldata forcePushArgs,
+        uint quoteAmount,
+        address receiverAddress,
+        bool refundEthToReceiver
+    ) internal {
+        (uint refund, uint managerEarnedFee, uint oracleEarnedFee) = ctx.applyCollected(quoteAmount, msg.value);
+        if (refund > 0) {
+            payable(refundEthToReceiver ? receiverAddress : msg.sender).transfer(refund);
+        }
+        payable(ctx.managementFeeRecepient).transfer(managerEarnedFee);
+        IStaker(ctx.oracleAddress).commitPrice{value: oracleEarnedFee}(forcePushArgs);
+        emit Swapped(managerEarnedFee, oracleEarnedFee);
+    }
+
+    function swap1(
+        ForcePushArgs calldata forcePushArgs,
+        address assetInAddress,
+        address assetOutAddress,
+        uint swapAmount,
+        bool isExactInput,
+        address receiverAddress,
+        bool refundEthToReceiver
+    )
+        external
+        payable
+    {
+        //nesessary? 
+        if (assetInAddress == address(this)) revert();
+        if (assetOutAddress == address(this)) revert();
+
+        MpContext memory ctx = getContext(forcePushArgs, 0);
+        MpAsset memory assetIn = assets[assetInAddress];
+        uint priceIn = prices[assetInAddress].getPrice();
+        MpAsset memory assetOut = assets[assetOutAddress];
+        uint priceOut = prices[assetOutAddress].getPrice();
+
+        uint quoteAmount = swapAmount * (isExactInput ? priceIn : priceOut) >> FixedPoint96.RESOLUTION;
+        (uint amountIn, uint amountOut) = isExactInput ? 
+            (swapAmount, swapAmount * priceIn / priceOut) :
+            (swapAmount * priceOut / priceIn, swapAmount);
+
+        receiveAsset(assetIn, assetInAddress, amountIn, address(0));
+        transferAsset(assetOutAddress, amountOut, receiverAddress);
+
+        ctx.calculateDeviationFee(assetIn, int(amountIn), priceIn);
+        ctx.calculateDeviationFee(assetOut, -int(amountOut), priceOut);
+        assets[assetInAddress] = assetIn;
+        assets[assetOutAddress] = assetOut;
+        emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+        emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
+
+        transferFees(ctx,forcePushArgs, quoteAmount, receiverAddress, refundEthToReceiver);
+    }
+
+    function mint(
         ForcePushArgs calldata forcePushArgs,
         AssetArgs[] calldata assetsToSwap,
-        bool isExactInput,
         address receiverAddress,
         bool refundEthToReceiver,
         address refundAddress
     )
         external
-        payable
-        override
-    {
-        MpContext memory ctx = getContext(forcePushArgs);
-        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, assetsToSwap);
-
-        ctx.calculateTotalSupplyDelta(isExactInput);
-
-        for (uint i; i < assetsToSwap.length; ++i) {
-            address assetAddress = assetsToSwap[i].assetAddress;
-            int suppliedAmount = assetsToSwap[i].amount;
-            uint price = currentPrices[i];
-
-            MpAsset memory asset;
-            if (assetAddress != address(this)) {
-                asset = assets[assetAddress];
-            }
-
-            if (isExactInput && suppliedAmount < 0) {
-                int amount =
-                    int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
-                if (amount > suppliedAmount) revert SleepageExceeded();
-                suppliedAmount = amount;
-            } else if (!isExactInput && suppliedAmount > 0) {
-                int amount =
-                    int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
-                if (amount > suppliedAmount) revert SleepageExceeded();
-                suppliedAmount = amount;
-            }
-
-            if (suppliedAmount > 0) {
-                receiveAsset(asset, assetAddress, uint(suppliedAmount), refundAddress);
-            } else {
-                transferAsset(assetAddress, uint(-suppliedAmount), receiverAddress);
-            }
-
-            if (assetAddress != address(this)) {
-                ctx.calculateDeviationFee(asset, suppliedAmount, price);
-                assets[assetAddress] = asset;
-                emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
-            } else {
-                emit AssetChange(address(this), totalSupply(), 0);
-            }
-        }
-        ctx.calculateBaseFee(isExactInput);
-        ctx.applyCollected(refundEthToReceiver ? payable(receiverAddress) : payable(refundAddress));
-
-        payable(ctx.managementFeeRecepient).transfer(ctx.collectedManagementFees);
-        IStaker(ctx.oracleAddress).commitPrice{value: ctx.collectedOracleFees}(forcePushArgs);
-        emit Swapped(ctx.collectedManagementFees, ctx.collectedOracleFees);
-    }
-
-    /// @inheritdoc IMultipoolMethods
-    function checkSwap(
-        ForcePushArgs calldata forcePushArgs,
-        AssetArgs[] calldata assetsToSwap,
-        bool isExactInput
-    )
-        external
-        view
-        override
         returns (int fee, int[] memory amounts)
     {
-        MpContext memory ctx = getContext(forcePushArgs);
-        uint[] memory currentPrices = getPricesAndSumQuotes(ctx, assetsToSwap);
+        (uint[] memory currentPrices, uint quotedSum) = getQuotedSum(assetsToSwap);
+        MpContext memory ctx = getContext(forcePushArgs, int(quotedSum));
 
-        amounts = new int[](assetsToSwap.length);
-        ctx.calculateTotalSupplyDelta(isExactInput);
-
-        for (uint i; i < assetsToSwap.length; ++i) {
+        uint assetsLength = assetsToSwap.length;
+        for (uint i; i < assetsLength;) {
             address assetAddress = assetsToSwap[i].assetAddress;
-            int suppliedAmount = assetsToSwap[i].amount;
+            uint suppliedAmount = assetsToSwap[i].amount;
             uint price = currentPrices[i];
+            MpAsset memory asset = assets[assetAddress];
 
-            MpAsset memory asset;
-            if (assetAddress != address(this)) {
-                asset = assets[assetAddress];
-            }
-
-            if (isExactInput && suppliedAmount < 0) {
-                int amount =
-                    int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
-                suppliedAmount = amount;
-            } else if (!isExactInput && suppliedAmount > 0) {
-                int amount =
-                    int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
-                suppliedAmount = amount;
-            }
-
-            if (assetAddress != address(this)) {
-                ctx.calculateDeviationFee(asset, suppliedAmount, price);
-            }
-            amounts[i] = suppliedAmount;
+            receiveAsset(asset, assetAddress, suppliedAmount, refundAddress);
+            ctx.calculateDeviationFee(asset, int(suppliedAmount), price);
+            assets[assetAddress] = asset;
+            emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
+            unchecked { ++i; }
         }
-        ctx.calculateBaseFee(isExactInput);
-        fee = -ctx.unusedEthBalance;
+
+        transferAsset(address(this), quotedSum << FixedPoint96.RESOLUTION / ctx.sharePrice, receiverAddress);
+        transferFees(ctx,forcePushArgs, quotedSum, receiverAddress, refundEthToReceiver);
     }
+
+    function burn(
+        ForcePushArgs calldata forcePushArgs,
+        AssetArgs[] calldata assetsToSwap,
+        address receiverAddress,
+        bool refundEthToReceiver,
+        address refundAddress
+    )
+        external
+        returns (int fee, int[] memory amounts)
+    {
+        (uint[] memory currentPrices, uint quotedSum) = getQuotedSum(assetsToSwap);
+        MpContext memory ctx = getContext(forcePushArgs, -int(quotedSum));
+
+        uint assetsLength = assetsToSwap.length;
+        for (uint i; i < assetsLength;) {
+            address assetAddress = assetsToSwap[i].assetAddress;
+            uint suppliedAmount = assetsToSwap[i].amount;
+            uint price = currentPrices[i];
+            MpAsset memory asset = assets[assetAddress];
+
+            transferAsset(assetAddress, suppliedAmount, receiverAddress);
+            ctx.calculateDeviationFee(asset, -int(suppliedAmount), price);
+            assets[assetAddress] = asset;
+            emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
+            unchecked { ++i; }
+        }
+
+        MpAsset memory empty;
+        receiveAsset(empty, address(this), quotedSum << FixedPoint96.RESOLUTION / ctx.sharePrice, refundAddress);
+        transferFees(ctx,forcePushArgs, quotedSum, receiverAddress, refundEthToReceiver);
+    }
+
+
+    //TODO: emit swap prices
+    /// @inheritdoc IMultipoolMethods
+  //  function swap(
+  //      ForcePushArgs calldata forcePushArgs,
+  //      AssetArgs[] calldata assetsToSwap,
+  //      bool isExactInput,
+  //      address receiverAddress,
+  //      bool refundEthToReceiver,
+  //      address refundAddress
+  //  )
+  //      external
+  //      payable
+  //      override
+  //  {
+  //      MpContext memory ctx = getContext(forcePushArgs);
+  //      uint[] memory currentPrices = getQuotedSum(assetsToSwap);
+
+  //      ctx.calculateTotalSupplyDelta(isExactInput);
+
+  //      for (uint i; i < assetsToSwap.length; ++i) {
+  //          address assetAddress = assetsToSwap[i].assetAddress;
+  //          int suppliedAmount = assetsToSwap[i].amount;
+  //          uint price = currentPrices[i];
+
+  //          MpAsset memory asset;
+  //          if (assetAddress != address(this)) {
+  //              asset = assets[assetAddress];
+  //          }
+
+  //          if (isExactInput && suppliedAmount < 0) {
+  //              int amount =
+  //                  int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
+  //              if (amount > suppliedAmount) revert SleepageExceeded();
+  //              suppliedAmount = amount;
+  //          } else if (!isExactInput && suppliedAmount > 0) {
+  //              int amount =
+  //                  int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
+  //              if (amount > suppliedAmount) revert SleepageExceeded();
+  //              suppliedAmount = amount;
+  //          }
+
+  //          if (suppliedAmount > 0) {
+  //              receiveAsset(asset, assetAddress, uint(suppliedAmount), refundAddress);
+  //          } else {
+  //              transferAsset(assetAddress, uint(-suppliedAmount), receiverAddress);
+  //          }
+
+  //          if (assetAddress != address(this)) {
+  //              ctx.calculateDeviationFee(asset, suppliedAmount, price);
+  //              assets[assetAddress] = asset;
+  //              emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
+  //          } else {
+  //              emit AssetChange(address(this), totalSupply(), 0);
+  //          }
+  //      }
+
+  //      ctx.calculateBaseFee(isExactInput);
+  //      ctx.applyCollected(refundEthToReceiver ? payable(receiverAddress) : payable(refundAddress));
+
+  //      payable(ctx.managementFeeRecepient).transfer(ctx.collectedManagementFees);
+  //      IStaker(ctx.oracleAddress).commitPrice{value: ctx.collectedOracleFees}(forcePushArgs);
+  //      emit Swapped(ctx.collectedManagementFees, ctx.collectedOracleFees);
+  //  }
+
+    /// @inheritdoc IMultipoolMethods
+  //  function checkSwap(
+  //      ForcePushArgs calldata forcePushArgs,
+  //      AssetArgs[] calldata assetsToSwap,
+  //      bool isExactInput
+  //  )
+  //      external
+  //      view
+  //      override
+  //      returns (int fee, int[] memory amounts)
+  //  {
+  //      (uint[] memory currentPrices, uint quotedSum) = getQuotedSum(assetsToSwap);
+  //      MpContext memory ctx = getContext(forcePushArgs, quotedSum);
+
+  //      amounts = new int[](assetsToSwap.length);
+  //      ctx.calculateTotalSupplyDelta(isExactInput);
+
+  //      for (uint i; i < assetsToSwap.length; ++i) {
+  //          address assetAddress = assetsToSwap[i].assetAddress;
+  //          int suppliedAmount = assetsToSwap[i].amount;
+  //          uint price = currentPrices[i];
+
+  //          MpAsset memory asset;
+  //          if (assetAddress != address(this)) {
+  //              asset = assets[assetAddress];
+  //          }
+
+  //          if (isExactInput && suppliedAmount < 0) {
+  //              int amount =
+  //                  int(ctx.cummulativeInAmount) * suppliedAmount / int(ctx.cummulativeOutAmount);
+  //              suppliedAmount = amount;
+  //          } else if (!isExactInput && suppliedAmount > 0) {
+  //              int amount =
+  //                  int(ctx.cummulativeOutAmount) * suppliedAmount / int(ctx.cummulativeInAmount);
+  //              suppliedAmount = amount;
+  //          }
+
+  //          if (assetAddress != address(this)) {
+  //              ctx.calculateDeviationFee(asset, suppliedAmount, price);
+  //          }
+  //          amounts[i] = suppliedAmount;
+  //      }
+  //      ctx.calculateBaseFee(isExactInput);
+  //      fee = -ctx.unusedEthBalance;
+  //  }
 
     /// @inheritdoc IMultipoolMethods
     function increaseCashback(address assetAddress)

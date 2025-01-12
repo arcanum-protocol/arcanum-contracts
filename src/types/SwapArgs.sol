@@ -6,7 +6,7 @@ struct AssetArgs {
     // Multipool asset address
     address assetAddress;
     // Negative for token out, positive for token in
-    int amount;
+    uint amount;
 }
 
 // Struct that provides overriding of price called force push

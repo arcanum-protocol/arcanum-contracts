@@ -100,31 +100,31 @@ contract MultipoolRouter is Ownable {
         }
     }
 
-    function swap(
-        address poolAddress,
-        SwapArgs calldata swapArgs,
-        Call[] calldata paramsBefore,
-        Call[] calldata paramsAfter
-    )
-        external
-        payable
-    {
-        for (uint i; i < paramsBefore.length; ++i) {
-            processCall(paramsBefore[i], i, true);
-        }
+   // function swap(
+   //     address poolAddress,
+   //     SwapArgs calldata swapArgs,
+   //     Call[] calldata paramsBefore,
+   //     Call[] calldata paramsAfter
+   // )
+   //     external
+   //     payable
+   // {
+   //     for (uint i; i < paramsBefore.length; ++i) {
+   //         processCall(paramsBefore[i], i, true);
+   //     }
 
-        if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
-        Multipool(poolAddress).swap{value: swapArgs.ethValue}(
-            swapArgs.forcePushArgs,
-            swapArgs.assetsToSwap,
-            swapArgs.isExactInput,
-            swapArgs.receiverAddress,
-            swapArgs.refundEthToReceiver,
-            swapArgs.refundAddress
-        );
+   //     if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
+   //     Multipool(poolAddress).swap{value: swapArgs.ethValue}(
+   //         swapArgs.forcePushArgs,
+   //         swapArgs.assetsToSwap,
+   //         swapArgs.isExactInput,
+   //         swapArgs.receiverAddress,
+   //         swapArgs.refundEthToReceiver,
+   //         swapArgs.refundAddress
+   //     );
 
-        for (uint i; i < paramsAfter.length; ++i) {
-            processCall(paramsAfter[i], i, false);
-        }
-    }
+   //     for (uint i; i < paramsAfter.length; ++i) {
+   //         processCall(paramsAfter[i], i, false);
+   //     }
+   // }
 }
