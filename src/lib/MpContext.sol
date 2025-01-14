@@ -58,16 +58,6 @@ library ContextMath {
         }
     }
 
-   // function calculateBaseFee(MpContext memory ctx, bool isExactInput) internal pure {
-   //     uint quoteValue = isExactInput ? ctx.cummulativeInAmount : ctx.cummulativeOutAmount;
-   //     uint newCollectedFee = (quoteValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
-   //     ctx.unusedEthBalance -= int(newCollectedFee);
-   //     uint newCollectedManagementFees =
-   //         newCollectedFee * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
-   //     ctx.collectedOracleFees += newCollectedFee - newCollectedManagementFees;
-   //     ctx.collectedManagementFees += newCollectedManagementFees;
-   // }
-
     function applyCollected(
         MpContext memory ctx, 
         uint quoteTradeValue, 

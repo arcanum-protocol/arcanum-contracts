@@ -7,42 +7,6 @@ import {ForcePushArgs, AssetArgs} from "../../types/SwapArgs.sol";
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
 
-    /// @notice Gets the information about storage slot1 containing fee info
-    /// @return _halfDeviationFee curve parameter determines fee in middle of deviation limit
-    /// @return _deviationLimit curve parameter that shows maximum deviation changes that may be made
-    /// by callers
-    /// @return _depegBaseFee parameter that shows ratio of value taken from deviation fee as base fee
-    /// @return _baseFee parameter that shows ratio of value taken from each operation quote value
-    /// @return _managementFeeRecepientAddress address to send management fees to
-    /// @return _managementFee parameter that shows ratio of value that is taken from base fee
-    /// as management fee
-    /// @return _totalTargetShares parameter that determines total target share denominator
-    /// @dev Fetches data by reading a single memory slot
-    function slot1()
-        external
-        view
-        returns (
-            uint16 _halfDeviationFee,
-            uint16 _deviationLimit,
-            uint16 _depegBaseFee,
-            uint16 _baseFee,
-            address _managementFeeRecepientAddress,
-            uint16 _managementFee,
-            uint16 _totalTargetShares
-        );
-
-    /// @notice Gets the information about storage slot2 containing multipool price info
-    /// @return _priceVerifierAddress Address of contract that verifies price
-    /// @return _initialSharePrice Price that is used when contract's total supply is zero
-    /// @dev Fetches data by reading a single slot
-    function slot2()
-        external
-        view
-        returns (
-            address _priceVerifierAddress,
-            uint96 _initialSharePrice
-        );
-
     /// @notice Gets price feed data
     /// @param asset Asset for wich to get price feed
     /// @return priceFeed Returns price feed data
