@@ -20,9 +20,9 @@ struct MpContext {
     int totalSupplyDelta;
 
     uint totalTargetShares;
-    uint deviationParam;
+    uint deviationIncreaseFee;
     uint deviationLimit;
-    uint depegBaseFee;
+    uint cashbackFeeShare;
     uint baseFee;
     uint managementBaseFee;
 
@@ -107,10 +107,8 @@ library ContextMath {
         if (dNew > dOld && ctx.oldTotalSupply != 0) {
             if (targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
             if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
-            uint fullDeviationFee = (
-                ctx.deviationParam * dNew * quotedDelta / (ctx.deviationLimit - dNew)
-            ) >> FixedPoint32.RESOLUTION;
-            uint collectedFees = (fullDeviationFee * ctx.depegBaseFee) >> FixedPoint32.RESOLUTION;
+            uint fullDeviationFee = (ctx.deviationIncreaseFee * quotedDelta) >> FixedPoint32.RESOLUTION;
+            uint collectedFees = (fullDeviationFee * ctx.cashbackFeeShare) >> FixedPoint32.RESOLUTION;
 
             asset.collectedCashbacks += uint112(fullDeviationFee - collectedFees);
             ctx.collectedFees = collectedFees;

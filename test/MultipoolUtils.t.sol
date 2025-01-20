@@ -160,21 +160,20 @@ contract MultipoolUtils is Test {
         mp.toggleStrategyManager(owner);
 
         mp.updateTargetShares(assets, shares);
+        vm.deal(owner, 1e18);
 
-        AssetArgs[] memory args = new AssetArgs[](5);
         for (uint i = 0; i < assets.length; i++) {
             uint val = (quoteValues[i] << 96) / prices[i];
             updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(prices[i])));
-            tokens[i].mint(address(mp), val + 100000000);
-            args[i] = AssetArgs(address(tokens[i]), val);
+            tokens[i].mint(address(mp), val);
+            ForcePushArgs memory fp;
+            mp.swap{value: 1e18}(fp, address(tokens[i]), address(mp), val, true, owner, true);
         }
 
         // insert adapter for token0 here
-       // address priceAdapter10 = address(new AbstractFixedValueOracle(p[0]));
-       // updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
+        address priceAdapter10 = address(new AbstractFixedValueOracle(prices[0]));
+        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
 
-        vm.deal(owner, 1e18);
-        mint(args, 1e18, owner, false);
         mp.setFeeParams(
             toX16RatioTick(0.15e5), 
             toX16RatioTick(0.0003e5), 
@@ -192,30 +191,6 @@ contract MultipoolUtils is Test {
         uint128 ts;
     }
 
-    function mint(
-        AssetArgs[] memory assets,
-        uint attachedEthFee,
-        address to,
-        bool refundEthToReceiver
-    )
-        public
-    {
-        ForcePushArgs memory fp;
-        mp.mint{value: attachedEthFee}(fp, assets, to, refundEthToReceiver);
-    }
-
-    function burn(
-        AssetArgs[] memory assets,
-        uint attachedEthFee,
-        address to,
-        bool refundEthToReceiver
-    )
-        public
-    {
-        ForcePushArgs memory fp;
-        mp.burn{value: attachedEthFee}(fp, assets, to, refundEthToReceiver);
-    }
-
     function swap(
         address sender,
         address assetIn,
@@ -229,18 +204,6 @@ contract MultipoolUtils is Test {
         vm.prank(sender);
         mp.swap{value: 1e18}(fp, assetIn, assetOut, amount, isExactInput, sender, true);
     }
-
-       // ForcePushArgs memory fp;
-       // if (sp.send) {
-       //     fp.contractAddress = address(mp);
-       //     fp.timestamp = sp.ts;
-       //     fp.sharePrice = sp.value;
-       //     bytes32 message = keccak256(
-       //         abi.encodePacked(fp.contractAddress, uint(sp.ts), uint(sp.value), block.chainid)
-       //     ).toEthSignedMessageHash();
-       //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, message);
-       //     fp.signature = abi.encodePacked(r, s, v);
-       // }
 
     function changePrice(address asset, uint price) public {
         vm.startPrank(owner);
@@ -261,8 +224,8 @@ contract MultipoolUtils is Test {
     function setCurveParams(uint16 dl, uint16 hf, uint16 bf, uint16 dbf) public {
         vm.startPrank(owner);
         ForcePushArgs memory s;
-        address managementFeeRecepient = mp.getContext(s, 0).managementFeeRecepient;
-        uint16 managementFee = uint16(mp.getContext(s, 0).managementBaseFee * 1e5 / (5 << 32));
+        address managementFeeRecepient = mp.getContext(s).managementFeeRecepient;
+        uint16 managementFee = uint16(mp.getContext(s).managementBaseFee * 1e5 / (5 << 32));
         mp.setFeeParams(dl, hf, dbf, bf, managementFee, managementFeeRecepient);
         vm.stopPrank();
     }
@@ -319,10 +282,10 @@ contract MultipoolUtils is Test {
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
 
         ForcePushArgs memory fp;
-        MpContext memory ctx = mp.getContext(fp, 0);
-        mpJson = vm.serializeString("multipool", "halfDeviationFee", jsonString(ctx.deviationParam));
+        MpContext memory ctx = mp.getContext(fp);
+        mpJson = vm.serializeString("multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee));
         mpJson = vm.serializeString("multipool", "deviationLimit", jsonString(ctx.deviationLimit));
-        mpJson = vm.serializeString("multipool", "depegBaseFee", jsonString(ctx.depegBaseFee));
+        mpJson = vm.serializeString("multipool", "cashbackFeeShare", jsonString(ctx.cashbackFeeShare));
         mpJson = vm.serializeString("multipool", "baseFee", jsonString(ctx.baseFee));
         mpJson = vm.serializeString("multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient));
         mpJson = vm.serializeString("multipool", "managementFee", jsonString(ctx.managementBaseFee));

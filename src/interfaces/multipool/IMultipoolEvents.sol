@@ -7,7 +7,7 @@ interface IMultipoolEvents {
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
     /// @param collectedCashbacks absolute value of new cashbacks (always 0 for multipool)
-    event AssetChange(address indexed asset, uint quantity, uint128 collectedCashbacks);
+    event AssetChange(address indexed asset, uint128 quantity, uint128 collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
     /// @param newManagementFeeRecepientAddress address to send management fees to
@@ -31,7 +31,7 @@ interface IMultipoolEvents {
     /// @param asset changed target share address asset
     /// @param newTargetShare absolute value of updated target share
     /// @param newTotalTargetShares absolute value of new sum of all target shares
-    event TargetShareChange(address indexed asset, uint newTargetShare, uint newTotalTargetShares);
+    event TargetShareChange(address indexed asset, uint16 newTargetShare, uint16 newTotalTargetShares);
 
     /// @notice Thrown when price feed for an asset got updated
     /// @param targetAsset address of asset wich price feed data is changed
@@ -47,9 +47,11 @@ interface IMultipoolEvents {
     );
 
     /// @notice Thrown every time new fee gets collected
+    /// @param sender the address that invoked the trade
+    /// @param quoteValue the quoted volume of the trade
     /// @param collectedManagementFees shows how much fees are earned for manager
     /// @param collectedOracleFees shows how much fees are earned for oracle
-    event Swapped(uint collectedManagementFees, uint collectedOracleFees);
+    event Trade(address indexed sender, uint128 quoteValue, uint128 collectedManagementFees, uint128 collectedOracleFees);
 
     /// @notice Thrown when price verifier is updated.
     /// @param oldPriceVerifierAddress address of old price verifier contract

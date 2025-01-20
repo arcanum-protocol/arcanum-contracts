@@ -106,7 +106,7 @@ contract Multipool is
     /// @return ctx state memory context used across swapping
     /// @dev tries to apply force pushed share price if provided address matches otherwhise ignores
     /// struct
-    function getContext(ForcePushArgs calldata forcePushArgs, int totalSupplyDelta)
+    function getContext(ForcePushArgs calldata forcePushArgs)
         public
         view
         returns (MpContext memory ctx)
@@ -135,44 +135,14 @@ contract Multipool is
         ctx.totalTargetShares = _totalTargetShares;
         ctx.sharePrice = price;
         ctx.oldTotalSupply = _totalSupply;
-        ctx.totalSupplyDelta = totalSupplyDelta;
-        ctx.deviationParam = _deviationLimit != 0 ? expandToX64(_halfDeviationFee) / expandToX64(_deviationLimit) : 0;
+        ctx.deviationIncreaseFee = _deviationLimit != 0 ? expandToX64(_halfDeviationFee) / expandToX64(_deviationLimit) : 0;
         ctx.deviationLimit = expandToX64(_deviationLimit);
-        ctx.depegBaseFee = expandToX64(_depegBaseFee);
+        ctx.cashbackFeeShare = expandToX64(_depegBaseFee);
         ctx.baseFee = expandToX64(_baseFee);
         ctx.managementBaseFee = expandToX64(_managementFee);
 
         ctx.managementFeeRecepient = _managementFeeRecepientAddress;
         ctx.oracleAddress = _priceVerifierAddress;
-    }
-
-    /// @notice Assembles context for swappping
-    /// @return fetchedPrices Array of prices per each supplied asset
-    /// @dev Also checks that assets are unique via asserting that they are sorted and each element
-    /// address is stricly bigger
-    function getQuotedSum(AssetArgs[] memory selectedAssets)
-        internal
-        view
-        returns (uint[] memory fetchedPrices, uint quotedSum)
-    {
-        uint arrayLen = selectedAssets.length;
-        //address prevAddress = address(0);
-        fetchedPrices = new uint[](arrayLen);
-        for (uint i; i < arrayLen;) {
-            address assetAddress = selectedAssets[i].assetAddress;
-            uint amount = selectedAssets[i].amount;
-
-            // nesessary? 
-            //if (prevAddress >= assetAddress) revert AssetsNotSortedOrNotUnique();
-            //prevAddress = assetAddress;
-
-            uint price = prices[assetAddress].getPrice();
-            fetchedPrices[i] = price;
-
-            if (amount == 0) revert ZeroAmountSupplied();
-            quotedSum += price * amount >> FixedPoint96.RESOLUTION; 
-            unchecked { ++i; }
-        }
     }
 
     /// @notice Proceeses asset transfer
@@ -237,7 +207,7 @@ contract Multipool is
         } else {
             payable(ctx.managementFeeRecepient).transfer(managerEarnedFee + oracleEarnedFee);
         }
-        emit Swapped(managerEarnedFee, oracleEarnedFee);
+        emit Trade(msg.sender, uint128(quoteAmount), uint128(managerEarnedFee), uint128(oracleEarnedFee));
     }
 
     function swap(
@@ -252,102 +222,64 @@ contract Multipool is
         external
         payable
     {
-        //nesessary? 
-        if (assetInAddress == address(this)) revert();
-        if (assetOutAddress == address(this)) revert();
-        if (assetOutAddress == assetInAddress) revert();
+        if (assetOutAddress == assetInAddress) revert AssetsAreSame();
 
-        MpContext memory ctx = getContext(forcePushArgs, 0);
-        MpAsset memory assetIn = assets[assetInAddress];
-        MpAsset memory assetOut = assets[assetOutAddress];
+        MpContext memory ctx; 
+        MpAsset memory assetIn; 
+        MpAsset memory assetOut; 
 
         uint amountIn; uint amountOut; uint quoteAmount;
 
         {{
-            uint priceIn = prices[assetInAddress].getPrice();
-            uint priceOut = prices[assetOutAddress].getPrice();
+            if (assetInAddress == address(this)) {
+                ctx = getContext(forcePushArgs);
+                assetOut = assets[assetOutAddress];
+            } else if (assetOutAddress == address(this)) {
+                ctx = getContext(forcePushArgs);
+                assetIn = assets[assetInAddress];
+            } else {
+                assetIn = assets[assetInAddress];
+                assetOut = assets[assetOutAddress];
+                ctx = getContext(forcePushArgs);
+            }
+
+            uint priceIn = assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
+            uint priceOut = assetOutAddress == address(this) ? ctx.sharePrice : prices[assetOutAddress].getPrice();
 
             quoteAmount = swapAmount * (isExactInput ? priceIn : priceOut) >> FixedPoint96.RESOLUTION;
             (amountIn, amountOut) = isExactInput ? 
                 (swapAmount, swapAmount * priceIn / priceOut) :
                 (swapAmount * priceOut / priceIn, swapAmount);
 
-            ctx.calculateDeviationFee(assetIn, int(amountIn), priceIn);
-            ctx.calculateDeviationFee(assetOut, -int(amountOut), priceOut);
+            if (assetInAddress == address(this)) {
+                ctx.totalSupplyDelta = -int(amountIn);
+            } else if (assetOutAddress == address(this)) {
+                ctx.totalSupplyDelta = int(amountOut);
+            }
 
             receiveAsset(assetIn, assetInAddress, amountIn, address(0));
             transferAsset(assetOutAddress, amountOut, receiverAddress);
+
+            if (assetInAddress != address(this)) ctx.calculateDeviationFee(assetIn, int(amountIn), priceIn);
+            if (assetOutAddress != address(this)) ctx.calculateDeviationFee(assetOut, -int(amountOut), priceOut);
         }}
 
-        assets[assetInAddress] = assetIn;
-        assets[assetOutAddress] = assetOut;
-        emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-        emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
+        if (assetInAddress == address(this)) {
+            assets[assetOutAddress] = assetOut;
+            emit AssetChange(assetInAddress, uint128(totalSupply()), 0);
+            emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
+        } else if (assetOutAddress == address(this)) {
+            assets[assetInAddress] = assetIn;
+            emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+            emit AssetChange(assetOutAddress, uint128(totalSupply()), 0);
+        } else {
+            assets[assetInAddress] = assetIn;
+            assets[assetOutAddress] = assetOut;
+            emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+            emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
+        }
 
         transferFees(ctx, forcePushArgs, quoteAmount, receiverAddress, refundEthToReceiver);
-    }
-
-    function mint(
-        ForcePushArgs calldata forcePushArgs,
-        AssetArgs[] calldata assetsToSwap,
-        address receiverAddress,
-        bool refundEthToReceiver
-    )
-        external
-        payable
-    {
-        (uint[] memory currentPrices, uint quotedSum) = getQuotedSum(assetsToSwap);
-        MpContext memory ctx = getContext(forcePushArgs, int(quotedSum));
-
-        uint assetsLength = assetsToSwap.length;
-        for (uint i; i < assetsLength;) {
-            address assetAddress = assetsToSwap[i].assetAddress;
-            uint suppliedAmount = assetsToSwap[i].amount;
-            uint price = currentPrices[i];
-            MpAsset memory asset = assets[assetAddress];
-
-            receiveAsset(asset, assetAddress, suppliedAmount, address(0));
-            ctx.calculateDeviationFee(asset, int(suppliedAmount), price);
-            assets[assetAddress] = asset;
-            emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
-            unchecked { ++i; }
-        }
-
-        transferAsset(address(this), quotedSum << FixedPoint96.RESOLUTION / ctx.sharePrice, receiverAddress);
-        emit AssetChange(address(this), totalSupply(), 0);
-        transferFees(ctx,forcePushArgs, quotedSum, receiverAddress, refundEthToReceiver);
-    }
-
-    function burn(
-        ForcePushArgs calldata forcePushArgs,
-        AssetArgs[] calldata assetsToSwap,
-        address receiverAddress,
-        bool refundEthToReceiver
-    )
-        external
-        payable
-    {
-        (uint[] memory currentPrices, uint quotedSum) = getQuotedSum(assetsToSwap);
-        MpContext memory ctx = getContext(forcePushArgs, -int(quotedSum));
-
-        uint assetsLength = assetsToSwap.length;
-        for (uint i; i < assetsLength;) {
-            address assetAddress = assetsToSwap[i].assetAddress;
-            uint suppliedAmount = assetsToSwap[i].amount;
-            uint price = currentPrices[i];
-            MpAsset memory asset = assets[assetAddress];
-
-            transferAsset(assetAddress, suppliedAmount, receiverAddress);
-            ctx.calculateDeviationFee(asset, -int(suppliedAmount), price);
-            assets[assetAddress] = asset;
-            emit AssetChange(assetAddress, asset.quantity, asset.collectedCashbacks);
-            unchecked { ++i; }
-        }
-
-        MpAsset memory empty;
-        receiveAsset(empty, address(this), quotedSum << FixedPoint96.RESOLUTION / ctx.sharePrice, address(0));
-        emit AssetChange(address(this), totalSupply(), 0);
-        transferFees(ctx,forcePushArgs, quotedSum, receiverAddress, refundEthToReceiver);
     }
 
     /// @inheritdoc IMultipoolMethods
