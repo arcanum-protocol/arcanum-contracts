@@ -45,7 +45,6 @@ contract Trader {
         bool zeroForOneIn;
         IUniswapV3Pool poolOut;
         bool zeroForOneOut;
-        uint multipoolSleepage;
         uint multipoolFee;
         Multipool multipool;
         ForcePushArgs fp;
@@ -72,41 +71,26 @@ contract Trader {
             uint amountToPay = amount0Delta > 0 ? uint(amount0Delta) : uint(amount1Delta);
             weth.transfer(msg.sender, amountToPay);
 
-            int amount;
+            uint amount;
             if (args.tokenIn != args.multipoolTokenIn) {
                 args.tokenIn.transfer(address(args.firstCall.wrapper), args.tmpAmount);
-                amount = int(
-                    args.firstCall.wrapper.wrap(
+                amount = args.firstCall.wrapper.wrap(
                         args.tmpAmount, address(args.multipool), args.firstCall.data
-                    )
-                );
+                    );
             } else {
                 args.tokenIn.transfer(address(args.multipool), args.tmpAmount);
-                amount = int(args.tmpAmount);
+                amount = args.tmpAmount;
             }
 
-          //  AssetArgs[] memory assetArgs = new AssetArgs[](2);
-          //  if (args.multipoolTokenIn < args.multipoolTokenOut) {
-          //      assetArgs[0] =
-          //          AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
-          //      assetArgs[1] = AssetArgs({
-          //          assetAddress: address(args.multipoolTokenOut),
-          //          amount: uint(args.multipoolSleepage)
-          //      });
-          //  } else {
-          //      assetArgs[1] =
-          //          AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
-          //      assetArgs[0] = AssetArgs({
-          //          assetAddress: address(args.multipoolTokenOut),
-          //          amount: uint(args.multipoolSleepage)
-          //      });
-          //  }
-
-          //  args.multipool.swap{value: args.multipoolFee}(
-          //      args.fp, assetArgs, true, address(this), false, address(this)
-          //  );
-
-            uint amountOut = args.multipoolTokenOut.balanceOf(address(this));
+            (,uint amountOut) = args.multipool.swap{value: args.multipoolFee}(
+                args.fp,
+                address(args.multipoolTokenIn), 
+                address(args.multipoolTokenOut),
+                amount,
+                true, 
+                address(this), 
+                true
+            );
 
             if (args.tokenOut != args.multipoolTokenOut) {
                 args.multipoolTokenOut.transfer(address(args.secondCall.wrapper), amountOut);

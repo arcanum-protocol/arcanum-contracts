@@ -221,6 +221,7 @@ contract Multipool is
     )
         external
         payable
+        returns (uint amountIn, uint amountOut)
     {
         if (assetOutAddress == assetInAddress) revert AssetsAreSame();
 
@@ -228,7 +229,7 @@ contract Multipool is
         MpAsset memory assetIn; 
         MpAsset memory assetOut; 
 
-        uint amountIn; uint amountOut; uint quoteAmount;
+        uint quoteAmount;
 
         {{
             if (assetInAddress == address(this)) {
