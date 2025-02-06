@@ -7,9 +7,8 @@ import "../src/cashback-vault/CashbackVault.sol";
 import "../src/tokens/points.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
-import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract MigrateCashbackVault is Script {
     function run() external {

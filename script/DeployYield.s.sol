@@ -6,9 +6,8 @@ import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import "../src/multipool/SiloAdapter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
-import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, sort, vec, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract MigrateYieldAdapter is Script {
     function run() external {
@@ -38,26 +37,26 @@ contract MintYield is Script {
         ERC20(asset).transfer(address(yield), 29135778);
 
         ForcePushArgs memory fp;
-        MultipoolRouter.SwapArgs memory ar = MultipoolRouter.SwapArgs({
-            forcePushArgs: fp,
-            assetsToSwap: sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(asset), amount: int(29135778)}),
-                        AssetArgs({assetAddress: address(yield), amount: -1e10})
-                    ]
-                )
-            ),
-            isExactInput: true,
-            refundAddress: deployerPublicKey,
-            refundEthToReceiver: true,
-            receiverAddress: deployerPublicKey,
-            ethValue: 0.1e18
-        });
+        // MultipoolRouter.SwapArgs memory ar = MultipoolRouter.SwapArgs({
+        //     forcePushArgs: fp,
+        //     assetsToSwap: sort(
+        //         vec(
+        //             [
+        //                 AssetArgs({assetAddress: address(asset), amount: int(29135778)}),
+        //                 AssetArgs({assetAddress: address(yield), amount: -1e10})
+        //             ]
+        //         )
+        //     ),
+        //     isExactInput: true,
+        //     refundAddress: deployerPublicKey,
+        //     refundEthToReceiver: true,
+        //     receiverAddress: deployerPublicKey,
+        //     ethValue: 0.1e18
+        // });
 
         MultipoolRouter.Call[] memory params;
 
-        router.swap{value: 0.1e18}(address(yield), ar, params, params);
+        // router.swap{value: 0.1e18}(address(yield), ar, params, params);
         console.log(yield.balanceOf(deployerPublicKey));
         vm.stopBroadcast();
     }
@@ -85,12 +84,12 @@ contract UpdateYieldPrices is Script {
         address siloAdapter = address(0x5F127Aedf5A31E2F2685E49618D4f4809205fd62);
 
         bytes[] memory feedData = new bytes[](4);
-        feedData[0] = abi.encode(address(siloAdapter), uint256(0));
-        feedData[1] = abi.encode(address(siloAdapter), uint256(1));
-        feedData[2] = abi.encode(address(siloAdapter), uint256(2));
-        feedData[3] = abi.encode(address(siloAdapter), uint256(3));
+        feedData[0] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(0));
+        feedData[1] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(1));
+        feedData[2] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(2));
+        feedData[3] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(3));
 
-        yield.updatePrices(tokenAddresses, feedTypes, feedData);
+        // yield.updatePrices(tokenAddresses, feedData);
         vm.stopBroadcast();
     }
 }
@@ -136,10 +135,10 @@ contract DeployYield is Script {
         address siloAdapter = address(0xe20e7B352283b8735D85C9138b02d33016370635);
 
         bytes[] memory feedData = new bytes[](4);
-        feedData[0] = abi.encode(address(siloAdapter), uint256(0));
-        feedData[1] = abi.encode(address(siloAdapter), uint256(1));
-        feedData[2] = abi.encode(address(siloAdapter), uint256(2));
-        feedData[3] = abi.encode(address(siloAdapter), uint256(3));
+        feedData[0] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(0));
+        feedData[1] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(1));
+        feedData[2] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(2));
+        feedData[3] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(3));
 
         uint16[] memory targetShares = new uint16[](4);
         targetShares[0] = 100;
@@ -147,7 +146,7 @@ contract DeployYield is Script {
         targetShares[2] = 100;
         targetShares[3] = 100;
 
-        mp.updatePrices(tokenAddresses, feedTypes, feedData);
+        // mp.updatePrices(tokenAddresses, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
        // mp.setFeeParams(
@@ -182,21 +181,21 @@ contract DeploySiloAdapter is Script {
 
         address usdc = address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
 
-        FeedInfo memory baseFeed = FeedInfo({
-            kind: FeedType.UniV3,
-            data: abi.encode(
-                UniV3Feed({
-                    oracle: address(0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443),
-                    reversed: true,
-                    twapInterval: 60
-                })
-            )
-        });
+        // FeedInfo memory baseFeed = FeedInfo({
+        //     kind: FeedType.UniV3,
+        //     data: abi.encode(
+        //         UniV3Feed({
+        //             oracle: address(0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443),
+        //             reversed: true,
+        //             twapInterval: 60
+        //         })
+        //     )
+        // });
 
-        siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0), baseFeed);
-        siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), baseFeed);
-        siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81), baseFeed);
-        siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F), baseFeed);
 
         vm.stopBroadcast();
     }
@@ -212,21 +211,21 @@ contract AddSiloAdapterPrices is Script {
 
         address usdc = address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
 
-        FeedInfo memory baseFeed = FeedInfo({
-            kind: FeedType.UniV3,
-            data: abi.encode(
-                UniV3Feed({
-                    oracle: address(0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443),
-                    reversed: false,
-                    twapInterval: 60
-                })
-            )
-        });
+        // FeedInfo memory baseFeed = FeedInfo({
+        //     kind: FeedType.UniV3,
+        //     data: abi.encode(
+        //         UniV3Feed({
+        //             oracle: address(0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443),
+        //             reversed: false,
+        //             twapInterval: 60
+        //         })
+        //     )
+        // });
 
-        siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0), baseFeed);
-        siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), baseFeed);
-        siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81), baseFeed);
-        siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F), baseFeed);
 
         Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
 
@@ -243,12 +242,12 @@ contract AddSiloAdapterPrices is Script {
         feedTypes[3] = FeedType.Adapter;
 
         bytes[] memory feedData = new bytes[](4);
-        feedData[0] = abi.encode(address(siloAdapter), uint256(4));
-        feedData[1] = abi.encode(address(siloAdapter), uint256(5));
-        feedData[2] = abi.encode(address(siloAdapter), uint256(6));
-        feedData[3] = abi.encode(address(siloAdapter), uint256(7));
+        feedData[0] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(4));
+        feedData[1] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(5));
+        feedData[2] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(6));
+        feedData[3] = abi.encodePacked(FeedType.Adapter, address(siloAdapter), uint256(7));
 
-        yield.updatePrices(tokenAddresses, feedTypes, feedData);
+        // yield.updatePrices(tokenAddresses, feedData);
 
         vm.stopBroadcast();
     }

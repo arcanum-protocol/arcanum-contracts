@@ -5,9 +5,8 @@ import "forge-std/Script.sol";
 import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
-import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract RemoveAssetQuantity is Script {
     function run() external {
@@ -112,48 +111,48 @@ contract DeployArbi is Script {
         feedTypes[5] = FeedType.UniV3;
 
         bytes[] memory feedData = new bytes[](6);
-        feedData[0] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x1aEEdD3727A6431b8F070C0aFaA81Cc74f273882),
-                reversed: true,
-                twapInterval: 60
-            })
-        );
-        feedData[1] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
-        feedData[2] = abi.encode(
-            UniV3Feed({
-                oracle: address(0xd3E11119d2680c963F1CDCffeCe0c4adE823Fb58),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
-        feedData[3] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x1eE25aDA6ee9Aa7B2c56d05DAb5Be476752605Fd),
-                reversed: true,
-                twapInterval: 60
-            })
-        );
-        feedData[4] = abi.encode(
-            UniV3Feed({
-                oracle: address(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
-        feedData[5] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x4d834a9b910E6392460eBcfB59F8EEf27D5c19Ff),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
+        // feedData[0] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x1aEEdD3727A6431b8F070C0aFaA81Cc74f273882),
+        //         reversed: true,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[1] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
+        //         reversed: false,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[2] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0xd3E11119d2680c963F1CDCffeCe0c4adE823Fb58),
+        //         reversed: false,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[3] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x1eE25aDA6ee9Aa7B2c56d05DAb5Be476752605Fd),
+        //         reversed: true,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[4] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
+        //         reversed: false,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[5] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x4d834a9b910E6392460eBcfB59F8EEf27D5c19Ff),
+        //         reversed: false,
+        //         twapInterval: 60
+        //     })
+        // );
 
         uint16[] memory targetShares = new uint16[](6);
         targetShares[0] = 2000;
@@ -163,7 +162,7 @@ contract DeployArbi is Script {
         targetShares[4] = 264;
         targetShares[5] = 448;
 
-        mp.updatePrices(tokenAddresses, feedTypes, feedData);
+        // mp.updatePrices(tokenAddresses, feedTypes, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
         //mp.setFeeParams(

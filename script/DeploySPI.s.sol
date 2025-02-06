@@ -5,9 +5,8 @@ import "forge-std/Script.sol";
 import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
-import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract DeploySpi is Script {
     function run() external {
@@ -44,34 +43,34 @@ contract DeploySpi is Script {
         feedTypes[2] = FeedType.UniV3;
 
         bytes[] memory feedData = new bytes[](3);
-        feedData[0] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x2f5e87C9312fa29aed5c179E456625D79015299c),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
-        feedData[1] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x641C00A822e8b671738d32a431a4Fb6074E5c79d),
-                reversed: true,
-                twapInterval: 60
-            })
-        );
-        feedData[2] = abi.encode(
-            UniV3Feed({
-                oracle: address(0x35218a1cbaC5Bbc3E57fd9Bd38219D37571b3537),
-                reversed: false,
-                twapInterval: 60
-            })
-        );
+        // feedData[0] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x2f5e87C9312fa29aed5c179E456625D79015299c),
+        //         reversed: false,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[1] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x641C00A822e8b671738d32a431a4Fb6074E5c79d),
+        //         reversed: true,
+        //         twapInterval: 60
+        //     })
+        // );
+        // feedData[2] = abi.encode(
+        //     UniV3Feed({
+        //         oracle: address(0x35218a1cbaC5Bbc3E57fd9Bd38219D37571b3537),
+        //         reversed: false,
+        //         twapInterval: 60
+        //     })
+        // );
 
         uint16[] memory targetShares = new uint16[](3);
         targetShares[0] = 48079;
         targetShares[1] = 34299;
         targetShares[2] = 17621;
 
-        mp.updatePrices(tokenAddresses, feedTypes, feedData);
+        // mp.updatePrices(tokenAddresses, feedTypes, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
         //mp.setFeeParams(

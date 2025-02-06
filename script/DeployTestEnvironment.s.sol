@@ -8,9 +8,8 @@ import "../src/farm/Farm.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {Multicall3} from "../src/mocks/multicall.sol";
-import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, toX16, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, toX16, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestEnv is Script {
     function run() external {
@@ -52,15 +51,15 @@ contract DeployTestEnv is Script {
         console.log("mp ", address(mp));
 
         mp.toggleStrategyManager(deployer);
-
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+    
+        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18))));
         MockERC20[] memory tokens = new MockERC20[](5);
         for (uint i; i < tokens.length; i++) {
             salt = keccak256(abi.encode("chapa chapa", "token", i));
             tokens[i] = new MockERC20{salt: salt}("token", "token", 0);
             tokens[i].mint(deployer, 100e18);
             uint price = toX96((i + 1) * 0.01e18);
-            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(price));
+            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint64(price)));
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
             uint16[] memory am = new uint16[](1);

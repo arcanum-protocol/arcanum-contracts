@@ -108,21 +108,22 @@ contract MultipoolPriceFetching is Test {
 
         Trader.Args memory args = Trader.Args({
             tokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
-            multipoolTokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
-            zeroForOneIn: false,
             tokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
+            multipoolTokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
             multipoolTokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
-            zeroForOneOut: true,
-            // magic/eth 3000 0x59d72ddb29da32847a4665d08ffc8464a7185fae
-            // magic/eth 10000 0x7e7fb3cceca5f2ac952edf221fd2a9f62e411980
-            poolIn: IUniswapV3Pool(0x59D72DDB29Da32847A4665d08ffc8464A7185FAE),
-            // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
-            // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
-            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
+            firstCall: c,
+            secondCall: c,
             tmpAmount: 2902027515851877489,
-            multipoolSleepage: 10000,
+            poolIn: IUniswapV3Pool(0x59D72DDB29Da32847A4665d08ffc8464A7185FAE),
+            zeroForOneIn: false,
+            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
+            zeroForOneOut: true,
             multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
+            // magic/eth 3000 0x59d72ddb29da32847a4665d08ffc8464a7185fae
+            // magic/eth 10000 0x7e7fb3cceca5f2ac952edf221fd2a9f62e411980
+            // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
+            // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
             fp: ForcePushArgs({
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
                 timestamp: 1704676035,
@@ -133,9 +134,7 @@ contract MultipoolPriceFetching is Test {
             gasLimit: 600000,
             weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
             cashback: ICashbackVault(address(0)),
-            assets: assets,
-            firstCall: c,
-            secondCall: c
+            assets: assets
         });
         vm.warp(1704676035);
         //vm.expectRevert("no profit");
@@ -152,18 +151,18 @@ contract MultipoolPriceFetching is Test {
         Trader.Call memory c;
         Trader.Args memory args = Trader.Args({
             tokenIn: IERC20(0x3082CC23568eA640225c2467653dB90e9250AaA0),
-            multipoolTokenIn: IERC20(0x3082CC23568eA640225c2467653dB90e9250AaA0),
-            zeroForOneIn: false,
             tokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
+            multipoolTokenIn: IERC20(0x3082CC23568eA640225c2467653dB90e9250AaA0),
             multipoolTokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
-            zeroForOneOut: true,
+            firstCall: c,
+            secondCall: c,
+            tmpAmount: 235459495774334240,
             poolIn: IUniswapV3Pool(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
+            zeroForOneIn: false,
+            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
+            zeroForOneOut: true,
             // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
             // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
-            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
-            tmpAmount: 235459495774334240,
-            multipoolSleepage: 10000,
-            multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
             fp: ForcePushArgs({
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
@@ -176,8 +175,7 @@ contract MultipoolPriceFetching is Test {
             weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
             cashback: ICashbackVault(address(0)),
             assets: assets,
-            firstCall: c,
-            secondCall: c
+            multipoolFee: 1000000000000000
         });
         vm.warp(1704728497);
         //vm.expectRevert("no profit");
