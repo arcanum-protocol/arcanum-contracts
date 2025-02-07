@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
-// Multipool can't be understood by your mind, only by your heart
-// good luck little defi explorer
-// oh, if you wana fork, fuck you
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
