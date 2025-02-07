@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 // Multipool can't be understood by your mind, only by your heart
-// good luck little defi explorer
+// good luck little DeFi explorer
 // oh, if you wana fork, fuck you
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
@@ -9,15 +9,15 @@ import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {MpAsset, MpContext} from "../lib/MpContext.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
-import {FixedPoint96} from "../lib/FixedPoint96.sol";
+import {FixedPoint96} from "../lib/FixedPoint.sol";
 
-import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManagerMethods.sol";
-import {IMultipoolMethods} from "../interfaces/multipool/IMultipoolMethods.sol";
+import {IMultipoolMethods} from "../interfaces/multipool/IMultipoolMethods.sol"; 
+import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManagerMethods.sol"; 
+
 import {IMultipool} from "../interfaces/IMultipool.sol";
 
-import {IStaker} from "../interfaces/IStaker.sol";
-
-import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
+import {IArcanumOracle} from "../interfaces/IArcanumOracle.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
@@ -37,23 +37,23 @@ contract Multipool is
     using SafeERC20 for IERC20;
     using {PriceMath.getPrice} for bytes32;
 
-    // slot 354
-    uint16 internal halfDeviationFee;
+    // Slot 354
+    uint16 internal deviationIncreaseFee;
     uint16 internal deviationLimit;
-    uint16 internal depegBaseFee;
+    uint16 internal feeToCashbackRatio;
     uint16 internal baseFee;
-    address internal managementFeeRecepientAddress;
+    address internal managementFeeRecepient;
     uint16 internal managementFee;
     uint16 internal totalTargetShares;
 
-    // slot 355
-    address internal priceVerifierAddress;
+    // Slot 355
+    address internal oracleAddress;
     uint96 internal initialSharePrice;
 
     mapping(address => MpAsset) internal assets;
     mapping(address => bytes32) internal prices;
 
-    mapping(address => bool) public isTargetShareSetter;
+    mapping(address => bool) public isStrategyManager;
 
     constructor() {
         _disableInitializers();
@@ -62,7 +62,7 @@ contract Multipool is
     function initialize(
         string memory name,
         string memory symbol,
-        address _priceVerifierAddress,
+        address _oracleAddress,
         uint96 _sharePrice
     )
         public
@@ -71,8 +71,9 @@ contract Multipool is
         __ERC20_init(name, symbol);
         __ERC20Permit_init(name);
         __Ownable_init();
-        priceVerifierAddress = _priceVerifierAddress;
+        oracleAddress = _oracleAddress;
         initialSharePrice = _sharePrice;
+        emit PriceOracleUpdated(oracleAddress, _oracleAddress);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -102,47 +103,47 @@ contract Multipool is
     }
 
     /// @notice Assembles context for swappping
-    /// @param forcePushArgs price force push related data
+    /// @param oraclePrice signed multipool price related data
     /// @return ctx state memory context used across swapping
-    /// @dev tries to apply force pushed share price if provided address matches otherwhise ignores
+    /// @dev tries to apply signed share price if provided address matches otherwhise ignores
     /// struct
-    function getContext(ForcePushArgs calldata forcePushArgs)
+    function getContext(OraclePrice calldata oraclePrice)
         public
         view
         returns (MpContext memory ctx)
     {
         uint _totalSupply = totalSupply();
 
-        uint16 _halfDeviationFee = halfDeviationFee;
+        uint16 _deviationIncreaseFee = deviationIncreaseFee;
         uint16 _deviationLimit = deviationLimit;
-        uint16 _depegBaseFee = depegBaseFee;
+        uint16 _feeToCashbackRatio = feeToCashbackRatio;
         uint16 _baseFee = baseFee;
-        address _managementFeeRecepientAddress = managementFeeRecepientAddress;
+        address _managementFeeRecepient = managementFeeRecepient;
         uint16 _managementFee = managementFee;
         uint16 _totalTargetShares = totalTargetShares;
 
-        address _priceVerifierAddress = priceVerifierAddress;
+        address _oracleAddress = oracleAddress;
         uint96 _initialSharePrice = initialSharePrice;
 
         uint price;
-        if (forcePushArgs.contractAddress == address(this)) {
-            price = forcePushArgs.sharePrice;
+        if (oraclePrice.contractAddress == address(this)) {
+            price = oraclePrice.sharePrice;
         } else {
-            // we move initial share price by 64 as it's x32 and prices should be x96
+            // We move initial share price by 64 as it's x32 and prices should be x96
             price = _totalSupply == 0 ? uint(_initialSharePrice) << 64 : prices[address(this)].getPrice();
         }
 
         ctx.totalTargetShares = _totalTargetShares;
         ctx.sharePrice = price;
         ctx.oldTotalSupply = _totalSupply;
-        ctx.deviationIncreaseFee = _deviationLimit != 0 ? expandToX64(_halfDeviationFee) / expandToX64(_deviationLimit) : 0;
+        ctx.deviationIncreaseFee = expandToX64(_deviationIncreaseFee);
         ctx.deviationLimit = expandToX64(_deviationLimit);
-        ctx.cashbackFeeShare = expandToX64(_depegBaseFee);
+        ctx.feeToCashbackRatio = expandToX64(_feeToCashbackRatio);
         ctx.baseFee = expandToX64(_baseFee);
         ctx.managementBaseFee = expandToX64(_managementFee);
 
-        ctx.managementFeeRecepient = _managementFeeRecepientAddress;
-        ctx.oracleAddress = _priceVerifierAddress;
+        ctx.managementFeeRecepient = _managementFeeRecepient;
+        ctx.oracleAddress = _oracleAddress;
     }
 
     /// @notice Proceeses asset transfer
@@ -192,8 +193,12 @@ contract Multipool is
 
     function transferFees(
         MpContext memory ctx,
-        ForcePushArgs calldata forcePushArgs,
+        OraclePrice calldata oraclePrice,
         uint quoteAmount,
+        address assetIn,
+        address assetOut,
+        uint amountIn,
+        uint amountOut,
         address receiverAddress,
         bool refundEthToReceiver
     ) internal {
@@ -201,17 +206,26 @@ contract Multipool is
         if (refund > 0) {
             payable(refundEthToReceiver ? receiverAddress : msg.sender).transfer(refund);
         }
-        if (forcePushArgs.contractAddress == address(this)) {
+        if (oraclePrice.contractAddress == address(this)) {
             payable(ctx.managementFeeRecepient).transfer(managerEarnedFee);
-            IStaker(ctx.oracleAddress).commitPrice{value: oracleEarnedFee}(forcePushArgs);
+            IArcanumOracle(ctx.oracleAddress).commitPrice{value: oracleEarnedFee}(oraclePrice);
         } else {
             payable(ctx.managementFeeRecepient).transfer(managerEarnedFee + oracleEarnedFee);
         }
-        emit Trade(msg.sender, uint128(quoteAmount), uint128(managerEarnedFee), uint128(oracleEarnedFee));
+        emit Swap(
+            msg.sender, 
+            assetIn, 
+            assetOut, 
+            amountIn, 
+            amountOut, 
+            managerEarnedFee, 
+            oracleEarnedFee
+        );
     }
 
+    /// @inheritdoc IMultipoolMethods
     function swap(
-        ForcePushArgs calldata forcePushArgs,
+        OraclePrice calldata oraclePrice,
         address assetInAddress,
         address assetOutAddress,
         uint swapAmount,
@@ -221,6 +235,7 @@ contract Multipool is
     )
         external
         payable
+        override
         returns (uint amountIn, uint amountOut)
     {
         if (assetOutAddress == assetInAddress) revert AssetsAreSame();
@@ -233,15 +248,15 @@ contract Multipool is
 
         {{
             if (assetInAddress == address(this)) {
-                ctx = getContext(forcePushArgs);
+                ctx = getContext(oraclePrice);
                 assetOut = assets[assetOutAddress];
             } else if (assetOutAddress == address(this)) {
-                ctx = getContext(forcePushArgs);
+                ctx = getContext(oraclePrice);
                 assetIn = assets[assetInAddress];
             } else {
                 assetIn = assets[assetInAddress];
                 assetOut = assets[assetOutAddress];
-                ctx = getContext(forcePushArgs);
+                ctx = getContext(oraclePrice);
             }
 
             uint priceIn = assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
@@ -280,7 +295,18 @@ contract Multipool is
             emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
         }
 
-        transferFees(ctx, forcePushArgs, quoteAmount, receiverAddress, refundEthToReceiver);
+       transferFees(
+           ctx, 
+           oraclePrice, 
+           quoteAmount, 
+           assetInAddress, 
+           assetOutAddress, 
+           amountIn, 
+           amountOut, 
+           receiverAddress, 
+           refundEthToReceiver
+       );
+
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -323,7 +349,7 @@ contract Multipool is
         external
         override
     {
-        if (!isTargetShareSetter[msg.sender]) revert InvalidTargetShareAuthority();
+        if (!isStrategyManager[msg.sender]) revert InvalidTargetShareAuthority();
 
         uint len = assetAddresses.length;
         uint16 totalTargetSharesCached = totalTargetShares;
@@ -342,31 +368,31 @@ contract Multipool is
 
     /// @inheritdoc IMultipoolManagerMethods
     function setFeeParams(
+        uint16 newDeviationIncreaseFee,
         uint16 newDeviationLimit,
-        uint16 newHalfDeviationFee,
-        uint16 newDepegBaseFee,
+        uint16 newFeeToCashbackRatio,
         uint16 newBaseFee,
-        uint16 newManagementFee,
-        address newManagementFeeRecepientAddress
+        address newManagementFeeRecepient,
+        uint16 newManagementFee
     )
         external
         override
         onlyOwner
     {
-        halfDeviationFee = newHalfDeviationFee;
+        deviationIncreaseFee = newDeviationIncreaseFee;
         deviationLimit = newDeviationLimit;
-        depegBaseFee = newDepegBaseFee;
+        feeToCashbackRatio = newFeeToCashbackRatio;
         baseFee = newBaseFee;
-        managementFeeRecepientAddress = newManagementFeeRecepientAddress;
+        managementFeeRecepient = newManagementFeeRecepient;
         managementFee = newManagementFee;
 
         emit FeesChange(
-            newHalfDeviationFee,
+            newDeviationIncreaseFee,
             newDeviationLimit,
-            newDepegBaseFee,
+            newFeeToCashbackRatio,
             newBaseFee,
             newManagementFee,
-            newManagementFeeRecepientAddress
+            newManagementFeeRecepient
         );
     }
 
@@ -378,19 +404,20 @@ contract Multipool is
         override
         onlyOwner
     {
-        bool value = isTargetShareSetter[authority];
-        isTargetShareSetter[authority] = !value;
+        bool value = isStrategyManager[authority];
+        isStrategyManager[authority] = !value;
         emit StrategyManagerToggled(authority, !value);
     }
 
-    function updatePriceVerifierAddress(
-        address _priceVerifierAddress
+    /// @inheritdoc IMultipoolManagerMethods
+    function updateOracleAddress(
+        address _oracleAddress
     )
         external
         override
         onlyOwner
     {
-        emit PriceVerifierUpdated(priceVerifierAddress, _priceVerifierAddress);
-        priceVerifierAddress = _priceVerifierAddress;
+        emit PriceOracleUpdated(oracleAddress, _oracleAddress);
+        oracleAddress = _oracleAddress;
     }
 }

@@ -7,8 +7,8 @@ import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, sort, updatePrice} from "../MultipoolUtils.t.sol";
-import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
+import {MultipoolUtils, toX96, toX32, updatePrice} from "../MultipoolUtils.t.sol";
+import {OraclePrice} from "../../src/types/OraclePrice.sol";
 
 import {CashbackVault} from "../../src/cashback-vault/CashbackVault.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";

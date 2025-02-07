@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Multipool} from "./Multipool.sol";
-import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
@@ -54,12 +54,13 @@ contract MultipoolRouter is Ownable {
     error ContractCallNotAllowed(address target);
 
     struct SwapArgs {
-        ForcePushArgs forcePushArgs;
-        AssetArgs[] assetsToSwap;
+        OraclePrice oraclePrice;
+        address assetIn;
+        address assetOut;
+        uint swapAmount;
         bool isExactInput;
         address receiverAddress;
         bool refundEthToReceiver;
-        address refundAddress;
         uint ethValue;
     }
 
@@ -100,31 +101,32 @@ contract MultipoolRouter is Ownable {
         }
     }
 
-   // function swap(
-   //     address poolAddress,
-   //     SwapArgs calldata swapArgs,
-   //     Call[] calldata paramsBefore,
-   //     Call[] calldata paramsAfter
-   // )
-   //     external
-   //     payable
-   // {
-   //     for (uint i; i < paramsBefore.length; ++i) {
-   //         processCall(paramsBefore[i], i, true);
-   //     }
+    function swap(
+        address poolAddress,
+        SwapArgs calldata swapArgs,
+        Call[] calldata paramsBefore,
+        Call[] calldata paramsAfter
+    )
+        external
+        payable
+    {
+        for (uint i; i < paramsBefore.length; ++i) {
+            processCall(paramsBefore[i], i, true);
+        }
 
-   //     if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
-   //     Multipool(poolAddress).swap{value: swapArgs.ethValue}(
-   //         swapArgs.forcePushArgs,
-   //         swapArgs.assetsToSwap,
-   //         swapArgs.isExactInput,
-   //         swapArgs.receiverAddress,
-   //         swapArgs.refundEthToReceiver,
-   //         swapArgs.refundAddress
-   //     );
+        if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
+        Multipool(poolAddress).swap{value: swapArgs.ethValue}(
+            swapArgs.oraclePrice,
+            swapArgs.assetIn,
+            swapArgs.assetOut,
+            swapArgs.swapAmount,
+            swapArgs.isExactInput,
+            swapArgs.receiverAddress,
+            swapArgs.refundEthToReceiver
+        );
 
-   //     for (uint i; i < paramsAfter.length; ++i) {
-   //         processCall(paramsAfter[i], i, false);
-   //     }
-   // }
+        for (uint i; i < paramsAfter.length; ++i) {
+            processCall(paramsAfter[i], i, false);
+        }
+    }
 }

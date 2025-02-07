@@ -3,6 +3,11 @@ pragma solidity ^0.8.0;
 
 /// @title Interface that contains all multipool events
 interface IMultipoolEvents {
+
+    /// @notice Thrown right after pool is initialised
+    /// @param initialSharePrice assets initial share price that can't be changed
+    event PoolCreated(uint96 initialSharePrice);
+
     /// @notice Emitted when any quantity or cashback change happens even for multipool share
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
@@ -10,21 +15,19 @@ interface IMultipoolEvents {
     event AssetChange(address indexed asset, uint128 quantity, uint128 collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
-    /// @param newManagementFeeRecepientAddress address to send management fees to
-    /// @param newDeviationLimit curve parameter determines fee in middle of deviation limit
-    /// @param newDeviationLimit curve parameter that shows maximum deviation changes that may be made
-    /// by callers
-    /// @param newDepegBaseFee parameter that shows ratio of value taken from deviation fee as base fee
-    /// @param newBaseFee parameter that shows ratio of value taken from each operation quote value
-    /// @param newManagementFee parameter that shows ratio of value that is taken from base fee
-    /// as management fee
+    /// @param newDeviationIncreaseFee fee charged when deviation is increased
+    /// @param newDeviationLimit curve parameter determines what is the maximum deviation possible to create by swap
+    /// @param newFeeToCashbackRatio ratio or fees taken by cashbacks
+    /// @param newBaseFee fee ratio taken from any swap action
+    /// @param newManagementFee management fee ratio
+    /// @param newManagementFeeRecepient receiver of management fee
     event FeesChange(
+        uint16 newDeviationIncreaseFee,
         uint16 newDeviationLimit,
-        uint16 newHalfDeviationFee,
-        uint16 newDepegBaseFee,
+        uint16 newFeeToCashbackRatio,
         uint16 newBaseFee,
         uint16 newManagementFee,
-        address newManagementFeeRecepientAddress
+        address newManagementFeeRecepient
     );
 
     /// @notice Thrown when target share of any asset got updated
@@ -41,22 +44,33 @@ interface IMultipoolEvents {
     /// @notice Thrown when permissions of authorities were changed per each authority.
     /// event provides addresses new permissions
     /// @param account address of toggled authority
-    /// @param isTargetShareAuthority true if is trusted to change target shares for now
+    /// @param isStrategyManager true if is trusted to change target shares for now
     event StrategyManagerToggled(
-        address indexed account, bool isTargetShareAuthority
+        address indexed account, bool isStrategyManager
     );
 
     /// @notice Thrown every time new fee gets collected
     /// @param sender the address that invoked the trade
-    /// @param quoteValue the quoted volume of the trade
+    /// @param assetIn token that beed sent
+    /// @param assetOut token that been received
+    /// @param amountIn the amount token in sent to pool
+    /// @param amountOut the amount token out received from pool
     /// @param collectedManagementFees shows how much fees are earned for manager
     /// @param collectedOracleFees shows how much fees are earned for oracle
-    event Trade(address indexed sender, uint128 quoteValue, uint128 collectedManagementFees, uint128 collectedOracleFees);
+    event Swap(
+        address indexed sender, 
+        address indexed assetIn,
+        address indexed assetOut,
+        uint amountIn, 
+        uint amountOut, 
+        uint collectedManagementFees, 
+        uint collectedOracleFees
+    );
 
     /// @notice Thrown when price verifier is updated.
-    /// @param oldPriceVerifierAddress address of old price verifier contract
-    /// @param newPriceVerifierAddress address of new price verifier contract
-    event PriceVerifierUpdated(
-        address oldPriceVerifierAddress, address newPriceVerifierAddress
+    /// @param oldOracle address of old price verifier contract
+    /// @param newOracle address of new price verifier contract
+    event PriceOracleUpdated(
+        address oldOracle, address newOracle
     );
 }

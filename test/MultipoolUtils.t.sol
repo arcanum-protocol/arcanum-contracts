@@ -7,10 +7,11 @@ import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedType} from "../src/lib/Price.sol";
-import {ForcePushArgs, AssetArgs} from "../src/types/SwapArgs.sol";
+import {OraclePrice} from "../src/types/OraclePrice.sol";
+import {IArcanumOracle} from "../src/interfaces/IArcanumOracle.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
 
-import {Staker} from "../src/multipool/Staker.sol";
+import {DummyOracle} from "../src/multipool/DummyOracle.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
@@ -68,7 +69,7 @@ contract MultipoolUtils is Test {
     using ECDSA for bytes32;
 
     function initMultipool() public {
-        Staker stakerImpl = new Staker();
+        DummyOracle stakerImpl = new DummyOracle(address(this), 10000);
 
         ERC1967Proxy stakerProxy = new ERC1967Proxy(
             address(stakerImpl),
@@ -155,7 +156,7 @@ contract MultipoolUtils is Test {
         uint16[] memory shares
     ) public {
         vm.startPrank(owner);
-        mp.setFeeParams(toX16RatioTick(1e5), 0, 0, 0, 0, address(0));
+        mp.setFeeParams(toX16RatioTick(1e5), 0, 0, 0, address(0), 0);
         updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
         mp.toggleStrategyManager(owner);
 
@@ -166,8 +167,8 @@ contract MultipoolUtils is Test {
             uint val = (quoteValues[i] << 96) / prices[i];
             updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(prices[i])));
             tokens[i].mint(address(mp), val);
-            ForcePushArgs memory fp;
-            mp.swap{value: 1e18}(fp, address(tokens[i]), address(mp), val, true, owner, true);
+            OraclePrice memory oraclePrice;
+            mp.swap{value: 1e18}(oraclePrice, address(tokens[i]), address(mp), val, true, owner, true);
         }
 
         // insert adapter for token0 here
@@ -179,8 +180,8 @@ contract MultipoolUtils is Test {
             toX16RatioTick(0.0003e5), 
             toX16RatioTick(0.6e5), 
             toX16RatioTick(0.01e5), 
-            toX16RatioTick(0.1e5), 
-            owner
+            owner,
+            toX16RatioTick(0.1e5)
         );
         vm.stopPrank();
     }
@@ -200,9 +201,9 @@ contract MultipoolUtils is Test {
     )
         public
     {
-        ForcePushArgs memory fp;
+        OraclePrice memory oraclePrice;
         vm.prank(sender);
-        mp.swap{value: 1e18}(fp, assetIn, assetOut, amount, isExactInput, sender, true);
+        mp.swap{value: 1e18}(oraclePrice, assetIn, assetOut, amount, isExactInput, sender, true);
     }
 
     function changePrice(address asset, uint price) public {
@@ -223,10 +224,10 @@ contract MultipoolUtils is Test {
 
     function setCurveParams(uint16 dl, uint16 hf, uint16 bf, uint16 dbf) public {
         vm.startPrank(owner);
-        ForcePushArgs memory s;
+        OraclePrice memory s;
         address managementFeeRecepient = mp.getContext(s).managementFeeRecepient;
         uint16 managementFee = uint16(mp.getContext(s).managementBaseFee * 1e5 / (5 << 32));
-        mp.setFeeParams(dl, hf, dbf, bf, managementFee, managementFeeRecepient);
+        mp.setFeeParams(dl, hf, dbf, bf, managementFeeRecepient, managementFee);
         vm.stopPrank();
     }
 
@@ -281,11 +282,11 @@ contract MultipoolUtils is Test {
 
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
 
-        ForcePushArgs memory fp;
+        OraclePrice memory fp;
         MpContext memory ctx = mp.getContext(fp);
         mpJson = vm.serializeString("multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee));
         mpJson = vm.serializeString("multipool", "deviationLimit", jsonString(ctx.deviationLimit));
-        mpJson = vm.serializeString("multipool", "cashbackFeeShare", jsonString(ctx.cashbackFeeShare));
+        mpJson = vm.serializeString("multipool", "cashbackFeeShare", jsonString(ctx.feeToCashbackRatio));
         mpJson = vm.serializeString("multipool", "baseFee", jsonString(ctx.baseFee));
         mpJson = vm.serializeString("multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient));
         mpJson = vm.serializeString("multipool", "managementFee", jsonString(ctx.managementBaseFee));
@@ -331,23 +332,6 @@ function updatePrice(address multipoolAddress, address asset, bytes memory data)
     priceData[0] = val;
 
     Multipool(multipoolAddress).updatePrices(priceAddresses, priceData);
-}
-
-function sort(AssetArgs[] memory arr) pure returns (AssetArgs[] memory a) {
-    uint i;
-    AssetArgs memory key;
-    uint j;
-
-    for (i = 1; i < arr.length; i++) {
-        key = arr[i];
-
-        for (j = i; j > 0 && arr[j - 1].assetAddress > key.assetAddress; j--) {
-            arr[j] = arr[j - 1];
-        }
-
-        arr[j] = key;
-    }
-    a = arr;
 }
 
 function vec(address[5] memory _s) pure returns (address[] memory s) {
@@ -423,34 +407,4 @@ function vec(uint[2] memory _s) pure returns (uint[] memory s) {
 function vec(uint[1] memory _s) pure returns (uint[] memory s) {
     s = new uint[](_s.length);
     for (uint i; i < _s.length; ++i) s[i] = _s[i];
-}
-
-function vec(AssetArgs[1] memory assets) pure returns (AssetArgs[] memory dynarray) {
-    dynarray = new AssetArgs[](assets.length);
-    for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
-}
-
-function vec(AssetArgs[2] memory assets) pure returns (AssetArgs[] memory dynarray) {
-    dynarray = new AssetArgs[](assets.length);
-    for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
-}
-
-function vec(AssetArgs[3] memory assets) pure returns (AssetArgs[] memory dynarray) {
-    dynarray = new AssetArgs[](assets.length);
-    for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
-}
-
-function vec(AssetArgs[4] memory assets) pure returns (AssetArgs[] memory dynarray) {
-    dynarray = new AssetArgs[](assets.length);
-    for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
-}
-
-function vec(AssetArgs[5] memory assets) pure returns (AssetArgs[] memory dynarray) {
-    dynarray = new AssetArgs[](assets.length);
-    for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
-}
-
-function vec(AssetArgs[6] memory assets) pure returns (AssetArgs[] memory dynarray) {
-    dynarray = new AssetArgs[](assets.length);
-    for (uint i; i < assets.length; ++i) dynarray[i] = assets[i];
 }

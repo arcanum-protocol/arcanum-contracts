@@ -13,7 +13,7 @@ import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "../../src/interfaces/IUniswapRouter.sol";
 import {IWrapper} from "../../src/interfaces/IWrapper.sol";
 import {ICashbackVault} from "../../src/interfaces/ICashbackVault.sol";
-import {ForcePushArgs} from "../../src/types/SwapArgs.sol";
+import {OraclePrice} from "../../src/types/OraclePrice.sol";
 
 /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to
 /// getSqrtRatioAtTick(MIN_TICK)
@@ -114,17 +114,9 @@ contract MultipoolPriceFetching is Test {
             firstCall: c,
             secondCall: c,
             tmpAmount: 2902027515851877489,
-            poolIn: IUniswapV3Pool(0x59D72DDB29Da32847A4665d08ffc8464A7185FAE),
-            zeroForOneIn: false,
-            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
-            zeroForOneOut: true,
             multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
-            // magic/eth 3000 0x59d72ddb29da32847a4665d08ffc8464a7185fae
-            // magic/eth 10000 0x7e7fb3cceca5f2ac952edf221fd2a9f62e411980
-            // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
-            // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
-            fp: ForcePushArgs({
+            oraclePrice: OraclePrice({
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
                 timestamp: 1704676035,
                 sharePrice: 49764838329715057682058381,
@@ -163,8 +155,11 @@ contract MultipoolPriceFetching is Test {
             zeroForOneOut: true,
             // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
             // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
+            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
+            tmpAmount: 235459495774334240,
+            multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
-            fp: ForcePushArgs({
+            oraclePrice: OraclePrice({
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
                 timestamp: 1704739268,
                 sharePrice: 49432770753888933655371916,

@@ -1,16 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-// Asset args that are provided to swap methods
-struct AssetArgs {
-    // Multipool asset address
-    address assetAddress;
-    // Negative for token out, positive for token in
-    uint amount;
-}
-
 // Struct that provides overriding of price called force push
-struct ForcePushArgs {
+struct OraclePrice {
     // Address of this contract
     address contractAddress;
     // Signing timestamp

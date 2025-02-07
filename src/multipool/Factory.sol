@@ -14,7 +14,7 @@ import {IMultipoolManagerMethods} from "../interfaces/multipool/IMultipoolManage
 import {IMultipoolMethods} from "../interfaces/multipool/IMultipoolMethods.sol";
 import {IMultipool} from "../interfaces/IMultipool.sol";
 
-import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
 
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
@@ -50,11 +50,10 @@ contract MultipoolFactory is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    mapping(uint => address) public multipools;
-    uint public multipoolNumber;
     address public implementationAddress;
+    uint96 public multipoolsNumber;
 
-    event MultipoolSpawned(address indexed, uint number);
+    event MultipoolCreated(address indexed, uint number);
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
@@ -63,57 +62,56 @@ contract MultipoolFactory is
     struct MultipoolSetupArgs {
         string name;
         string symbol;
-        uint signatureThershold;
-        uint128 sharePriceValidity;
         uint128 initialSharePrice;
-        uint64 deviationLimit;
-        uint64 halfDeviationFee;
-        uint64 depegBaseFee;
-        uint64 baseFee;
-        uint64 developerBaseFee;
-        address developerAddress;
-        address[] oracleAddresses;
+
+        uint16 deviationIncreaseFee;
+        uint16 deviationLimit;
+        uint16 feeToCashbackRatio;
+        uint16 baseFee;
+        address managementFeeRecepient;
+        uint16 managementFee;
+
+        address oracleAddress;
+
+        address[] strategyManagers;
+
         address[] assetAddresses;
-        FeedType[] priceFeedKinds;
-        bytes[] feedData;
+        bytes32[] priceData;
         uint16[] targetShares;
     }
 
-   // function spawnMultipool(MultipoolSetupArgs calldata args) external {
-   //     ERC1967Proxy proxy = new ERC1967Proxy(address(implementationAddress), "");
-   //     Multipool mp = Multipool(address(proxy));
+    function spawnMultipool(MultipoolSetupArgs calldata args) external {
+        address _implementationAddress = implementationAddress;
+        uint96 _multipoolsNumber = multipoolsNumber; 
 
-   //     mp.initialize(args.name, args.symbol, args.initialSharePrice);
+        ERC1967Proxy proxy = new ERC1967Proxy{salt: bytes32(uint(_multipoolsNumber))}(
+            address(_implementationAddress), 
+            abi.encodeWithSignature(
+                "initialize(string,string,address,uint96)", 
+                args.name,
+                args.symbol,
+                args.oracleAddress,
+                args.initialSharePrice
+            )
+        );
+        Multipool mp = Multipool(address(proxy));
 
-   //     mp.setAuthorityRights(address(this), true, true);
+        mp.setFeeParams(
+            args.deviationIncreaseFee,
+            args.deviationLimit,
+            args.feeToCashbackRatio,
+            args.baseFee,
+            args.managementFeeRecepient,
+            args.managementFee
+        );
 
-   //     mp.setAuthorityRights(msg.sender, false, true);
-   //     mp.setSharePriceParams(args.sharePriceValidity, args.signatureThershold);
-   //     for (uint i = 0; i < args.oracleAddresses.length; ++i) {
-   //         mp.setAuthorityRights(args.oracleAddresses[i], true, false);
-   //     }
+        mp.updateTargetShares(args.assetAddresses, args.targetShares);
+        mp.updatePrices(args.assetAddresses, args.priceData);
 
-   //     mp.setFeeParams(
-   //         args.deviationLimit,
-   //         args.halfDeviationFee,
-   //         args.depegBaseFee,
-   //         args.baseFee,
-   //         args.developerBaseFee,
-   //         args.developerAddress
-   //     );
+        mp.toggleStrategyManager(address(this));
+        mp.transferOwnership(msg.sender);
 
-   //     mp.updateTargetShares(args.assetAddresses, args.targetShares);
-   //     mp.updatePrices(args.assetAddresses, args.priceFeedKinds, args.feedData);
-
-   //     mp.setAuthorityRights(address(this), false, false);
-   //     mp.transferOwnership(msg.sender);
-
-   //     uint multipoolIndex = multipoolNumber;
-
-   //     multipools[multipoolIndex] = address(mp);
-
-   //     emit MultipoolSpawned(address(mp), multipoolIndex);
-
-   //     multipoolNumber = (multipoolIndex + 1);
-   // }
+        multipoolsNumber = _multipoolsNumber + 1;
+        emit MultipoolCreated(address(mp), _multipoolsNumber);
+    }
 }

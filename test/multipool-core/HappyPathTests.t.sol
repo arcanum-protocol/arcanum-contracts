@@ -7,8 +7,7 @@ import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, sort, vec, updatePrice} from "../MultipoolUtils.t.sol";
-import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
+import {MultipoolUtils, toX96, toX32, vec, updatePrice} from "../MultipoolUtils.t.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}

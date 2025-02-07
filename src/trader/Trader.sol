@@ -8,7 +8,7 @@ import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {ICashbackVault} from "../interfaces/ICashbackVault.sol";
 import {IWrapper} from "../interfaces/IWrapper.sol";
 import {Multipool} from "../multipool/Multipool.sol";
-import {AssetArgs, ForcePushArgs} from "../types/SwapArgs.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
 import {ISwapRouter} from "../interfaces/IUniswapRouter.sol";
 
 interface WETH is IERC20 {
@@ -47,7 +47,7 @@ contract Trader {
         bool zeroForOneOut;
         uint multipoolFee;
         Multipool multipool;
-        ForcePushArgs fp;
+        OraclePrice oraclePrice;
         uint gasLimit;
         WETH weth;
         ICashbackVault cashback;
@@ -83,7 +83,7 @@ contract Trader {
             }
 
             (,uint amountOut) = args.multipool.swap{value: args.multipoolFee}(
-                args.fp,
+                args.oraclePrice,
                 address(args.multipoolTokenIn), 
                 address(args.multipoolTokenOut),
                 amount,

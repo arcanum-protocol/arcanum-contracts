@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
-import {FixedPoint96} from "../lib/FixedPoint96.sol";
+import {FixedPoint96} from "../lib/FixedPoint.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";

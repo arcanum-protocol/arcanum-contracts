@@ -7,14 +7,14 @@ pragma solidity ^0.8.0;
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-import {FixedPoint96} from "../lib/FixedPoint96.sol";
+import {FixedPoint96} from "../lib/FixedPoint.sol";
 
-import {IStaker} from "../interfaces/IStaker.sol";
-
-import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
+import {IArcanumOracle} from "../interfaces/IArcanumOracle.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
@@ -23,8 +23,8 @@ import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgra
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
-contract Staker is
-    IStaker,
+contract Oracle is
+    IArcanumOracle,
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -130,25 +130,22 @@ contract Staker is
         totalBurnedAssets += uint128(amountToBurn);
     }
 
-    function commitPrice(ForcePushArgs calldata forcePushArgs) external payable {
-    }
-
-    function commitPrice1(ForcePushArgs calldata forcePushArgs) external payable {
+    function commitPrice(OraclePrice calldata oraclePrice) external payable {
             bytes memory data = abi.encodePacked(
                 address(msg.sender),
-                uint(forcePushArgs.timestamp),
-                uint(forcePushArgs.sharePrice),
+                uint(oraclePrice.timestamp),
+                uint(oraclePrice.sharePrice),
                 uint(block.chainid)
             );
-            address oracleAddress = keccak256(data).toEthSignedMessageHash().recover(forcePushArgs.signature);
+            address oracleAddress = keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
             OracleData memory oracle = oracles[oracleAddress];
 
             if (oracle.enabled) {
                 revert InvalidForcePushAuthority();
             }
 
-            if (forcePushArgs.timestamp + sharePriceValidityDuration < block.timestamp) {
-                revert ForcePushPriceExpired(block.timestamp, forcePushArgs.timestamp);
+            if (oraclePrice.timestamp + sharePriceValidityDuration < block.timestamp) {
+                revert ForcePushPriceExpired(block.timestamp, oraclePrice.timestamp);
             }
 
             uint availableReward = (uint128(block.number) - lastClaimedBlock) * rewardPerBlock + collectedReward;

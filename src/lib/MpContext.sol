@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FixedPoint96} from "./FixedPoint96.sol";
-import {FixedPoint32} from "./FixedPoint32.sol";
-
+import {FixedPoint96, FixedPoint32} from "./FixedPoint.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
 struct MpAsset {
@@ -14,15 +12,13 @@ struct MpAsset {
 
 struct MpContext {
     uint sharePrice;
-
     uint oldTotalSupply;
 
     int totalSupplyDelta;
-
     uint totalTargetShares;
     uint deviationIncreaseFee;
     uint deviationLimit;
-    uint cashbackFeeShare;
+    uint feeToCashbackRatio;
     uint baseFee;
     uint managementBaseFee;
 
@@ -108,7 +104,7 @@ library ContextMath {
             if (targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
             if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
             uint fullDeviationFee = (ctx.deviationIncreaseFee * quotedDelta) >> FixedPoint32.RESOLUTION;
-            uint collectedFees = (fullDeviationFee * ctx.cashbackFeeShare) >> FixedPoint32.RESOLUTION;
+            uint collectedFees = (fullDeviationFee * ctx.feeToCashbackRatio) >> FixedPoint32.RESOLUTION;
 
             asset.collectedCashbacks += uint112(fullDeviationFee - collectedFees);
             ctx.collectedFees = collectedFees;
