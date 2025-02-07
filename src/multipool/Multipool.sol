@@ -349,7 +349,7 @@ contract Multipool is
         external
         override
     {
-        if (!isStrategyManager[msg.sender]) revert InvalidTargetShareAuthority();
+        if (!isStrategyManager[msg.sender] && owner() != msg.sender) revert InvalidTargetShareAuthority();
 
         uint len = assetAddresses.length;
         uint16 totalTargetSharesCached = totalTargetShares;

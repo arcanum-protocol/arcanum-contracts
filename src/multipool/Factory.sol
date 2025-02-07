@@ -83,9 +83,9 @@ contract MultipoolFactory is
         );
 
         mp.updateTargetShares(params.assetAddresses, params.targetShares);
+
         mp.updatePrices(params.assetAddresses, params.priceData);
 
-        mp.toggleStrategyManager(address(this));
         if (params.strategyManager != address(0)) {
             mp.toggleStrategyManager(params.strategyManager);
         }
