@@ -7,7 +7,7 @@ import "../src/multipool/MultipoolRouter.sol";
 import "../src/multipool/SiloAdapter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, vec, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, vec, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract MigrateYieldAdapter is Script {
     function run() external {
@@ -36,7 +36,7 @@ contract MintYield is Script {
 
         ERC20(asset).transfer(address(yield), 29135778);
 
-        ForcePushArgs memory fp;
+        OraclePrice memory fp;
         // MultipoolRouter.SwapArgs memory ar = MultipoolRouter.SwapArgs({
         //     forcePushArgs: fp,
         //     assetsToSwap: sort(

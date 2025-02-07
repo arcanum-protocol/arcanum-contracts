@@ -73,7 +73,7 @@ contract Multipool is
         __Ownable_init();
         oracleAddress = _oracleAddress;
         initialSharePrice = _sharePrice;
-        emit PriceOracleUpdated(oracleAddress, _oracleAddress);
+        emit PriceOracleUpdated(address(0), _oracleAddress);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}

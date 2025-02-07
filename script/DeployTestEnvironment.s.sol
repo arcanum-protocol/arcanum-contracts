@@ -9,7 +9,7 @@ import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {Multicall3} from "../src/mocks/multicall.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, toX16, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, toX16, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestEnv is Script {
     function run() external {
@@ -73,8 +73,8 @@ contract DeployTestEnv is Script {
             toX16(0.0003e18),
             toX16(0.6e18),
             toX16(0.0001e18),
-            toX16(0.15e18),
-            deployer
+            deployer,
+            toX16(0.15e18)
         );
 
         vm.stopBroadcast();

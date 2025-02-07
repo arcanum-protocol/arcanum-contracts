@@ -6,7 +6,7 @@ import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, toX16, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, toX16, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestnet is Script {
     function run() external {
@@ -41,8 +41,8 @@ contract DeployTestnet is Script {
             toX16(0.0003e18),
             toX16(0.6e18),
             toX16(0.0001e18),
-            toX16(0.15e18),
-            deployerPublicKey
+            deployerPublicKey,
+            toX16(0.15e18)
         );
         MultipoolRouter router = new MultipoolRouter();
 

@@ -97,42 +97,6 @@ contract MultipoolPriceFetching is Test {
         weth.withdraw(weth.balanceOf(address(this)));
     }
 
-    function test_SwapWithTrader1() public {
-        vm.selectFork(arbitrumFork);
-
-        Trader t = new Trader();
-
-        address[] memory assets;
-
-        Trader.Call memory c;
-
-        Trader.Args memory args = Trader.Args({
-            tokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
-            tokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
-            multipoolTokenIn: IERC20(0x539bdE0d7Dbd336b79148AA742883198BBF60342),
-            multipoolTokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
-            firstCall: c,
-            secondCall: c,
-            tmpAmount: 2902027515851877489,
-            multipoolFee: 1000000000000000,
-            multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
-            oraclePrice: OraclePrice({
-                contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
-                timestamp: 1704676035,
-                sharePrice: 49764838329715057682058381,
-                signature: 
-                    hex"cf1efb7ec342bd4ed3401265ffac80b501d640e19c2f47c64a021b4812ccd7e6621e512608e828eed20778a9f4d963f5007196cbbe0f44a4e135bd7d0ab4e6011b"
-            }),
-            gasLimit: 600000,
-            weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
-            cashback: ICashbackVault(address(0)),
-            assets: assets
-        });
-        vm.warp(1704676035);
-        //vm.expectRevert("no profit");
-        t.trade{value: 1e18, gas: args.gasLimit}(args);
-    }
-
     function test_SwapWithTrader2() public {
         vm.selectFork(arbitrumFork2);
 
@@ -148,14 +112,12 @@ contract MultipoolPriceFetching is Test {
             multipoolTokenOut: IERC20(0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8),
             firstCall: c,
             secondCall: c,
-            tmpAmount: 235459495774334240,
             poolIn: IUniswapV3Pool(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
             zeroForOneIn: false,
             poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
             zeroForOneOut: true,
             // pendle/eth 3000 0xdbaeb7f0dfe3a0aafd798ccecb5b22e708f7852c
             // pendle/eth 10000 0xe8629b6a488f366d27dad801d1b5b445199e2ada
-            poolOut: IUniswapV3Pool(0xdbaeB7f0DFe3a0AAFD798CCECB5b22E708f7852c),
             tmpAmount: 235459495774334240,
             multipoolFee: 1000000000000000,
             multipool: Multipool(0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6),
@@ -169,8 +131,7 @@ contract MultipoolPriceFetching is Test {
             gasLimit: 5000000,
             weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
             cashback: ICashbackVault(address(0)),
-            assets: assets,
-            multipoolFee: 1000000000000000
+            assets: assets
         });
         vm.warp(1704728497);
         //vm.expectRevert("no profit");

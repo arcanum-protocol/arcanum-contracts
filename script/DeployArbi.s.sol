@@ -6,7 +6,7 @@ import "../src/multipool/Multipool.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract RemoveAssetQuantity is Script {
     function run() external {
