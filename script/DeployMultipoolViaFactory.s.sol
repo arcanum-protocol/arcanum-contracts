@@ -8,7 +8,7 @@ import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {DummyOracle} from "../src/multipool/DummyOracle.sol";
 import {MultipoolFactory} from "../src/multipool/Factory.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, toX16, updatePrice, AbstractFixedValueOracle} from "../../test/MultipoolUtils.t.sol";
+import {toX96, toX32, toX16, updatePrice, AbstractFixedValueOracle} from "../test/MultipoolUtils.t.sol";
 
 // forge script ./script/bench/Deploy.s.sol --rpc-url=127.0.0.1:8545 --broadcast -vvvv
 contract Deploy is Script {
@@ -53,11 +53,17 @@ contract Deploy is Script {
             prices[4] = val;
 
         }
-
+//   token 0  address:  0x1e2278885dD5bf24157839c16A16B1796F5D6471
+//   token 1  address:  0x5Bb3a4dd468e9eD1b05D170d8374e090082d9327
+//   token 2  address:  0x6d974b13C1a7A3fAEde5D41327D0F9332fAe4BE2
+//   token 3  address:  0xAF4ba2A449aF49fd76FCfBfA5309DAF4Ae32A79d
+//   token 4  address:  0x5d55a4911e2A8c2CDF0d166977995ce140191e00
+//   factory  0x9e63677dA7Aa5BF649ED092832305b38BAa3E78F
+//   factoryImpl  0x43d9f09Fe049A29E856c2fAC35A233d0965402AA
         {
             uint8[5] memory decimals = [6,6,18,18,18];
             for (uint i = 0; i < tokens.length; i++) {
-                tokens[i] = new MockERC20WithDecimals{salt: keccak256(abi.encode("TokenSalt", "token", i))}("token", "token", decimals[i]);
+                tokens[i] = new MockERC20WithDecimals{salt: keccak256(abi.encode("TokenSalt3", "token", i))}("token", "token", decimals[i]);
                 tokens[i].mint(deployerPublicKey, 10000e18);
                 console.log("token", i, " address: ", address(tokens[i]));
             }
@@ -77,13 +83,16 @@ contract Deploy is Script {
 
         Multipool mpImpl = new Multipool{salt: keccak256(abi.encode("MultipoolSalt"))}();
         DummyOracle oracle = new DummyOracle{salt: keccak256(abi.encode("DummyOracle"))}(address(0), 0);
-
+        console.log("oracle", address(oracle));
 
         MultipoolFactory factoryImpl = new MultipoolFactory{salt: keccak256(abi.encode("FACTORYSalt"))}();
         ERC1967Proxy factoryProxy = new ERC1967Proxy{salt: keccak256(abi.encode("FactoryProxy"))}(
             address(factoryImpl),
             ""
         );
+
+        console.log("factory ",  address(factoryProxy));
+        console.log("factoryImpl ",  address(factoryImpl));
 
         MultipoolFactory f = MultipoolFactory(address(factoryProxy));
         f.initialize(deployerPublicKey, address(mpImpl));
