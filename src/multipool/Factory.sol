@@ -28,9 +28,8 @@ contract MultipoolFactory is
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     address public implementationAddress;
-    uint96 public multipoolsNumber;
 
-    event MultipoolCreated(address indexed, uint number);
+    event MultipoolCreated(address indexed);
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
@@ -59,9 +58,8 @@ contract MultipoolFactory is
 
     function createMultipool(MultipoolCreationParams calldata params) external {
         address _implementationAddress = implementationAddress;
-        uint96 _multipoolsNumber = multipoolsNumber; 
 
-        ERC1967Proxy proxy = new ERC1967Proxy{salt: bytes32(uint(_multipoolsNumber))}(
+        ERC1967Proxy proxy = new ERC1967Proxy(
             address(_implementationAddress), 
             abi.encodeWithSignature(
                 "initialize(string,string,address,uint96)", 
@@ -92,7 +90,6 @@ contract MultipoolFactory is
 
         mp.transferOwnership(msg.sender);
 
-        multipoolsNumber = _multipoolsNumber + 1;
-        emit MultipoolCreated(address(mp), _multipoolsNumber);
+        emit MultipoolCreated(address(mp));
     }
 }
