@@ -9,6 +9,7 @@ import {ICashbackVault} from "../interfaces/ICashbackVault.sol";
 import {IWrapper} from "../interfaces/IWrapper.sol";
 import {Multipool} from "../multipool/Multipool.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
+import {ReceiverData} from "../types/ReceiverData.sol";
 import {ISwapRouter} from "../interfaces/IUniswapRouter.sol";
 
 interface WETH is IERC20 {
@@ -88,8 +89,11 @@ contract Trader {
                 address(args.multipoolTokenOut),
                 amount,
                 true, 
-                address(this), 
-                true
+                ReceiverData({
+                    receiverAddress: address(this),
+                    refundAddress: address(this),
+                    refundEthToReceiver: true
+                })
             );
 
             if (args.tokenOut != args.multipoolTokenOut) {

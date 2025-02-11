@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {MpAsset} from "../../lib/MpContext.sol";
 import {OraclePrice} from "../../types/OraclePrice.sol";
+import {ReceiverData} from "../../types/ReceiverData.sol";
 
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
@@ -30,8 +31,7 @@ interface IMultipoolMethods {
     /// @param assetInAddress Asset that is deposited into pool
     /// @param assetOutAddress Asset that is received from pool
     /// @param isExactInput if true - swap amount is specified as amount in, if false - as amount out
-    /// @param receiverAddress Address that will receive output amounts
-    /// @param refundEthToReceiver If this value is true, left ether will be sent to
+    /// @param data Arguments with return data
     /// `receiverAddress`, else, `msg.sender` will be used
     /// @dev This is a low level method that works via direct token transfer on contract and method
     /// execution. Should be used in other contracts only
@@ -43,8 +43,7 @@ interface IMultipoolMethods {
         address assetOutAddress,
         uint swapAmount,
         bool isExactInput,
-        address receiverAddress,
-        bool refundEthToReceiver
+        ReceiverData calldata data
     )
         external
         payable 

@@ -50,7 +50,7 @@ contract DeployTestEnv is Script {
         mp.initialize("Exchange tradable fund", "ETF", address(0), uint96(toX32(0.1e18)));
         console.log("mp ", address(mp));
 
-        mp.toggleStrategyManager(deployer);
+        mp.updateStrategyManager(deployer);
     
         updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18))));
         MockERC20[] memory tokens = new MockERC20[](5);

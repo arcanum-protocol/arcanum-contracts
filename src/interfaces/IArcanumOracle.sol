@@ -9,7 +9,7 @@ interface IArcanumOracle {
     error InvalidSender();
 
     /// @notice Thrown when force push signature verification fails
-    error InvalidForcePushAuthority();
+    error InvalidForcePushAuthority(address decoded, address required);
 
     /// @notice Thrown when force push signature verification fails
     /// @param blockTimestamp current block timestamp

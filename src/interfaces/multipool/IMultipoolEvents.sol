@@ -43,10 +43,10 @@ interface IMultipoolEvents {
 
     /// @notice Thrown when permissions of authorities were changed per each authority.
     /// event provides addresses new permissions
-    /// @param account address of toggled authority
-    /// @param isStrategyManager true if is trusted to change target shares for now
-    event StrategyManagerToggled(
-        address indexed account, bool isStrategyManager
+    /// @param oldStrategyManager address of old authority
+    /// @param newStrategyManager address of new authority
+    event StrategyManagerChange(
+        address indexed oldStrategyManager, address indexed newStrategyManager
     );
 
     /// @notice Thrown every time new fee gets collected

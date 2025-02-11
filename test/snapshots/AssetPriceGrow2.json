@@ -7,28 +7,28 @@
     "managementFee": 429496729,
     "managementFeeRecepientAddress": "0xc5f490E2e433D3DC0E8f9aA55e5e9E29822E310E",
     "oracleAddress": "0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f",
-    "totalSupply": 16000000005587935455499,
+    "totalSupply": 17000000005587935455499,
     "totalTargetShares": 5000
   },
   "tokens": {
     "token0": {
-      "collectedCashbacks": 0,
-      "quantity": 40000000000000000000,
+      "collectedCashbacks": 899999868439045,
+      "quantity": 40500000000000000000,
       "targetShare": 1000
     },
     "token1": {
-      "collectedCashbacks": 0,
-      "quantity": 15000000000000000000,
+      "collectedCashbacks": 899999868439045,
+      "quantity": 29250000000000000000,
       "targetShare": 1000
     },
     "token2": {
       "collectedCashbacks": 0,
-      "quantity": 60000000000000000000,
+      "quantity": 80000000000000000000,
       "targetShare": 1000
     },
     "token3": {
       "collectedCashbacks": 0,
-      "quantity": 120000000000000000000,
+      "quantity": 24000000000000000000,
       "targetShare": 1000
     },
     "token4": {
@@ -39,19 +39,19 @@
   },
   "users": {
     "multipool": {
-      "ETH balance": 0,
+      "ETH balance": 899999868439045,
       "share balance": 0,
-      "token0 balance": 40000000000000000000,
-      "token1 balance": 15000000000002000000,
-      "token2 balance": 60000000000000000000,
-      "token3 balance": 120000000000000000000,
+      "token0 balance": 140000000000000000000,
+      "token1 balance": 29250000000000000000,
+      "token2 balance": 80000000000000000000,
+      "token3 balance": 24000000000000000000,
       "token4 balance": 30000000000000000000
     },
     "user0": {
-      "ETH balance": 100000000000000000000,
+      "ETH balance": 199922750002006068827,
       "share balance": 0,
       "token0 balance": 100000000000000000000,
-      "token1 balance": 99999999999998000000,
+      "token1 balance": 100750000000000000000,
       "token2 balance": 100000000000000000000,
       "token3 balance": 100000000000000000000,
       "token4 balance": 100000000000000000000

@@ -5,6 +5,7 @@ import {IArcanumOracle} from "../interfaces/IArcanumOracle.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
+import "forge-std/Test.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
 contract DummyOracle is
@@ -40,13 +41,12 @@ contract DummyOracle is
         uint96 _priceValidityDuration = priceValidityDuration;
 
         if (oracleAddress != _oracle) {
-            revert InvalidForcePushAuthority();
+            revert InvalidForcePushAuthority(oracleAddress, _oracle);
         }
 
         if (oraclePrice.timestamp + _priceValidityDuration < block.timestamp) {
             revert ForcePushPriceExpired(block.timestamp, oraclePrice.timestamp);
         }
-
         payable(_oracle).transfer(msg.value);
     }
 }

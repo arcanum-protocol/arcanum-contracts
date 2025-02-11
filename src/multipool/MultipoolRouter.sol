@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {Multipool} from "./Multipool.sol";
 import {MultipoolCreationParams, MultipoolFactory} from "./Factory.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
+import {ReceiverData} from "../types/ReceiverData.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
@@ -67,8 +68,7 @@ contract MultipoolRouter is Ownable {
         address assetOut;
         uint swapAmount;
         bool isExactInput;
-        address receiverAddress;
-        bool refundEthToReceiver;
+        ReceiverData receiverData;
         uint ethValue;
     }
 
@@ -127,8 +127,7 @@ contract MultipoolRouter is Ownable {
             swapArgs.assetOut,
             swapArgs.swapAmount,
             swapArgs.isExactInput,
-            swapArgs.receiverAddress,
-            swapArgs.refundEthToReceiver
+            swapArgs.receiverData
         );
 
         for (uint i; i < callsAfter.length; ++i) processCall(callsAfter[i], i, false);

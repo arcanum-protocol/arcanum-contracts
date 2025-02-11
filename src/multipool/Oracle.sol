@@ -138,7 +138,7 @@ contract Oracle is
             OracleData memory oracle = oracles[oracleAddress];
 
             if (oracle.enabled) {
-                revert InvalidForcePushAuthority();
+                revert InvalidForcePushAuthority(address(0), address(0));
             }
 
             if (oraclePrice.timestamp + sharePriceValidityDuration < block.timestamp) {

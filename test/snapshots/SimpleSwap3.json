@@ -13,12 +13,12 @@
   "tokens": {
     "token0": {
       "collectedCashbacks": 0,
-      "quantity": 40000000000000000000,
+      "quantity": 39999999999996000000,
       "targetShare": 1000
     },
     "token1": {
       "collectedCashbacks": 0,
-      "quantity": 15000000000000000000,
+      "quantity": 15000000000002000000,
       "targetShare": 1000
     },
     "token2": {
@@ -41,16 +41,16 @@
     "multipool": {
       "ETH balance": 0,
       "share balance": 0,
-      "token0 balance": 40000000000000000000,
+      "token0 balance": 39999999999996000000,
       "token1 balance": 15000000000002000000,
       "token2 balance": 60000000000000000000,
       "token3 balance": 120000000000000000000,
       "token4 balance": 30000000000000000000
     },
     "user0": {
-      "ETH balance": 100000000000000000000,
+      "ETH balance": 99999999999999600002,
       "share balance": 0,
-      "token0 balance": 100000000000000000000,
+      "token0 balance": 100000000000004000000,
       "token1 balance": 99999999999998000000,
       "token2 balance": 100000000000000000000,
       "token3 balance": 100000000000000000000,

@@ -8,6 +8,7 @@ import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedType} from "../src/lib/Price.sol";
 import {OraclePrice} from "../src/types/OraclePrice.sol";
+import {ReceiverData} from "../src/types/ReceiverData.sol";
 import {IArcanumOracle} from "../src/interfaces/IArcanumOracle.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
 
@@ -46,7 +47,9 @@ contract AbstractFixedValueOracle is IPriceAdapter {
 
 contract MultipoolUtils is Test {
     Multipool mp;
+    Multipool mpImpl;
     MultipoolRouter router;
+    DummyOracle oracle;
 
     MockERC20[] tokens;
     address[] users;
@@ -69,23 +72,16 @@ contract MultipoolUtils is Test {
     using ECDSA for bytes32;
 
     function initMultipool() public {
-        DummyOracle stakerImpl = new DummyOracle(address(this), 10000);
+        oracle = new DummyOracle(owner, 10000);
 
-        ERC1967Proxy stakerProxy = new ERC1967Proxy(
-            address(stakerImpl),
-            abi.encodeWithSignature("initialize()")
-        );
-
-        Multipool mpImpl = new Multipool();
+        mpImpl = new Multipool();
         implementation = address(mpImpl);
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(mpImpl),
-            abi.encodeWithSignature(
-                "initialize(string,string,address,uint96)", "Name", "SYMBOL", address(stakerProxy), uint96(toX32(0.1e18))
-            )
+            ""
         );
         mp = Multipool(address(proxy));
-        //mp.initialize("Name", "SYMBOL", uint96(toX32(0.1e18)));
+        mp.initialize("Name", "SYMBOL", address(oracle), uint96(toX32(0.1e18)));
         router = new MultipoolRouter();
     }
 
@@ -96,10 +92,11 @@ contract MultipoolUtils is Test {
     }
 
     function setUp() public {
+        (owner, ownerPk) = makeAddrAndKey("Multipool owner");
         initMultipool();
 
-        (owner, ownerPk) = makeAddrAndKey("Multipool owner");
         mp.transferOwnership(owner);
+        oracle.transferOwnership(owner);
 
         token0 = address(new MockERC20("token0", "token0", 0));
         token1 = address(new MockERC20("token1", "token1", 0));
@@ -156,19 +153,25 @@ contract MultipoolUtils is Test {
         uint16[] memory shares
     ) public {
         vm.startPrank(owner);
-        mp.setFeeParams(toX16RatioTick(1e5), 0, 0, 0, address(0), 0);
+        mp.setFeeParams(0, toX16RatioTick(1e5), 0, 0, address(0), 0);
         updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
-        mp.toggleStrategyManager(owner);
+        mp.updateStrategyManager(owner);
 
         mp.updateTargetShares(assets, shares);
         vm.deal(owner, 1e18);
+
+        OraclePrice memory oraclePrice;
+        ReceiverData memory rd;
+        rd.receiverAddress = owner;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
 
         for (uint i = 0; i < assets.length; i++) {
             uint val = (quoteValues[i] << 96) / prices[i];
             updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(prices[i])));
             tokens[i].mint(address(mp), val);
-            OraclePrice memory oraclePrice;
-            mp.swap{value: 1e18}(oraclePrice, address(tokens[i]), address(mp), val, true, owner, true);
+            tokens[i].mint(address(owner), 4000e18);
+            mp.swap{value: 1e18}(oraclePrice, address(tokens[i]), address(mp), val, true, rd);
         }
 
         // insert adapter for token0 here
@@ -176,8 +179,8 @@ contract MultipoolUtils is Test {
         updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
 
         mp.setFeeParams(
-            toX16RatioTick(0.15e5), 
             toX16RatioTick(0.0003e5), 
+            toX16RatioTick(0.15e5), 
             toX16RatioTick(0.6e5), 
             toX16RatioTick(0.01e5), 
             owner,
@@ -186,10 +189,23 @@ contract MultipoolUtils is Test {
         vm.stopPrank();
     }
 
-    struct SharePriceParams {
-        bool send;
-        uint128 value;
-        uint128 ts;
+    function genOraclePrice(
+        uint pk,
+        address contractAddress,
+        uint ts,
+        uint price
+    ) public returns (OraclePrice memory op){
+        bytes memory data = abi.encodePacked(
+            address(contractAddress),
+            uint(ts),
+            uint(price),
+            uint(block.chainid)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, keccak256(data).toEthSignedMessageHash());
+        op.timestamp = uint128(ts);
+        op.sharePrice = uint128(price);
+        op.contractAddress = address(contractAddress);
+        op.signature = abi.encodePacked(r, s, v);
     }
 
     function swap(
@@ -202,8 +218,13 @@ contract MultipoolUtils is Test {
         public
     {
         OraclePrice memory oraclePrice;
+        ReceiverData memory rd;
+        rd.receiverAddress = sender;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
         vm.prank(sender);
-        mp.swap{value: 1e18}(oraclePrice, assetIn, assetOut, amount, isExactInput, sender, true);
+        mp.swap{value: 1e13}(oraclePrice, assetIn, assetOut, amount, isExactInput, rd);
     }
 
     function changePrice(address asset, uint price) public {

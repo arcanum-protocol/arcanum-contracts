@@ -62,7 +62,7 @@ contract MultipoolFactory is
 
     ///@dev it's important to remember: if this function is used with no initial liquidity
     /// It's safe to use it directly, otherwhise use it through router
-    function createMultipool(MultipoolCreationParams calldata params) external {
+    function createMultipool(MultipoolCreationParams calldata params) external returns (Multipool mp){
         address _implementationAddress = implementationAddress;
 
         ERC1967Proxy proxy = new ERC1967Proxy(
@@ -75,14 +75,14 @@ contract MultipoolFactory is
                 params.initialSharePrice
             )
         );
-        Multipool mp = Multipool(address(proxy));
+        mp = Multipool(address(proxy));
 
         mp.updateTargetShares(params.assetAddresses, params.targetShares);
 
         mp.updatePrices(params.assetAddresses, params.priceData);
 
         if (params.strategyManager != address(0)) {
-            mp.toggleStrategyManager(params.strategyManager);
+            mp.updateStrategyManager(params.strategyManager);
         }
 
         if (params.initialLiquidityAsset != address(0)) {

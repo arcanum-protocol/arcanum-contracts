@@ -48,7 +48,7 @@ interface IMultipoolManagerMethods {
 
     /// @notice Method that enable account to be strategy manager
     /// @param authority address whos permissions change
-    function toggleStrategyManager(
+    function updateStrategyManager(
         address authority
     )
         external;

@@ -7,13 +7,13 @@
     "managementFee": 429496729,
     "managementFeeRecepientAddress": "0xc5f490E2e433D3DC0E8f9aA55e5e9E29822E310E",
     "oracleAddress": "0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f",
-    "totalSupply": 16000000005587935455499,
+    "totalSupply": 16100000005587935445499,
     "totalTargetShares": 5000
   },
   "tokens": {
     "token0": {
-      "collectedCashbacks": 0,
-      "quantity": 40000000000000000000,
+      "collectedCashbacks": 1001199999824585393,
+      "quantity": 40999999999999999901,
       "targetShare": 1000
     },
     "token1": {
@@ -39,19 +39,19 @@
   },
   "users": {
     "multipool": {
-      "ETH balance": 0,
-      "share balance": 0,
-      "token0 balance": 40000000000000000000,
-      "token1 balance": 15000000000002000000,
+      "ETH balance": 1001199999824585393,
+      "share balance": 49999999999999990000,
+      "token0 balance": 40999999999999999901,
+      "token1 balance": 15000000000000000000,
       "token2 balance": 60000000000000000000,
       "token3 balance": 120000000000000000000,
       "token4 balance": 30000000000000000000
     },
     "user0": {
-      "ETH balance": 100000000000000000000,
-      "share balance": 0,
+      "ETH balance": 7922816351323433762029153469,
+      "share balance": 50000000000000000000,
       "token0 balance": 100000000000000000000,
-      "token1 balance": 99999999999998000000,
+      "token1 balance": 100000000000000000000,
       "token2 balance": 100000000000000000000,
       "token3 balance": 100000000000000000000,
       "token4 balance": 100000000000000000000
@@ -68,7 +68,7 @@
     "user2": {
       "ETH balance": 100000000000000000000,
       "share balance": 0,
-      "token0 balance": 100000000000000000000,
+      "token0 balance": 100000000000000000099,
       "token1 balance": 100000000000000000000,
       "token2 balance": 100000000000000000000,
       "token3 balance": 100000000000000000000,

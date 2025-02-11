@@ -18,6 +18,7 @@ import {IMultipool} from "../interfaces/IMultipool.sol";
 
 import {IArcanumOracle} from "../interfaces/IArcanumOracle.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
+import {ReceiverData} from "../types/ReceiverData.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
@@ -50,10 +51,12 @@ contract Multipool is
     address internal oracleAddress;
     uint96 internal initialSharePrice;
 
+    // Slot 356
+    address public strategyManager;
+
     mapping(address => MpAsset) internal assets;
     mapping(address => bytes32) internal prices;
 
-    mapping(address => bool) public isStrategyManager;
 
     constructor() {
         _disableInitializers();
@@ -177,7 +180,6 @@ contract Multipool is
         if (assetAddress != address(this)) {
             uint unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
             if (unusedAmount < requiredAmount) revert InsufficientBalance(assetAddress);
-
             uint left = unusedAmount - requiredAmount;
             if (refundAddress != address(0) && left > 0) {
                 IERC20(assetAddress).safeTransfer(refundAddress, left);
@@ -231,17 +233,17 @@ contract Multipool is
         address assetOutAddress,
         uint swapAmount,
         bool isExactInput,
-        address receiverAddress,
-        bool refundEthToReceiver
+        ReceiverData calldata data
     )
         external
         payable
         override
         returns (uint amountIn, uint amountOut)
     {
+        if (swapAmount == 0) revert ZeroAmountSupplied();
         if (assetOutAddress == assetInAddress) revert AssetsAreSame();
 
-        MpContext memory ctx; 
+        MpContext memory ctx = getContext(oraclePrice);
         MpAsset memory assetIn; 
         MpAsset memory assetOut; 
 
@@ -249,15 +251,12 @@ contract Multipool is
 
         {{
             if (assetInAddress == address(this)) {
-                ctx = getContext(oraclePrice);
                 assetOut = assets[assetOutAddress];
             } else if (assetOutAddress == address(this)) {
-                ctx = getContext(oraclePrice);
                 assetIn = assets[assetInAddress];
             } else {
                 assetIn = assets[assetInAddress];
                 assetOut = assets[assetOutAddress];
-                ctx = getContext(oraclePrice);
             }
 
             uint priceIn = assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
@@ -273,9 +272,9 @@ contract Multipool is
             } else if (assetOutAddress == address(this)) {
                 ctx.totalSupplyDelta = int(amountOut);
             }
-
-            receiveAsset(assetIn, assetInAddress, amountIn, address(0));
-            transferAsset(assetOutAddress, amountOut, receiverAddress);
+    
+            receiveAsset(assetIn, assetInAddress, amountIn, data.refundAddress);
+            transferAsset(assetOutAddress, amountOut, data.receiverAddress);
 
             if (assetInAddress != address(this)) ctx.calculateDeviationFee(assetIn, int(amountIn), priceIn);
             if (assetOutAddress != address(this)) ctx.calculateDeviationFee(assetOut, -int(amountOut), priceOut);
@@ -304,8 +303,8 @@ contract Multipool is
            assetOutAddress, 
            amountIn, 
            amountOut, 
-           receiverAddress, 
-           refundEthToReceiver
+           data.receiverAddress, 
+           data.refundEthToReceiver
        );
 
     }
@@ -350,7 +349,7 @@ contract Multipool is
         external
         override
     {
-        if (!isStrategyManager[msg.sender] && owner() != msg.sender) revert InvalidTargetShareAuthority();
+        if (strategyManager != msg.sender && owner() != msg.sender) revert InvalidTargetShareAuthority();
 
         uint len = assetAddresses.length;
         uint16 totalTargetSharesCached = totalTargetShares;
@@ -398,16 +397,15 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function toggleStrategyManager(
-        address authority
+    function updateStrategyManager(
+        address newStrategyManager
     )
         external
         override
         onlyOwner
     {
-        bool value = isStrategyManager[authority];
-        isStrategyManager[authority] = !value;
-        emit StrategyManagerToggled(authority, !value);
+        emit StrategyManagerChange(strategyManager, newStrategyManager);
+        strategyManager = newStrategyManager;
     }
 
     /// @inheritdoc IMultipoolManagerMethods
