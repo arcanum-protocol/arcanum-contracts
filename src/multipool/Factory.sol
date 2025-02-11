@@ -6,7 +6,31 @@ import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {Multipool} from "./Multipool.sol";
+import {Multipool, IERC20, OraclePrice} from "./Multipool.sol";
+
+struct MultipoolCreationParams {
+    string name;
+    string symbol;
+    uint96 initialSharePrice;
+
+    uint16 deviationIncreaseFee;
+    uint16 deviationLimit;
+    uint16 feeToCashbackRatio;
+    uint16 baseFee;
+    address managementFeeRecepient;
+    uint16 managementFee;
+
+    address oracleAddress;
+
+    address strategyManager;
+
+    address[] assetAddresses;
+    bytes32[] priceData;
+    uint16[] targetShares;
+
+    address initialLiquidityAsset;
+}
+
 
 /// @custom:security-contact badconfig@arcanum.to
 contract MultipoolFactory is
@@ -35,27 +59,9 @@ contract MultipoolFactory is
         implementationAddress = newImplementationAddress;
     }
 
-    struct MultipoolCreationParams {
-        string name;
-        string symbol;
-        uint96 initialSharePrice;
 
-        uint16 deviationIncreaseFee;
-        uint16 deviationLimit;
-        uint16 feeToCashbackRatio;
-        uint16 baseFee;
-        address managementFeeRecepient;
-        uint16 managementFee;
-
-        address oracleAddress;
-
-        address strategyManager;
-
-        address[] assetAddresses;
-        bytes32[] priceData;
-        uint16[] targetShares;
-    }
-
+    ///@dev it's important to remember: if this function is used with no initial liquidity
+    /// It's safe to use it directly, otherwhise use it through router
     function createMultipool(MultipoolCreationParams calldata params) external {
         address _implementationAddress = implementationAddress;
 
@@ -71,6 +77,28 @@ contract MultipoolFactory is
         );
         Multipool mp = Multipool(address(proxy));
 
+        mp.updateTargetShares(params.assetAddresses, params.targetShares);
+
+        mp.updatePrices(params.assetAddresses, params.priceData);
+
+        if (params.strategyManager != address(0)) {
+            mp.toggleStrategyManager(params.strategyManager);
+        }
+
+        if (params.initialLiquidityAsset != address(0)) {
+            // Not needed for initial mint, so it's empty
+            OraclePrice memory oraclePrice;
+            mp.swap(
+                oraclePrice,
+                params.initialLiquidityAsset,
+                address(mp),
+                IERC20(params.initialLiquidityAsset).balanceOf(address(mp)),
+                true,
+                msg.sender,
+                true
+            );
+        }
+
         mp.setFeeParams(
             params.deviationIncreaseFee,
             params.deviationLimit,
@@ -79,14 +107,6 @@ contract MultipoolFactory is
             params.managementFeeRecepient,
             params.managementFee
         );
-
-        mp.updateTargetShares(params.assetAddresses, params.targetShares);
-
-        mp.updatePrices(params.assetAddresses, params.priceData);
-
-        if (params.strategyManager != address(0)) {
-            mp.toggleStrategyManager(params.strategyManager);
-        }
 
         mp.transferOwnership(msg.sender);
 

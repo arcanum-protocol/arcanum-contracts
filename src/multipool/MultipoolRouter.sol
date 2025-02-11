@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Multipool} from "./Multipool.sol";
+import {MultipoolCreationParams, MultipoolFactory} from "./Factory.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
@@ -12,6 +13,13 @@ interface WETH is IERC20 {
 }
 
 contract MultipoolRouter is Ownable {
+
+    constructor(address _factory) {
+        factory = _factory; 
+    }
+
+    address public factory;
+
     mapping(address => bool) isContractAllowedToCall;
 
     function toggleContract(address contractAddress) public onlyOwner {
@@ -104,15 +112,13 @@ contract MultipoolRouter is Ownable {
     function swap(
         address poolAddress,
         SwapArgs calldata swapArgs,
-        Call[] calldata paramsBefore,
-        Call[] calldata paramsAfter
+        Call[] calldata callsBefore,
+        Call[] calldata callsAfter
     )
         external
         payable
     {
-        for (uint i; i < paramsBefore.length; ++i) {
-            processCall(paramsBefore[i], i, true);
-        }
+        for (uint i; i < callsBefore.length; ++i) processCall(callsBefore[i], i, true);
 
         if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
         Multipool(poolAddress).swap{value: swapArgs.ethValue}(
@@ -125,8 +131,19 @@ contract MultipoolRouter is Ownable {
             swapArgs.refundEthToReceiver
         );
 
-        for (uint i; i < paramsAfter.length; ++i) {
-            processCall(paramsAfter[i], i, false);
-        }
+        for (uint i; i < callsAfter.length; ++i) processCall(callsAfter[i], i, false);
+    }
+
+    function createMultipool(
+        MultipoolCreationParams calldata creationParams,
+        Call[] calldata callsBefore,
+        Call[] calldata callsAfter
+    )
+        external
+        payable
+    {
+        for (uint i; i < callsBefore.length; ++i) processCall(callsBefore[i], i, true);
+        MultipoolFactory(factory).createMultipool(creationParams);
+        for (uint i; i < callsAfter.length; ++i) processCall(callsAfter[i], i, false);
     }
 }
