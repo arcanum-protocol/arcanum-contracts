@@ -54,7 +54,7 @@ contract MintYield is Script {
         //     ethValue: 0.1e18
         // });
 
-        MultipoolRouter.Call[] memory params;
+        Call[] memory params;
 
         // router.swap{value: 0.1e18}(address(yield), ar, params, params);
         console.log(yield.balanceOf(deployerPublicKey));
@@ -149,14 +149,14 @@ contract DeployYield is Script {
         // mp.updatePrices(tokenAddresses, feedData);
         mp.updateTargetShares(tokenAddresses, targetShares);
 
-       // mp.setFeeParams(
-       //     toX32(0.15e18),
-       //     toX32(0.0003e18),
-       //     toX32(0.6e18),
-       //     toX32(0.0001e18),
-       //     toX32(0.15e18),
-       //     deployerPublicKey
-       // );
+        // mp.setFeeParams(
+        //     toX32(0.15e18),
+        //     toX32(0.0003e18),
+        //     toX32(0.6e18),
+        //     toX32(0.0001e18),
+        //     toX32(0.15e18),
+        //     deployerPublicKey
+        // );
         vm.stopBroadcast();
     }
 }
@@ -192,10 +192,14 @@ contract DeploySiloAdapter is Script {
         //     )
         // });
 
-        // siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0), baseFeed);
-        // siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), baseFeed);
-        // siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81), baseFeed);
-        // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0),
+        // baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A),
+        // baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81),
+        // baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F),
+        // baseFeed);
 
         vm.stopBroadcast();
     }
@@ -222,10 +226,14 @@ contract AddSiloAdapterPrices is Script {
         //     )
         // });
 
-        // siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0), baseFeed);
-        // siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), baseFeed);
-        // siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81), baseFeed);
-        // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F), baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xDe998E5EeF06dD09fF467086610B175F179A66A0),
+        // baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A),
+        // baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0xaee935408b94bae1Ce4eA15d22b3cA33c91eFe81),
+        // baseFeed);
+        // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F),
+        // baseFeed);
 
         Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
 

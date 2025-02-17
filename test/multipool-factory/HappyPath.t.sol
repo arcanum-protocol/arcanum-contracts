@@ -6,7 +6,7 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-import {MultipoolFactory} from "../../src/multipool/Factory.sol";
+import {MultipoolFactory, MultipoolCreationParams} from "../../src/multipool/Factory.sol";
 import {FeedType} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32, vec, updatePrice} from "../MultipoolUtils.t.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
@@ -67,8 +67,8 @@ contract MultipoolCoreDeviationTests is Test {
         }
         prices[2] = val;
 
-       Multipool multipool = factory.createMultipool(
-           MultipoolFactory.MultipoolCreationParams({
+        Multipool multipool = factory.createMultipool(
+            MultipoolCreationParams({
                 name: "Test multipool",
                 symbol: "TMP",
                 initialSharePrice: 123456,
@@ -82,50 +82,42 @@ contract MultipoolCoreDeviationTests is Test {
                 strategyManager: address(0),
                 assetAddresses: assetAddresses,
                 priceData: prices,
-                targetShares: targetShares
-           })
-       );
-       assertEq(multipool.strategyManager(), address(0));
+                targetShares: targetShares,
+                initialLiquidityAsset: assetAddresses[0]
+            })
+        );
+        assertEq(multipool.strategyManager(), address(0));
 
-       OraclePrice memory op;
-       MpContext memory mc = multipool.getContext(op);
+        OraclePrice memory op;
+        MpContext memory mc = multipool.getContext(op);
 
-       assertEq(mc.deviationLimit, 429496);
-       assertEq(mc.baseFee, 858993);
-       assertEq(mc.managementFeeRecepient, address(1));
+        assertEq(mc.deviationLimit, 429496);
+        assertEq(mc.baseFee, 858993);
+        assertEq(mc.managementFeeRecepient, address(1));
 
-       assertEq(multipool.getAsset(address(4)).targetShare, 1);
-       assertEq(multipool.getAsset(address(5)).targetShare, 2);
-       assertEq(multipool.getAsset(address(6)).targetShare, 3);
+        assertEq(multipool.getAsset(address(4)).targetShare, 1);
+        assertEq(multipool.getAsset(address(5)).targetShare, 2);
+        assertEq(multipool.getAsset(address(6)).targetShare, 3);
 
         data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18)));
         assembly {
             val := mload(add(data, 32))
         }
 
-       assertEq(
-           multipool.getPriceFeed(address(4)),
-           val
-       );
+        assertEq(multipool.getPriceFeed(address(4)), val);
         data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(20e18)));
         assembly {
             val := mload(add(data, 32))
         }
-       assertEq(
-           multipool.getPriceFeed(address(5)),
-           val
-       );
+        assertEq(multipool.getPriceFeed(address(5)), val);
         data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(30e18)));
         assembly {
             val := mload(add(data, 32))
         }
-       assertEq(
-           multipool.getPriceFeed(address(6)),
-           val
-       );
+        assertEq(multipool.getPriceFeed(address(6)), val);
 
         multipool = factory.createMultipool(
-           MultipoolFactory.MultipoolCreationParams({
+            MultipoolCreationParams({
                 name: "Test multipool",
                 symbol: "TMP",
                 initialSharePrice: 123456,
@@ -139,11 +131,11 @@ contract MultipoolCoreDeviationTests is Test {
                 strategyManager: address(1),
                 assetAddresses: assetAddresses,
                 priceData: prices,
-                targetShares: targetShares
-           })
-       );
-       assertEq(multipool.strategyManager(), address(1));
-       
+                targetShares: targetShares,
+                initialLiquidityAsset: assetAddresses[0]
+            })
+        );
+        assertEq(multipool.strategyManager(), address(1));
     }
 
     function testFail_Permissions() public {

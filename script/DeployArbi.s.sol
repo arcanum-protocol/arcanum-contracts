@@ -173,7 +173,7 @@ contract DeployArbi is Script {
         //    toX32(0.15e18),
         //    deployerPublicKey
         //);
-        MultipoolRouter router = new MultipoolRouter();
+        MultipoolRouter router = new MultipoolRouter(address(0));
 
         console.log("Router address: ", address(router));
         vm.stopBroadcast();

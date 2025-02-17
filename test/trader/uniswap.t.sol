@@ -125,8 +125,7 @@ contract MultipoolPriceFetching is Test {
                 contractAddress: 0x4810E5A7741ea5fdbb658eDA632ddfAc3b19e3c6,
                 timestamp: 1704739268,
                 sharePrice: 49432770753888933655371916,
-                signature: 
-                    hex"85323389dc46ab062d52d2ce9846626489239c2768b237fbddd03647e4625af8663a0988039dd9c8f4b1acb0935da7429c563a2c2197bb04ff10070e5a670c2e1c"
+                signature: hex"85323389dc46ab062d52d2ce9846626489239c2768b237fbddd03647e4625af8663a0988039dd9c8f4b1acb0935da7429c563a2c2197bb04ff10070e5a670c2e1c"
             }),
             gasLimit: 5000000,
             weth: WETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),

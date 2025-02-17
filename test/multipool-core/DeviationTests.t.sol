@@ -14,20 +14,6 @@ import {ReceiverData} from "../../src/types/ReceiverData.sol";
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
 
-    // Mint from token
-    // Mint close deviation
-    // Mint over deviation
-    // Mint with cashback
-    // Mint when initializing
-    // Try burn with no balance
-    // Try mint with low deviation limit + hight values (math)
-    // Check burn
-    // Check mint 1 token - burn other
-    // Check fee calculations 
-    // Check fee transfers
-    // Price ops
-    // 
-
     function testFail_DeviationOverflowFeeWhenIsCloseToDeviationLimit() public {
         bootstrapMultipool(
             vec([token0, token1, token2, token3, token4]),
@@ -51,7 +37,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         mp.swap{value: 100e15}(op, address(token0), address(mp), val, true, rd);
     }
 
-
     function test_MintWithDeviation() public {
         bootstrapMultipool(
             vec([token0, token1, token2, token3, token4]),
@@ -72,7 +57,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         tokens[0].mint(address(mp), val);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
+        );
         // SharePriceParams memory sp;
         // sp.ts = uint128(block.timestamp);
         // sp.value = uint128(toX96(0.1e18));
@@ -99,7 +86,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
             vec([1000, 1000, 1000, 1000, 1000])
         );
-        
 
         tokens[0].mint(address(mp), 1e18);
 
@@ -111,7 +97,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         mp.swap{value: 0.2e18}(op, token0, token1, 1e18, true, rd);
         snapMultipool("SwapHappyPath1");
-
     }
 
     function test_RemoveOldToken() public {
@@ -187,7 +172,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
             vec([1000, 1000, 1000, 1000, 1000])
         );
-        
 
         MockERC20 newOne = new MockERC20("NEW", "NEW", 0);
 
@@ -211,7 +195,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         uint newPrice = toX96(10e18);
         changePrice(address(newOne), newPrice);
-        
+
         vm.expectRevert(abi.encodePacked("ERC20: transfer amount exceeds balance"));
         mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(newOne), 1e18, true, rd);
 
@@ -222,7 +206,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         mp.swap{value: uint128(toX96(0.1e18))}(op, address(newOne), address(token0), 1e18, true, rd);
 
-
         snapMultipool("AddNewTokenAndTryToBurnWithIt");
         assertEq(
             mp.getAsset(address(newOne)),
@@ -231,9 +214,10 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         assertEq(newOne.balanceOf(address(mp)), 1e18);
 
         newOne.mint(address(mp), 25e18);
-        
-        mp.swap{value: uint128(toX96(0.1e18))}(op, address(newOne), address(tokens[0]), 25e18, true, rd);
 
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(newOne), address(tokens[0]), 25e18, true, rd
+        );
 
         snapMultipool("AddNewTokenAndTryToBurnWithIt2");
         assertEq(
@@ -250,7 +234,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
             vec([1000, 1000, 1000, 1000, 1000])
         );
-        
 
         vm.prank(owner);
         mp.transfer(address(mp), 1000000005587935455499);
@@ -285,14 +268,18 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         vm.prank(owner);
         mp.transfer(address(mp), 100000000000000000010);
-        mp.swap{value: uint128(toX96(0.1e18))}(op, address(mp), address(tokens[0]), 100000000000000000010, true, rd);
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(mp), address(tokens[0]), 100000000000000000010, true, rd
+        );
 
         snapMultipool("BurnWhenDeviationExceedsAccuracy1");
 
         uint balance = mp.balanceOf(owner);
         vm.prank(owner);
         mp.transfer(address(mp), balance);
-        mp.swap{value: uint128(toX96(0.1e18))}(op, address(mp), address(tokens[0]), 1000000000000000000010, true, rd);
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(mp), address(tokens[0]), 1000000000000000000010, true, rd
+        );
 
         snapMultipool("BurnWhenDeviationExceedsAccuracy2");
     }
@@ -304,7 +291,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
             vec([1000, 1000, 1000, 1000, 1000])
         );
-        
 
         tokens[0].mint(address(mp), 2e18);
 
@@ -316,7 +302,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         rd.refundAddress = address(0);
         rd.refundEthToReceiver = true;
 
-        mp.swap{value: uint128(toX96(0.1e18))}(op, address(tokens[0]), address(tokens[2]), 1e18, true, rd);
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(tokens[0]), address(tokens[2]), 1e18, true, rd
+        );
     }
 
     function test_MintFromZeroTargetShareToken() public {
@@ -326,7 +314,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
             vec([1000, 1000, 1000, 1000, 1000])
         );
-        
 
         OraclePrice memory op;
         ReceiverData memory rd;
@@ -354,7 +341,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
             vec([1000, 1000, 1000, 1000, 1000])
         );
-        
 
         OraclePrice memory op;
         ReceiverData memory rd;

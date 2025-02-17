@@ -20,14 +20,20 @@ contract DeployTestnet is Script {
         mp.initialize("Exchange tradable fund", "ETF", address(0), uint96(toX32(0.1e18)));
         mp.updateStrategyManager(deployerPublicKey);
         console.log("multipool address: ", address(mp));
-            
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18))));
+
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18)))
+        );
         MockERC20[] memory tokens = new MockERC20[](5);
         for (uint i; i < tokens.length; i++) {
             tokens[i] = new MockERC20("token", "token", 0);
             tokens[i].mint(deployerPublicKey, 100e18);
             uint price = toX96((i + 1) * 0.01e18);
-            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint64(price)));
+            updatePrice(
+                address(mp),
+                address(tokens[i]),
+                abi.encodePacked(FeedType.FixedValue, uint64(price))
+            );
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
             uint16[] memory am = new uint16[](1);
@@ -44,7 +50,7 @@ contract DeployTestnet is Script {
             deployerPublicKey,
             toX16(0.15e18)
         );
-        MultipoolRouter router = new MultipoolRouter();
+        MultipoolRouter router = new MultipoolRouter(address(0));
 
         console.log("router address: ", address(router));
 

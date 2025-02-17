@@ -5,7 +5,9 @@ import "forge-std/Test.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, toX16RatioTick, vec, updatePrice} from "../MultipoolUtils.t.sol";
+import {
+    MultipoolUtils, toX96, toX32, toX16RatioTick, vec, updatePrice
+} from "../MultipoolUtils.t.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
 import {ReceiverData} from "../../src/types/ReceiverData.sol";
 
@@ -43,19 +45,22 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.expectRevert(); // not an owner
         mp.updateOracleAddress(address(0));
-        
+
         vm.prank(owner);
         mp.updateOracleAddress(address(0));
     }
 
-
     function test_NoPrice() public {
         vm.expectRevert(abi.encodeWithSignature("InvalidTargetShareAuthority()"));
-        mp.updateTargetShares(vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000]));
+        mp.updateTargetShares(
+            vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000])
+        );
 
         vm.prank(owner);
-        mp.updateTargetShares(vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000]));
-        
+        mp.updateTargetShares(
+            vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000])
+        );
+
         tokens[0].mint(address(mp), 1e18);
         OraclePrice memory op;
 
@@ -68,13 +73,19 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         mp.swap{value: 0}(op, token0, address(mp), 1e18, true, rd);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
-        
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
+        );
+
         vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
         mp.swap{value: 0}(op, token0, address(mp), 1e18, true, rd);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(token0), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
+        updatePrice(
+            address(mp),
+            address(token0),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
+        );
 
         mp.swap{value: 0}(op, token0, address(mp), 1e18, true, rd);
 
@@ -82,7 +93,6 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
         mp.swap{value: 0}(op, token1, address(mp), 1e18, true, rd);
-
     }
 
     function test_AssetPriceGrow() public {
@@ -94,16 +104,20 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         );
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.FixedValue, uint128(toX96(40e18))));
+        updatePrice(
+            address(mp),
+            address(tokens[0]),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(40e18)))
+        );
 
         tokens[0].mint(address(mp), 100e18);
 
         // vm.prank(owner);
         // mp.setFeeParams(
-        //     toX16RatioTick(0.0003e5), 
-        //     toX16RatioTick(0.01e5), 
-        //     toX16RatioTick(0.6e5), 
-        //     toX16RatioTick(0.01e5), 
+        //     toX16RatioTick(0.0003e5),
+        //     toX16RatioTick(0.01e5),
+        //     toX16RatioTick(0.6e5),
+        //     toX16RatioTick(0.01e5),
         //     owner,
         //     toX16RatioTick(0.1e5)
         // );
@@ -121,14 +135,16 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.prank(owner);
         updatePrice(
-            address(mp), address(tokens[0]), abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18 + 1000)))
+            address(mp),
+            address(tokens[0]),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18 + 1000)))
         );
         vm.prank(owner);
         mp.setFeeParams(
-            toX16RatioTick(0.15e5), 
-            toX16RatioTick(1e5), 
-            toX16RatioTick(0.6e5), 
-            toX16RatioTick(0.01e5), 
+            toX16RatioTick(0.15e5),
+            toX16RatioTick(1e5),
+            toX16RatioTick(0.6e5),
+            toX16RatioTick(0.01e5),
             owner,
             toX16RatioTick(0.1e5)
         );
@@ -141,9 +157,15 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.FixedValue, uint128(toX96(15e18))));
+        updatePrice(
+            address(mp),
+            address(tokens[0]),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(15e18)))
+        );
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.11e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.11e18)))
+        );
 
         console.log("asadsaddsa");
         mp.swap{value: 100e18}(op, token0, token1, 0.5e18, true, rd);
@@ -152,12 +174,18 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.revertTo(snapshot);
         snapshot = vm.snapshot();
-        
-        vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.FixedValue, uint128(toX96(5e18))));
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18))));
+        updatePrice(
+            address(mp),
+            address(tokens[0]),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(5e18)))
+        );
+
+        vm.prank(owner);
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
+        );
 
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
 
@@ -167,7 +195,11 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
+        updatePrice(
+            address(mp),
+            address(tokens[0]),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
+        );
 
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
 
@@ -177,12 +209,13 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.prank(owner);
         updatePrice(
-            address(mp), address(tokens[2]), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.01e18)))
+            address(mp),
+            address(tokens[2]),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.01e18)))
         );
 
         vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
-
     }
 
     function test_SharePriceChange() public {
@@ -199,7 +232,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         uint256 snapshot = vm.snapshot();
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(1e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(1e18)))
+        );
 
         OraclePrice memory op;
 
@@ -214,7 +249,11 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.001e18))));
+        updatePrice(
+            address(mp),
+            address(mp),
+            abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.001e18)))
+        );
 
         vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
@@ -222,7 +261,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.11e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.11e18)))
+        );
 
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
 
@@ -231,7 +272,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
+        );
 
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
 
@@ -240,10 +283,12 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         vm.revertTo(snapshot);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
+        );
 
         op = genOraclePrice(ownerPk, owner, 1704739268, toX96(5e18));
-        
+
         mp.swap{value: 1e18}(op, token0, token1, 0.005e10, true, rd);
 
         snapMultipool("SharePriceChange3");

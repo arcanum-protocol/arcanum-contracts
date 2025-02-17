@@ -76,19 +76,19 @@ contract Trader {
             if (args.tokenIn != args.multipoolTokenIn) {
                 args.tokenIn.transfer(address(args.firstCall.wrapper), args.tmpAmount);
                 amount = args.firstCall.wrapper.wrap(
-                        args.tmpAmount, address(args.multipool), args.firstCall.data
-                    );
+                    args.tmpAmount, address(args.multipool), args.firstCall.data
+                );
             } else {
                 args.tokenIn.transfer(address(args.multipool), args.tmpAmount);
                 amount = args.tmpAmount;
             }
 
-            (,uint amountOut) = args.multipool.swap{value: args.multipoolFee}(
+            (, uint amountOut) = args.multipool.swap{value: args.multipoolFee}(
                 args.oraclePrice,
-                address(args.multipoolTokenIn), 
+                address(args.multipoolTokenIn),
                 address(args.multipoolTokenOut),
                 amount,
-                true, 
+                true,
                 ReceiverData({
                     receiverAddress: address(this),
                     refundAddress: address(this),

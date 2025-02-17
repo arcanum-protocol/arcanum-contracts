@@ -34,7 +34,6 @@ contract DummyOracleTests is Test, MultipoolUtils {
         oracle.updateParams(address(0), 12500);
 
         vm.stopPrank();
-
     }
 
     function test_CommitPrice() public {
@@ -42,10 +41,7 @@ contract DummyOracleTests is Test, MultipoolUtils {
         DummyOracle oracle = new DummyOracle(address(owner), 10000);
         uint256 ts = block.timestamp;
         bytes memory data = abi.encodePacked(
-            address(owner),
-            uint(ts),
-            uint(49432770753888933655371916),
-            uint(block.chainid)
+            address(owner), uint(ts), uint(49432770753888933655371916), uint(block.chainid)
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, keccak256(data).toEthSignedMessageHash());
         OraclePrice memory op;
@@ -54,14 +50,14 @@ contract DummyOracleTests is Test, MultipoolUtils {
         op.contractAddress = address(owner);
         op.signature = abi.encodePacked(r, s, v); // bytes32 -> bytes conversion
         vm.deal(owner, 1e18);
-        
+
         vm.prank(owner);
         oracle.commitPrice{value: 1e10}(op);
 
         vm.prank(user0);
         vm.expectRevert();
         oracle.commitPrice{value: 1e10}(op);
-    
+
         vm.warp(block.timestamp + 10001);
         vm.prank(owner);
         vm.expectRevert();

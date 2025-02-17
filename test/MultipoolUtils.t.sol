@@ -56,7 +56,6 @@ contract MultipoolUtils is Test {
 
     address owner;
     uint ownerPk;
-    address implementation;
 
     address token0;
     address token1;
@@ -75,14 +74,10 @@ contract MultipoolUtils is Test {
         oracle = new DummyOracle(owner, 10000);
 
         mpImpl = new Multipool();
-        implementation = address(mpImpl);
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(mpImpl),
-            ""
-        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
         mp.initialize("Name", "SYMBOL", address(oracle), uint96(toX32(0.1e18)));
-        router = new MultipoolRouter();
+        router = new MultipoolRouter(address(0));
     }
 
     function assertEq(MpAsset memory a, MpAsset memory b) public {
@@ -128,7 +123,16 @@ contract MultipoolUtils is Test {
         }
     }
 
-    function setBytes(bytes32 data, bytes32 bytesToSet, uint offset, uint size) public view returns (bytes32 updatedData) {
+    function setBytes(
+        bytes32 data,
+        bytes32 bytesToSet,
+        uint offset,
+        uint size
+    )
+        public
+        view
+        returns (bytes32 updatedData)
+    {
         console.log("v", uint(((1 << (size * 8)) - 1)));
         bytes32 mask = bytes32(((1 << (size * 8)) - 1) << ((32 - offset - size) * 8));
         console.log("m", uint(mask));
@@ -151,10 +155,14 @@ contract MultipoolUtils is Test {
         uint[] memory quoteValues,
         uint[] memory prices,
         uint16[] memory shares
-    ) public {
+    )
+        public
+    {
         vm.startPrank(owner);
         mp.setFeeParams(0, toX16RatioTick(1e5), 0, 0, address(0), 0);
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18))));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
+        );
         mp.updateStrategyManager(owner);
 
         mp.updateTargetShares(assets, shares);
@@ -168,7 +176,11 @@ contract MultipoolUtils is Test {
 
         for (uint i = 0; i < assets.length; i++) {
             uint val = (quoteValues[i] << 96) / prices[i];
-            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint128(prices[i])));
+            updatePrice(
+                address(mp),
+                address(tokens[i]),
+                abi.encodePacked(FeedType.FixedValue, uint128(prices[i]))
+            );
             tokens[i].mint(address(mp), val);
             tokens[i].mint(address(owner), 4000e18);
             mp.swap{value: 1e18}(oraclePrice, address(tokens[i]), address(mp), val, true, rd);
@@ -176,13 +188,17 @@ contract MultipoolUtils is Test {
 
         // insert adapter for token0 here
         address priceAdapter10 = address(new AbstractFixedValueOracle(prices[0]));
-        updatePrice(address(mp), address(tokens[0]), abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212)));
+        updatePrice(
+            address(mp),
+            address(tokens[0]),
+            abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212))
+        );
 
         mp.setFeeParams(
-            toX16RatioTick(0.0003e5), 
-            toX16RatioTick(0.15e5), 
-            toX16RatioTick(0.6e5), 
-            toX16RatioTick(0.01e5), 
+            toX16RatioTick(0.0003e5),
+            toX16RatioTick(0.15e5),
+            toX16RatioTick(0.6e5),
+            toX16RatioTick(0.01e5),
             owner,
             toX16RatioTick(0.1e5)
         );
@@ -194,13 +210,12 @@ contract MultipoolUtils is Test {
         address contractAddress,
         uint ts,
         uint price
-    ) public returns (OraclePrice memory op){
-        bytes memory data = abi.encodePacked(
-            address(contractAddress),
-            uint(ts),
-            uint(price),
-            uint(block.chainid)
-        );
+    )
+        public
+        returns (OraclePrice memory op)
+    {
+        bytes memory data =
+            abi.encodePacked(address(contractAddress), uint(ts), uint(price), uint(block.chainid));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, keccak256(data).toEthSignedMessageHash());
         op.timestamp = uint128(ts);
         op.sharePrice = uint128(price);
@@ -305,14 +320,20 @@ contract MultipoolUtils is Test {
 
         OraclePrice memory fp;
         MpContext memory ctx = mp.getContext(fp);
-        mpJson = vm.serializeString("multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee));
+        mpJson = vm.serializeString(
+            "multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee)
+        );
         mpJson = vm.serializeString("multipool", "deviationLimit", jsonString(ctx.deviationLimit));
-        mpJson = vm.serializeString("multipool", "cashbackFeeShare", jsonString(ctx.feeToCashbackRatio));
+        mpJson =
+            vm.serializeString("multipool", "cashbackFeeShare", jsonString(ctx.feeToCashbackRatio));
         mpJson = vm.serializeString("multipool", "baseFee", jsonString(ctx.baseFee));
-        mpJson = vm.serializeString("multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient));
+        mpJson = vm.serializeString(
+            "multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient)
+        );
         mpJson = vm.serializeString("multipool", "managementFee", jsonString(ctx.managementBaseFee));
         mpJson = vm.serializeString("multipool", "oracleAddress", vm.toString(ctx.oracleAddress));
-        mpJson = vm.serializeString("multipool", "totalTargetShares", jsonString(ctx.totalTargetShares));
+        mpJson =
+            vm.serializeString("multipool", "totalTargetShares", jsonString(ctx.totalTargetShares));
 
         string memory snapJson;
         vm.serializeString("snap", "users", usersJson);
@@ -328,10 +349,7 @@ contract MultipoolUtils is Test {
         string memory newJson = vm.readFile(nfpath);
 
         vm.resumeGasMetering();
-        if (
-            keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson)))
-                
-        ) {
+        if (keccak256(abi.encodePacked((oldJson))) != keccak256(abi.encodePacked((newJson)))) {
             revert(string.concat("Snapshots are not equal for ", path));
         }
         if (keccak256(abi.encodePacked((oldJson))) == keccak256(abi.encodePacked((newJson)))) {
@@ -357,75 +375,105 @@ function updatePrice(address multipoolAddress, address asset, bytes memory data)
 
 function vec(address[5] memory _s) pure returns (address[] memory s) {
     s = new address[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(address[4] memory _s) pure returns (address[] memory s) {
     s = new address[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(address[3] memory _s) pure returns (address[] memory s) {
     s = new address[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(address[2] memory _s) pure returns (address[] memory s) {
     s = new address[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(address[1] memory _s) pure returns (address[] memory s) {
     s = new address[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint16[5] memory _s) pure returns (uint16[] memory s) {
     s = new uint16[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint16[4] memory _s) pure returns (uint16[] memory s) {
     s = new uint16[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint16[3] memory _s) pure returns (uint16[] memory s) {
     s = new uint16[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint16[2] memory _s) pure returns (uint16[] memory s) {
     s = new uint16[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint16[1] memory _s) pure returns (uint16[] memory s) {
     s = new uint16[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint[5] memory _s) pure returns (uint[] memory s) {
     s = new uint[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint[4] memory _s) pure returns (uint[] memory s) {
     s = new uint[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint[3] memory _s) pure returns (uint[] memory s) {
     s = new uint[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint[2] memory _s) pure returns (uint[] memory s) {
     s = new uint[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }
 
 function vec(uint[1] memory _s) pure returns (uint[] memory s) {
     s = new uint[](_s.length);
-    for (uint i; i < _s.length; ++i) s[i] = _s[i];
+    for (uint i; i < _s.length; ++i) {
+        s[i] = _s[i];
+    }
 }

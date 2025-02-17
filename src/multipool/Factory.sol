@@ -7,38 +7,28 @@ import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {Multipool, IERC20, OraclePrice} from "./Multipool.sol";
+import {ReceiverData} from "../types/ReceiverData.sol";
 
 struct MultipoolCreationParams {
     string name;
     string symbol;
     uint96 initialSharePrice;
-
     uint16 deviationIncreaseFee;
     uint16 deviationLimit;
     uint16 feeToCashbackRatio;
     uint16 baseFee;
     address managementFeeRecepient;
     uint16 managementFee;
-
     address oracleAddress;
-
     address strategyManager;
-
     address[] assetAddresses;
     bytes32[] priceData;
     uint16[] targetShares;
-
     address initialLiquidityAsset;
 }
 
-
 /// @custom:security-contact badconfig@arcanum.to
-contract MultipoolFactory is
-    Initializable,
-    OwnableUpgradeable,
-    UUPSUpgradeable
-{
-
+contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     constructor() {
         _disableInitializers();
     }
@@ -59,16 +49,18 @@ contract MultipoolFactory is
         implementationAddress = newImplementationAddress;
     }
 
-
     ///@dev it's important to remember: if this function is used with no initial liquidity
     /// It's safe to use it directly, otherwhise use it through router
-    function createMultipool(MultipoolCreationParams calldata params) external returns (Multipool mp){
+    function createMultipool(MultipoolCreationParams calldata params)
+        external
+        returns (Multipool mp)
+    {
         address _implementationAddress = implementationAddress;
 
         ERC1967Proxy proxy = new ERC1967Proxy(
-            address(_implementationAddress), 
+            address(_implementationAddress),
             abi.encodeWithSignature(
-                "initialize(string,string,address,uint96)", 
+                "initialize(string,string,address,uint96)",
                 params.name,
                 params.symbol,
                 params.oracleAddress,
@@ -94,8 +86,11 @@ contract MultipoolFactory is
                 address(mp),
                 IERC20(params.initialLiquidityAsset).balanceOf(address(mp)),
                 true,
-                msg.sender,
-                true
+                ReceiverData({
+                    refundAddress: address(0),
+                    receiverAddress: msg.sender,
+                    refundEthToReceiver: true
+                })
             );
         }
 

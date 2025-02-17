@@ -49,10 +49,7 @@ contract SiloAdapterTests is Test {
         uint priceX96 = price * (value) / IERC20(info.collateralToken).totalSupply();
 
         bytes memory data = abi.encodePacked(
-            FeedType.UniV3, 
-            address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
-            false,
-            uint8(60)
+            FeedType.UniV3, address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29), false, uint8(60)
         );
 
         bytes32 feedData;
@@ -61,9 +58,7 @@ contract SiloAdapterTests is Test {
         }
 
         siloAdapter.createFeed(
-            address(baseToken),
-            ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A),
-            feedData
+            address(baseToken), ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), feedData
         );
         assertEq(priceX96, siloAdapter.getPrice(0));
     }

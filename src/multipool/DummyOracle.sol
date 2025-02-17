@@ -8,10 +8,7 @@ import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import "forge-std/Test.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
-contract DummyOracle is
-    IArcanumOracle,
-    Ownable
-{
+contract DummyOracle is IArcanumOracle, Ownable {
     using ECDSA for bytes32;
 
     address public oracle;
@@ -35,7 +32,8 @@ contract DummyOracle is
             uint(block.chainid)
         );
 
-        address oracleAddress = keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
+        address oracleAddress =
+            keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
 
         address _oracle = oracle;
         uint96 _priceValidityDuration = priceValidityDuration;

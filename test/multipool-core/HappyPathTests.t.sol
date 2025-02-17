@@ -12,7 +12,6 @@ import {ReceiverData} from "../../src/types/ReceiverData.sol";
 import {MultipoolUtils, toX96, toX32, vec, updatePrice} from "../MultipoolUtils.t.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
-
 contract HappyPathTests is Test, MultipoolUtils {
     receive() external payable {}
 
@@ -32,7 +31,7 @@ contract HappyPathTests is Test, MultipoolUtils {
         swap(user0, token1, token0, true, 1e6);
         snapMultipool("SimpleSwap3");
     }
-    
+
     function test_BasicErrors() public {
         bootstrapMultipool(
             vec([token0, token1, token2, token3, token4]),
@@ -52,10 +51,7 @@ contract HappyPathTests is Test, MultipoolUtils {
         vm.expectRevert();
         mp.initialize("Name", "SYMBOL", address(0), uint96(toX32(0.1e18)));
 
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(mpImpl),
-            ""
-        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
 
         Multipool notInitialized = Multipool(address(proxy));
 

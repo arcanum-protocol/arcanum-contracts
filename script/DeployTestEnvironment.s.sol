@@ -51,15 +51,21 @@ contract DeployTestEnv is Script {
         console.log("mp ", address(mp));
 
         mp.updateStrategyManager(deployer);
-    
-        updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18))));
+
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18)))
+        );
         MockERC20[] memory tokens = new MockERC20[](5);
         for (uint i; i < tokens.length; i++) {
             salt = keccak256(abi.encode("chapa chapa", "token", i));
             tokens[i] = new MockERC20{salt: salt}("token", "token", 0);
             tokens[i].mint(deployer, 100e18);
             uint price = toX96((i + 1) * 0.01e18);
-            updatePrice(address(mp), address(tokens[i]), abi.encodePacked(FeedType.FixedValue, uint64(price)));
+            updatePrice(
+                address(mp),
+                address(tokens[i]),
+                abi.encodePacked(FeedType.FixedValue, uint64(price))
+            );
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
             uint16[] memory am = new uint16[](1);
@@ -109,26 +115,26 @@ contract DeployEtfWithFactory is Script {
         targetShares[0] = 2;
         targetShares[1] = 1;
 
-      //  factory.spawnMultipool(
-      //      MultipoolFactory.MultipoolSetupArgs({
-      //          name: "Test",
-      //          symbol: "TEST",
-      //          signatureThershold: 1,
-      //          sharePriceValidity: 600,
-      //          initialSharePrice: toX32(1e18),
-      //          deviationLimit: toX32(0.15e18),
-      //          halfDeviationFee: toX32(0.003e18),
-      //          depegBaseFee: toX32(0.3e18),
-      //          baseFee: toX32(0.01e18),
-      //          developerBaseFee: toX32(0.01e18),
-      //          developerAddress: deployer,
-      //          oracleAddresses: oracleAddresses,
-      //          assetAddresses: assetAddresses,
-      //          priceFeedKinds: priceFeedKinds,
-      //          feedData: feedData,
-      //          targetShares: targetShares
-      //      })
-      //  );
+        //  factory.spawnMultipool(
+        //      MultipoolFactory.MultipoolSetupArgs({
+        //          name: "Test",
+        //          symbol: "TEST",
+        //          signatureThershold: 1,
+        //          sharePriceValidity: 600,
+        //          initialSharePrice: toX32(1e18),
+        //          deviationLimit: toX32(0.15e18),
+        //          halfDeviationFee: toX32(0.003e18),
+        //          depegBaseFee: toX32(0.3e18),
+        //          baseFee: toX32(0.01e18),
+        //          developerBaseFee: toX32(0.01e18),
+        //          developerAddress: deployer,
+        //          oracleAddresses: oracleAddresses,
+        //          assetAddresses: assetAddresses,
+        //          priceFeedKinds: priceFeedKinds,
+        //          feedData: feedData,
+        //          targetShares: targetShares
+        //      })
+        //  );
 
         vm.stopBroadcast();
     }

@@ -27,7 +27,6 @@ contract Oracle is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
@@ -35,11 +34,7 @@ contract Oracle is
         _disableInitializers();
     }
 
-    function initialize(
-    )
-        public
-        initializer
-    {
+    function initialize() public initializer {
         __ReentrancyGuard_init();
         __Ownable_init();
     }
@@ -68,7 +63,7 @@ contract Oracle is
     uint128 maxStake;
 
     address tokenAddress;
-    uint96  sharePriceValidityDuration;
+    uint96 sharePriceValidityDuration;
 
     uint128 collectedReward;
     uint128 totalBurnedAssets;
@@ -92,13 +87,13 @@ contract Oracle is
 
     function startSlashProposal(address oracleToSlash, bytes calldata reason) external {
         slashProposalCount += 1;
-        slashProposals[slashProposalCount] = SlashProposal(oracleToSlash, 0, uint128(block.timestamp));
+        slashProposals[slashProposalCount] =
+            SlashProposal(oracleToSlash, 0, uint128(block.timestamp));
 
         emit ProposalCreated(oracleToSlash, reason);
     }
 
-    function voteSlashProposal() external {
-    }
+    function voteSlashProposal() external {}
 
     function _voteSlashProposal(address voter, uint96 proposalNum) internal {
         bytes32 voteId = bytes32(abi.encode(voter, proposalNum));
@@ -109,52 +104,52 @@ contract Oracle is
         proposal.votes += 1;
 
         if (proposal.votes < oraclesToSlash) return;
-
     }
 
-    function stake() external {
-    }
+    function stake() external {}
 
-    function unstake() external {
-    }
+    function unstake() external {}
 
     function redeemCollateral(address payable to, uint amountToBurn) external {
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amountToBurn);
 
-        uint amountToRedeem = amountToBurn * (tokenTotalSupply - totalBurnedAssets) / tokenTotalSupply;
+        uint amountToRedeem =
+            amountToBurn * (tokenTotalSupply - totalBurnedAssets) / tokenTotalSupply;
         to.transfer(amountToRedeem);
 
         totalBurnedAssets += uint128(amountToBurn);
     }
 
     function commitPrice(OraclePrice calldata oraclePrice) external payable {
-            bytes memory data = abi.encodePacked(
-                address(msg.sender),
-                uint(oraclePrice.timestamp),
-                uint(oraclePrice.sharePrice),
-                uint(block.chainid)
-            );
-            address oracleAddress = keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
-            OracleData memory oracle = oracles[oracleAddress];
+        bytes memory data = abi.encodePacked(
+            address(msg.sender),
+            uint(oraclePrice.timestamp),
+            uint(oraclePrice.sharePrice),
+            uint(block.chainid)
+        );
+        address oracleAddress =
+            keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
+        OracleData memory oracle = oracles[oracleAddress];
 
-            if (oracle.enabled) {
-                revert InvalidForcePushAuthority(address(0), address(0));
-            }
+        if (oracle.enabled) {
+            revert InvalidForcePushAuthority(address(0), address(0));
+        }
 
-            if (oraclePrice.timestamp + sharePriceValidityDuration < block.timestamp) {
-                revert ForcePushPriceExpired(block.timestamp, oraclePrice.timestamp);
-            }
+        if (oraclePrice.timestamp + sharePriceValidityDuration < block.timestamp) {
+            revert ForcePushPriceExpired(block.timestamp, oraclePrice.timestamp);
+        }
 
-            uint availableReward = (uint128(block.number) - lastClaimedBlock) * rewardPerBlock + collectedReward;
-            uint income = msg.value;
-            uint contractBalance = address(this).balance - income;
-            uint valueToBuy = income * (tokenTotalSupply - totalBurnedAssets) / contractBalance;
+        uint availableReward =
+            (uint128(block.number) - lastClaimedBlock) * rewardPerBlock + collectedReward;
+        uint income = msg.value;
+        uint contractBalance = address(this).balance - income;
+        uint valueToBuy = income * (tokenTotalSupply - totalBurnedAssets) / contractBalance;
 
-            if (availableReward > valueToBuy) {
-                collectedReward = uint128(availableReward - valueToBuy);
-                oracle.stake += uint128(valueToBuy);
-            } else {
-                oracle.stake = uint128(availableReward);
-            }
+        if (availableReward > valueToBuy) {
+            collectedReward = uint128(availableReward - valueToBuy);
+            oracle.stake += uint128(valueToBuy);
+        } else {
+            oracle.stake = uint128(availableReward);
+        }
     }
 }

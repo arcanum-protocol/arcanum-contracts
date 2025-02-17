@@ -31,8 +31,10 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         rd.receiverAddress = user0;
         rd.refundAddress = address(0);
         rd.refundEthToReceiver = true;
-        
-        mp.swap{value: uint128(toX96(0.1e18))}(oraclePrice, address(tokens[0]), address(mp), val, true, rd);
+
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            oraclePrice, address(tokens[0]), address(mp), val, true, rd
+        );
         // swapExt(
         //     sort(
         //         dynamic(

@@ -7,7 +7,6 @@ import {ReceiverData} from "../../types/ReceiverData.sol";
 
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
-
     /// @notice Gets price feed data
     /// @param asset Asset for wich to get price feed
     /// @return priceFeed Returns price feed data
@@ -17,7 +16,6 @@ interface IMultipoolMethods {
     /// @param asset Asset for wich to get price
     /// @return price Returns price data in a format of Q96 decimal value
     function getPrice(address asset) external view returns (uint price);
-
 
     /// @notice Gets asset related info
     /// @param assetAddress address of asset wich data to provide
@@ -30,7 +28,8 @@ interface IMultipoolMethods {
     /// @param oraclePrice Arguments for share price force push
     /// @param assetInAddress Asset that is deposited into pool
     /// @param assetOutAddress Asset that is received from pool
-    /// @param isExactInput if true - swap amount is specified as amount in, if false - as amount out
+    /// @param isExactInput if true - swap amount is specified as amount in, if false - as amount
+    /// out
     /// @param data Arguments with return data
     /// `receiverAddress`, else, `msg.sender` will be used
     /// @dev This is a low level method that works via direct token transfer on contract and method
@@ -46,7 +45,7 @@ interface IMultipoolMethods {
         ReceiverData calldata data
     )
         external
-        payable 
+        payable
         returns (uint amountIn, uint amountOut);
 
     /// @notice Method that increases cashback for a specific asset

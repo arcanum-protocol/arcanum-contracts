@@ -13,10 +13,49 @@ interface WETH is IERC20 {
     function withdraw(uint256 amount) external;
 }
 
-contract MultipoolRouter is Ownable {
+enum CallType {
+    ERC20Transfer,
+    ERC20Approve,
+    Any,
+    Wrap
+}
 
+struct TokenTransferParams {
+    address token;
+    address targetOrOrigin;
+    uint amount;
+}
+
+struct RouterApproveParams {
+    address token;
+    address target;
+    uint amount;
+}
+
+struct WrapParams {
+    address weth;
+    bool wrap;
+    uint ethValue;
+}
+
+struct Call {
+    CallType callType;
+    bytes data;
+}
+
+struct SwapArgs {
+    OraclePrice oraclePrice;
+    address assetIn;
+    address assetOut;
+    uint swapAmount;
+    bool isExactInput;
+    ReceiverData receiverData;
+    uint ethValue;
+}
+
+contract MultipoolRouter is Ownable {
     constructor(address _factory) {
-        factory = _factory; 
+        factory = _factory;
     }
 
     address public factory;
@@ -27,50 +66,10 @@ contract MultipoolRouter is Ownable {
         isContractAllowedToCall[contractAddress] = !isContractAllowedToCall[contractAddress];
     }
 
-    enum CallType {
-        ERC20Transfer,
-        ERC20Approve,
-        Any,
-        Wrap
-    }
-
-    struct TokenTransferParams {
-        address token;
-        address targetOrOrigin;
-        uint amount;
-    }
-
-    struct RouterApproveParams {
-        address token;
-        address target;
-        uint amount;
-    }
-
-    struct WrapParams {
-        address weth;
-        bool wrap;
-        uint ethValue;
-    }
-
-    struct Call {
-        CallType callType;
-        bytes data;
-    }
-
     error CallFailed(uint callNumber, bool isPredecessing);
     error InsufficientEthBalance(uint callNumber, bool isPredecessing);
     error InsufficientEthBalanceCallingSwap();
     error ContractCallNotAllowed(address target);
-
-    struct SwapArgs {
-        OraclePrice oraclePrice;
-        address assetIn;
-        address assetOut;
-        uint swapAmount;
-        bool isExactInput;
-        ReceiverData receiverData;
-        uint ethValue;
-    }
 
     function processCall(Call memory call, uint index, bool isPredecessing) internal {
         if (call.callType == CallType.Any) {
@@ -118,7 +117,9 @@ contract MultipoolRouter is Ownable {
         external
         payable
     {
-        for (uint i; i < callsBefore.length; ++i) processCall(callsBefore[i], i, true);
+        for (uint i; i < callsBefore.length; ++i) {
+            processCall(callsBefore[i], i, true);
+        }
 
         if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
         Multipool(poolAddress).swap{value: swapArgs.ethValue}(
@@ -130,7 +131,9 @@ contract MultipoolRouter is Ownable {
             swapArgs.receiverData
         );
 
-        for (uint i; i < callsAfter.length; ++i) processCall(callsAfter[i], i, false);
+        for (uint i; i < callsAfter.length; ++i) {
+            processCall(callsAfter[i], i, false);
+        }
     }
 
     function createMultipool(
@@ -141,8 +144,12 @@ contract MultipoolRouter is Ownable {
         external
         payable
     {
-        for (uint i; i < callsBefore.length; ++i) processCall(callsBefore[i], i, true);
+        for (uint i; i < callsBefore.length; ++i) {
+            processCall(callsBefore[i], i, true);
+        }
         MultipoolFactory(factory).createMultipool(creationParams);
-        for (uint i; i < callsAfter.length; ++i) processCall(callsAfter[i], i, false);
+        for (uint i; i < callsAfter.length; ++i) {
+            processCall(callsAfter[i], i, false);
+        }
     }
 }

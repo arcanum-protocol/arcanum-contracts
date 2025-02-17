@@ -13,7 +13,6 @@ struct MpAsset {
 struct MpContext {
     uint sharePrice;
     uint oldTotalSupply;
-
     int totalSupplyDelta;
     uint totalTargetShares;
     uint deviationIncreaseFee;
@@ -21,19 +20,14 @@ struct MpContext {
     uint feeToCashbackRatio;
     uint baseFee;
     uint managementBaseFee;
-
     uint deviationFees;
     uint collectedCashbacks;
     uint collectedFees;
-
     address managementFeeRecepient;
     address oracleAddress;
 }
 
-using {
-    ContextMath.calculateDeviationFee,
-    ContextMath.applyCollected
-} for MpContext global;
+using {ContextMath.calculateDeviationFee, ContextMath.applyCollected} for MpContext global;
 
 library ContextMath {
     function subAbs(uint a, uint b) internal pure returns (uint c) {
@@ -55,10 +49,14 @@ library ContextMath {
     }
 
     function applyCollected(
-        MpContext memory ctx, 
-        uint quoteTradeValue, 
+        MpContext memory ctx,
+        uint quoteTradeValue,
         uint ethDeposit
-    ) internal pure returns (uint refund, uint managerEarnedFee, uint oracleEarnedFee) {
+    )
+        internal
+        pure
+        returns (uint refund, uint managerEarnedFee, uint oracleEarnedFee)
+    {
         uint collectedBaseFees = (quoteTradeValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
 
         refund = collectedBaseFees + ctx.deviationFees + ctx.collectedFees;
@@ -67,8 +65,7 @@ library ContextMath {
         refund = ctx.collectedCashbacks + ethDeposit - refund;
 
         uint totalEarnedFees = ctx.collectedFees + collectedBaseFees;
-        managerEarnedFee =
-            totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
+        managerEarnedFee = totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
         oracleEarnedFee = totalEarnedFees - managerEarnedFee;
     }
 
@@ -83,7 +80,8 @@ library ContextMath {
     {
         uint newQuantity = addDelta(asset.quantity, quantityDelta);
         uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
-        uint targetShare = (uint(asset.targetShare) << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
+        uint targetShare =
+            (uint(asset.targetShare) << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
 
         uint dOld = ctx.oldTotalSupply == 0
             ? 0
@@ -103,8 +101,10 @@ library ContextMath {
         if (dNew > dOld && ctx.oldTotalSupply != 0) {
             if (targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
             if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
-            uint fullDeviationFee = (ctx.deviationIncreaseFee * quotedDelta) >> FixedPoint32.RESOLUTION;
-            uint collectedFees = (fullDeviationFee * ctx.feeToCashbackRatio) >> FixedPoint32.RESOLUTION;
+            uint fullDeviationFee =
+                (ctx.deviationIncreaseFee * quotedDelta) >> FixedPoint32.RESOLUTION;
+            uint collectedFees =
+                (fullDeviationFee * ctx.feeToCashbackRatio) >> FixedPoint32.RESOLUTION;
 
             asset.collectedCashbacks += uint112(fullDeviationFee - collectedFees);
             ctx.collectedFees = collectedFees;
@@ -119,5 +119,4 @@ library ContextMath {
         }
         asset.quantity = uint128(newQuantity);
     }
-
 }
