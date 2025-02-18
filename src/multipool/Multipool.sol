@@ -281,22 +281,22 @@ contract Multipool is
                 if (assetOutAddress != address(this)) {
                     ctx.calculateDeviationFee(assetOut, -int(amountOut), priceOut);
                 }
-            }
-        }
 
-        if (assetInAddress == address(this)) {
-            assets[assetOutAddress] = assetOut;
-            emit AssetChange(assetInAddress, uint128(totalSupply()), 0);
-            emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
-        } else if (assetOutAddress == address(this)) {
-            assets[assetInAddress] = assetIn;
-            emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-            emit AssetChange(assetOutAddress, uint128(totalSupply()), 0);
-        } else {
-            assets[assetInAddress] = assetIn;
-            assets[assetOutAddress] = assetOut;
-            emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-            emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
+                if (assetInAddress == address(this)) {
+                    assets[assetOutAddress] = assetOut;
+                    emit AssetChange(assetInAddress, uint128(totalSupply()), priceIn, 0);
+                    emit AssetChange(assetOutAddress, assetOut.quantity, priceOut, assetOut.collectedCashbacks);
+                } else if (assetOutAddress == address(this)) {
+                    assets[assetInAddress] = assetIn;
+                    emit AssetChange(assetInAddress, assetIn.quantity, priceIn, assetIn.collectedCashbacks);
+                    emit AssetChange(assetOutAddress, uint128(totalSupply()), priceOut, 0);
+                } else {
+                    assets[assetInAddress] = assetIn;
+                    assets[assetOutAddress] = assetOut;
+                    emit AssetChange(assetInAddress, assetIn.quantity, priceIn, assetIn.collectedCashbacks);
+                    emit AssetChange(assetOutAddress, assetOut.quantity, priceOut, assetOut.collectedCashbacks);
+                }
+            }
         }
 
         transferFees(
@@ -317,7 +317,7 @@ contract Multipool is
         uint128 amount = uint128(msg.value);
         MpAsset memory asset = assets[assetAddress];
         asset.collectedCashbacks += uint112(amount);
-        emit AssetChange(assetAddress, asset.quantity, amount);
+        emit AssetChange(assetAddress, asset.quantity, 0, amount);
         assets[assetAddress] = asset;
     }
 

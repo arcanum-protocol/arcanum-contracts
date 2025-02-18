@@ -10,8 +10,9 @@ interface IMultipoolEvents {
     /// @notice Emitted when any quantity or cashback change happens even for multipool share
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
+    /// @param price asset price
     /// @param collectedCashbacks absolute value of new cashbacks (always 0 for multipool)
-    event AssetChange(address indexed asset, uint128 quantity, uint128 collectedCashbacks);
+    event AssetChange(address indexed asset, uint128 quantity, uint price, uint128 collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
     /// @param newDeviationIncreaseFee fee charged when deviation is increased
