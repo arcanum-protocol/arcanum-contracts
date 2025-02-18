@@ -5,6 +5,7 @@ import {FixedPoint96, FixedPoint32} from "./FixedPoint.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
 struct MpAsset {
+    bool isUsed;
     uint128 quantity;
     uint16 targetShare;
     uint112 collectedCashbacks;

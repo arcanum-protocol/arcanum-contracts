@@ -209,7 +209,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("AddNewTokenAndTryToBurnWithIt");
         assertEq(
             mp.getAsset(address(newOne)),
-            MpAsset({quantity: 1e18, targetShare: 1000, collectedCashbacks: 0})
+            MpAsset({quantity: 1e18, targetShare: 1000, collectedCashbacks: 0, isUsed: true})
         );
         assertEq(newOne.balanceOf(address(mp)), 1e18);
 
@@ -222,7 +222,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("AddNewTokenAndTryToBurnWithIt2");
         assertEq(
             mp.getAsset(address(newOne)),
-            MpAsset({quantity: 26e18, targetShare: 1000, collectedCashbacks: 0})
+            MpAsset({quantity: 26e18, targetShare: 1000, collectedCashbacks: 0, isUsed: true})
         );
         assertEq(newOne.balanceOf(address(mp)), 26e18);
     }

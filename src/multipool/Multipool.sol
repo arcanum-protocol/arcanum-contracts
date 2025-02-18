@@ -61,6 +61,7 @@ contract Multipool is
 
     mapping(address => MpAsset) internal assets;
     mapping(address => bytes32) internal prices;
+    address[] public usedAssets;
 
     constructor() {
         _disableInitializers();
@@ -86,7 +87,11 @@ contract Multipool is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    function usedAssetsLegnth() external view returns (uint) {
+        return usedAssets.length;
+    }
     /// @inheritdoc IMultipoolMethods
+
     function getPriceFeed(address asset) external view override returns (bytes32 priceFeed) {
         priceFeed = bytes32(prices[asset]);
     }
@@ -357,6 +362,10 @@ contract Multipool is
             MpAsset memory asset = assets[assetAddress];
             totalTargetSharesCached = totalTargetSharesCached - asset.targetShare + targetShare;
             asset.targetShare = uint16(targetShare);
+            if (!asset.isUsed) {
+                usedAssets.push(assetAddress);
+                asset.isUsed = true;
+            }
             assets[assetAddress] = asset;
             emit TargetShareChange(assetAddress, targetShare, totalTargetSharesCached);
             unchecked {
