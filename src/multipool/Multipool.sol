@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-import {MpAsset, MpContext} from "../lib/MpContext.sol";
+import {MpAsset, MpContext, Fees} from "../lib/MpContext.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint.sol";
 
@@ -25,6 +25,11 @@ import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20Permi
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
+
+struct Prices {
+    uint priceIn;
+    uint priceOut;
+}
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
@@ -190,35 +195,6 @@ contract Multipool is
         }
     }
 
-    function transferFees(
-        MpContext memory ctx,
-        OraclePrice calldata oraclePrice,
-        uint quoteAmount,
-        address assetIn,
-        address assetOut,
-        uint amountIn,
-        uint amountOut,
-        address receiverAddress,
-        bool refundEthToReceiver
-    )
-        internal
-    {
-        (uint refund, uint managerEarnedFee, uint oracleEarnedFee) =
-            ctx.applyCollected(quoteAmount, msg.value);
-        if (refund > 0) {
-            payable(refundEthToReceiver ? receiverAddress : msg.sender).transfer(refund);
-        }
-        if (oraclePrice.contractAddress == address(this)) {
-            payable(ctx.managementFeeRecepient).transfer(managerEarnedFee);
-            IArcanumOracle(ctx.oracleAddress).commitPrice{value: oracleEarnedFee}(oraclePrice);
-        } else {
-            payable(ctx.managementFeeRecepient).transfer(managerEarnedFee + oracleEarnedFee);
-        }
-        emit Swap(
-            msg.sender, assetIn, assetOut, amountIn, amountOut, managerEarnedFee, oracleEarnedFee
-        );
-    }
-
     /// @inheritdoc IMultipoolMethods
     function swap(
         OraclePrice calldata oraclePrice,
@@ -239,8 +215,14 @@ contract Multipool is
         MpContext memory ctx = getContext(oraclePrice);
         MpAsset memory assetIn;
         MpAsset memory assetOut;
+        Prices memory price;
 
-        uint quoteAmount;
+        price.priceIn =
+            assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
+        price.priceOut =
+            assetOutAddress == address(this) ? ctx.sharePrice : prices[assetOutAddress].getPrice();
+
+        Fees memory fees;
 
         {
             {
@@ -253,18 +235,9 @@ contract Multipool is
                     assetOut = assets[assetOutAddress];
                 }
 
-                uint priceIn = assetInAddress == address(this)
-                    ? ctx.sharePrice
-                    : prices[assetInAddress].getPrice();
-                uint priceOut = assetOutAddress == address(this)
-                    ? ctx.sharePrice
-                    : prices[assetOutAddress].getPrice();
-
-                quoteAmount =
-                    swapAmount * (isExactInput ? priceIn : priceOut) >> FixedPoint96.RESOLUTION;
                 (amountIn, amountOut) = isExactInput
-                    ? (swapAmount, swapAmount * priceIn / priceOut)
-                    : (swapAmount * priceOut / priceIn, swapAmount);
+                    ? (swapAmount, swapAmount * price.priceIn / price.priceOut)
+                    : (swapAmount * price.priceOut / price.priceIn, swapAmount);
 
                 if (assetInAddress == address(this)) {
                     ctx.totalSupplyDelta = -int(amountIn);
@@ -276,39 +249,61 @@ contract Multipool is
                 transferAsset(assetOutAddress, amountOut, data.receiverAddress);
 
                 if (assetInAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetIn, int(amountIn), priceIn);
+                    ctx.calculateDeviationFee(assetIn, int(amountIn), price.priceIn);
                 }
                 if (assetOutAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetOut, -int(amountOut), priceOut);
+                    ctx.calculateDeviationFee(assetOut, -int(amountOut), price.priceOut);
                 }
 
                 if (assetInAddress == address(this)) {
                     assets[assetOutAddress] = assetOut;
-                    emit AssetChange(assetInAddress, uint128(totalSupply()), priceIn, 0);
-                    emit AssetChange(assetOutAddress, assetOut.quantity, priceOut, assetOut.collectedCashbacks);
+                    emit AssetChange(assetInAddress, uint128(totalSupply()), 0);
+                    emit AssetChange(
+                        assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
+                    );
                 } else if (assetOutAddress == address(this)) {
                     assets[assetInAddress] = assetIn;
-                    emit AssetChange(assetInAddress, assetIn.quantity, priceIn, assetIn.collectedCashbacks);
-                    emit AssetChange(assetOutAddress, uint128(totalSupply()), priceOut, 0);
+                    emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+                    emit AssetChange(assetOutAddress, uint128(totalSupply()), 0);
                 } else {
                     assets[assetInAddress] = assetIn;
                     assets[assetOutAddress] = assetOut;
-                    emit AssetChange(assetInAddress, assetIn.quantity, priceIn, assetIn.collectedCashbacks);
-                    emit AssetChange(assetOutAddress, assetOut.quantity, priceOut, assetOut.collectedCashbacks);
+                    emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+                    emit AssetChange(
+                        assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
+                    );
                 }
+                fees = ctx.applyCollected(
+                    swapAmount * (isExactInput ? price.priceIn : price.priceOut)
+                        >> FixedPoint96.RESOLUTION,
+                    msg.value
+                );
             }
         }
 
-        transferFees(
-            ctx,
-            oraclePrice,
-            quoteAmount,
+        if (fees.refund > 0) {
+            payable(data.refundEthToReceiver ? data.receiverAddress : msg.sender).transfer(
+                fees.refund
+            );
+        }
+        if (oraclePrice.contractAddress == address(this)) {
+            payable(ctx.managementFeeRecepient).transfer(fees.managerEarnedFee);
+            IArcanumOracle(ctx.oracleAddress).commitPrice{value: fees.oracleEarnedFee}(oraclePrice);
+        } else {
+            payable(ctx.managementFeeRecepient).transfer(
+                fees.managerEarnedFee + fees.oracleEarnedFee
+            );
+        }
+        emit Swap(
+            msg.sender,
             assetInAddress,
             assetOutAddress,
             amountIn,
             amountOut,
-            data.receiverAddress,
-            data.refundEthToReceiver
+            price.priceIn,
+            price.priceOut,
+            fees.managerEarnedFee,
+            fees.oracleEarnedFee
         );
     }
 
@@ -317,7 +312,7 @@ contract Multipool is
         uint128 amount = uint128(msg.value);
         MpAsset memory asset = assets[assetAddress];
         asset.collectedCashbacks += uint112(amount);
-        emit AssetChange(assetAddress, asset.quantity, 0, amount);
+        emit AssetChange(assetAddress, asset.quantity, amount);
         assets[assetAddress] = asset;
     }
 

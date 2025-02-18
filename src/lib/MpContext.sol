@@ -10,6 +10,12 @@ struct MpAsset {
     uint112 collectedCashbacks;
 }
 
+struct Fees {
+    uint refund;
+    uint managerEarnedFee;
+    uint oracleEarnedFee;
+}
+
 struct MpContext {
     uint sharePrice;
     uint oldTotalSupply;
@@ -55,18 +61,20 @@ library ContextMath {
     )
         internal
         pure
-        returns (uint refund, uint managerEarnedFee, uint oracleEarnedFee)
+        returns (Fees memory fees)
     {
         uint collectedBaseFees = (quoteTradeValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
 
-        refund = collectedBaseFees + ctx.deviationFees + ctx.collectedFees;
+        fees.refund = collectedBaseFees + ctx.deviationFees + ctx.collectedFees;
 
-        if (refund > ctx.collectedCashbacks + ethDeposit) revert IMultipoolErrors.FeeExceeded();
-        refund = ctx.collectedCashbacks + ethDeposit - refund;
+        if (fees.refund > ctx.collectedCashbacks + ethDeposit) {
+            revert IMultipoolErrors.FeeExceeded();
+        }
+        fees.refund = ctx.collectedCashbacks + ethDeposit - fees.refund;
 
         uint totalEarnedFees = ctx.collectedFees + collectedBaseFees;
-        managerEarnedFee = totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
-        oracleEarnedFee = totalEarnedFees - managerEarnedFee;
+        fees.managerEarnedFee = totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
+        fees.oracleEarnedFee = totalEarnedFees - fees.managerEarnedFee;
     }
 
     function calculateDeviationFee(

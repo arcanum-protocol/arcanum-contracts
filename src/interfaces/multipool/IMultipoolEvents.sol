@@ -10,9 +10,8 @@ interface IMultipoolEvents {
     /// @notice Emitted when any quantity or cashback change happens even for multipool share
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
-    /// @param price asset price
     /// @param collectedCashbacks absolute value of new cashbacks (always 0 for multipool)
-    event AssetChange(address indexed asset, uint128 quantity, uint price, uint128 collectedCashbacks);
+    event AssetChange(address indexed asset, uint128 quantity, uint128 collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
     /// @param newDeviationIncreaseFee fee charged when deviation is increased
@@ -57,6 +56,8 @@ interface IMultipoolEvents {
     /// @param assetIn token that beed sent
     /// @param assetOut token that been received
     /// @param amountIn the amount token in sent to pool
+    /// @param priceIn the price of token that been received
+    /// @param priceOut the price of token then been sent
     /// @param amountOut the amount token out received from pool
     /// @param collectedManagementFees shows how much fees are earned for manager
     /// @param collectedOracleFees shows how much fees are earned for oracle
@@ -66,6 +67,8 @@ interface IMultipoolEvents {
         address indexed assetOut,
         uint amountIn,
         uint amountOut,
+        uint priceIn,
+        uint priceOut,
         uint collectedManagementFees,
         uint collectedOracleFees
     );
