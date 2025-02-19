@@ -87,11 +87,20 @@ contract Multipool is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function usedAssetsLegnth() external view returns (uint) {
-        return usedAssets.length;
+    function usedAssetsByLimitOffset(
+        uint limit,
+        uint offset
+    )
+        external
+        view
+        returns (address[] memory assetsRes)
+    {
+        for (uint i = offset; i < limit + offset; i++) {
+            assetsRes[i] = usedAssets[i];
+        }
     }
-    /// @inheritdoc IMultipoolMethods
 
+    /// @inheritdoc IMultipoolMethods
     function getPriceFeed(address asset) external view override returns (bytes32 priceFeed) {
         priceFeed = bytes32(prices[asset]);
     }

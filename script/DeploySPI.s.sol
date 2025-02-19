@@ -11,7 +11,7 @@ import {toX96, toX32, updatePrice} from "../test/MultipoolUtils.t.sol";
 contract DeploySpi is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployerPublicKey = vm.envAddress("PUBLIC_KEY");
+        // address deployerPublicKey = vm.envAddress("PUBLIC_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         Multipool mpImpl = Multipool(0xd47eAbdf744968618046087A7b0985A0e9e4a1Cc);
@@ -42,7 +42,7 @@ contract DeploySpi is Script {
         feedTypes[1] = FeedType.UniV3;
         feedTypes[2] = FeedType.UniV3;
 
-        bytes[] memory feedData = new bytes[](3);
+        // bytes[] memory feedData = new bytes[](3);
         // feedData[0] = abi.encode(
         //     UniV3Feed({
         //         oracle: address(0x2f5e87C9312fa29aed5c179E456625D79015299c),

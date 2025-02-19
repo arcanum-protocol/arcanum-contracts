@@ -92,7 +92,7 @@ contract DeployEtfWithFactory is Script {
         // test deployer private key
         uint256 pkey = uint(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
         address deployer = vm.addr(pkey);
-        MultipoolFactory factory = MultipoolFactory(0xAfef20a6b3e05d6bc9b9541d9BF692E7914406F0);
+        // MultipoolFactory factory = MultipoolFactory(0xAfef20a6b3e05d6bc9b9541d9BF692E7914406F0);
 
         vm.startBroadcast(pkey);
 

@@ -38,7 +38,6 @@ contract MultipoolCoreDeviationTests is Test {
     }
 
     function test_HappyPathBuildMultipoolWithFactory() public {
-        address[] memory tokens = new address[](3);
         bytes32[] memory prices = new bytes32[](3);
         address[] memory assetAddresses = new address[](3);
         assetAddresses[0] = address(4);

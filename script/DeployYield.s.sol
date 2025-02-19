@@ -30,13 +30,13 @@ contract MintYield is Script {
 
         Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
 
-        MultipoolRouter router = MultipoolRouter(0x36eBe888Dc501e3A764f1c4910B13AAF8efD0583);
+        // MultipoolRouter router = MultipoolRouter(0x36eBe888Dc501e3A764f1c4910B13AAF8efD0583);
 
         address asset = address(0x96E1301bd2536A3C56EBff8335FD892dD9bD02dC);
 
         ERC20(asset).transfer(address(yield), 29135778);
 
-        OraclePrice memory fp;
+        // OraclePrice memory fp;
         // MultipoolRouter.SwapArgs memory ar = MultipoolRouter.SwapArgs({
         //     forcePushArgs: fp,
         //     assetsToSwap: sort(
@@ -54,7 +54,7 @@ contract MintYield is Script {
         //     ethValue: 0.1e18
         // });
 
-        Call[] memory params;
+        // Call[] memory params;
 
         // router.swap{value: 0.1e18}(address(yield), ar, params, params);
         console.log(yield.balanceOf(deployerPublicKey));
@@ -67,7 +67,7 @@ contract UpdateYieldPrices is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
+        // Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
 
         address[] memory tokenAddresses = new address[](4);
         tokenAddresses[0] = address(0x96E1301bd2536A3C56EBff8335FD892dD9bD02dC);
@@ -97,8 +97,8 @@ contract UpdateYieldPrices is Script {
 contract DeployYield is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address oracleAddress = vm.envAddress("ORACLE_PUBLIC_KEY");
-        address deployerPublicKey = vm.addr(deployerPrivateKey);
+        // address oracleAddress = vm.envAddress("ORACLE_PUBLIC_KEY");
+        // address deployerPublicKey = vm.addr(deployerPrivateKey);
         vm.startBroadcast(deployerPrivateKey);
 
         Multipool mpImpl = Multipool(0xb2720Db48102082AE1278D03150d804E71529997);
@@ -179,7 +179,7 @@ contract DeploySiloAdapter is Script {
         console.log("Silo adapter address: ", address(siloAdapter));
         console.log("Silo adapter impl address: ", address(siloAdapterImpl));
 
-        address usdc = address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
+        // address usdc = address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
 
         // FeedInfo memory baseFeed = FeedInfo({
         //     kind: FeedType.UniV3,
@@ -213,7 +213,7 @@ contract AddSiloAdapterPrices is Script {
         SiloPriceAdapter siloAdapter =
             SiloPriceAdapter(address(0x5F127Aedf5A31E2F2685E49618D4f4809205fd62));
 
-        address usdc = address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
+        // address usdc = address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
 
         // FeedInfo memory baseFeed = FeedInfo({
         //     kind: FeedType.UniV3,
@@ -235,7 +235,7 @@ contract AddSiloAdapterPrices is Script {
         // siloAdapter.createFeed(usdc, ISilo(0x5C2B80214c1961dB06f69DD4128BcfFc6423d44F),
         // baseFeed);
 
-        Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
+        // Multipool yield = Multipool(0x71b9d28384aEb0949Fe9Ee3a1d52F27034E1F976);
 
         address[] memory tokenAddresses = new address[](4);
         tokenAddresses[0] = address(0x96E1301bd2536A3C56EBff8335FD892dD9bD02dC);

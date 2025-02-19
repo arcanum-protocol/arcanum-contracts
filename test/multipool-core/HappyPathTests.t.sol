@@ -55,7 +55,6 @@ contract HappyPathTests is Test, MultipoolUtils {
 
         Multipool notInitialized = Multipool(address(proxy));
 
-        OraclePrice memory op;
         ReceiverData memory rd;
         rd.receiverAddress = user0;
         rd.refundAddress = user0;

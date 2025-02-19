@@ -80,7 +80,7 @@ contract MultipoolUtils is Test {
         router = new MultipoolRouter(address(0));
     }
 
-    function assertEq(MpAsset memory a, MpAsset memory b) public {
+    function assertEq(MpAsset memory a, MpAsset memory b) public pure {
         assertEq(a.quantity, b.quantity, "MpAsset quantity");
         assertEq(a.collectedCashbacks, b.collectedCashbacks, "MpAsset cashbacks");
         assertEq(a.targetShare, b.targetShare, "MpAsset share");
@@ -212,6 +212,7 @@ contract MultipoolUtils is Test {
         uint price
     )
         public
+        view
         returns (OraclePrice memory op)
     {
         bytes memory data =

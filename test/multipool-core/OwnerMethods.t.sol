@@ -99,4 +99,27 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         snapMultipool("MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt4");
     }
+
+    function test_CheckGasUsageOnUpdateShares() public {
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(20e18), toX96(5e18), toX96(2.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
+
+        address[] memory assets = new address[](10);
+        uint16[] memory shares = new uint16[](10);
+
+        for (uint160 i = 1; i < 11; ++i) {
+            assets[i - 1] = address(i);
+            shares[i - 1] = 1;
+        }
+
+        vm.prank(owner);
+        mp.updateTargetShares(assets, shares);
+
+        vm.prank(owner);
+        mp.updateTargetShares(assets, shares);
+    }
 }

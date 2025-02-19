@@ -73,7 +73,7 @@ contract UpdateTargetShares is Script {
 contract DeployArbi is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployerPublicKey = vm.envAddress("PUBLIC_KEY");
+        // address deployerPublicKey = vm.envAddress("PUBLIC_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         Multipool mpImpl = new Multipool();
@@ -110,7 +110,7 @@ contract DeployArbi is Script {
         feedTypes[4] = FeedType.UniV3;
         feedTypes[5] = FeedType.UniV3;
 
-        bytes[] memory feedData = new bytes[](6);
+        // bytes[] memory feedData = new bytes[](6);
         // feedData[0] = abi.encode(
         //     UniV3Feed({
         //         oracle: address(0x1aEEdD3727A6431b8F070C0aFaA81Cc74f273882),
