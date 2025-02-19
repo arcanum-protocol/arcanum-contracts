@@ -81,23 +81,26 @@ contract Multipool is
         __Ownable_init();
         oracleAddress = _oracleAddress;
         initialSharePrice = _sharePrice;
-        emit PriceOracleUpdated(address(0), _oracleAddress);
+        emit PriceOracleChange(address(0), _oracleAddress);
         emit PoolCreated(_sharePrice);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function usedAssetsByLimitOffset(
+    /// @inheritdoc IMultipoolMethods
+    function usedAssetsAndLength(
         uint limit,
         uint offset
     )
         external
         view
-        returns (address[] memory assetsRes)
+        override
+        returns (address[] memory assetsRes, uint length)
     {
         for (uint i = offset; i < limit + offset; i++) {
             assetsRes[i] = usedAssets[i];
         }
+        length = usedAssets.length;
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -422,7 +425,7 @@ contract Multipool is
 
     /// @inheritdoc IMultipoolManagerMethods
     function updateOracleAddress(address _oracleAddress) external override onlyOwner {
-        emit PriceOracleUpdated(oracleAddress, _oracleAddress);
+        emit PriceOracleChange(oracleAddress, _oracleAddress);
         oracleAddress = _oracleAddress;
     }
 }

@@ -76,5 +76,5 @@ interface IMultipoolEvents {
     /// @notice Thrown when price verifier is updated.
     /// @param oldOracle address of old price verifier contract
     /// @param newOracle address of new price verifier contract
-    event PriceOracleUpdated(address oldOracle, address newOracle);
+    event PriceOracleChange(address oldOracle, address newOracle);
 }

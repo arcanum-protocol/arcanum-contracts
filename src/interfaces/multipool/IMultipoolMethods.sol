@@ -53,4 +53,15 @@ interface IMultipoolMethods {
     /// @dev Method is permissionless so anyone can boost incentives. Native token value can be
     /// transferred directly if used iva contract or via msg.value with any method
     function increaseCashback(address assetAddress) external payable;
+
+    /// @notice Method that returns ever used tokens in etf by limit and offset.
+    /// @param limit The amount of addresses to query
+    /// @param offset The index to query from
+    function usedAssetsAndLength(
+        uint limit,
+        uint offset
+    )
+        external
+        view
+        returns (address[] memory assetsRes, uint length);
 }
