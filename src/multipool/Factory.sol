@@ -53,6 +53,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
     /// It's safe to use it directly, otherwhise use it through router
     function createMultipool(MultipoolCreationParams calldata params)
         external
+        payable
         returns (Multipool mp)
     {
         address _implementationAddress = implementationAddress;
@@ -80,7 +81,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         if (params.initialLiquidityAsset != address(0)) {
             // Not needed for initial mint, so it's empty
             OraclePrice memory oraclePrice;
-            mp.swap(
+            mp.swap{value: msg.value}(
                 oraclePrice,
                 params.initialLiquidityAsset,
                 address(mp),
