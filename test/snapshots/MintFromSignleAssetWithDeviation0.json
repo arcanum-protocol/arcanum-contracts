@@ -8,13 +8,13 @@
     "managementFeeRecepientAddress": "0xc5f490E2e433D3DC0E8f9aA55e5e9E29822E310E",
     "oracleAddress": "0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f",
     "totalSupply": 16000000005587935455499,
-    "totalTargetShares": 4000
+    "totalTargetShares": 5000
   },
   "tokens": {
     "token0": {
       "collectedCashbacks": 0,
       "quantity": 40000000000000000000,
-      "targetShare": 0
+      "targetShare": 1000
     },
     "token1": {
       "collectedCashbacks": 0,

@@ -1,66 +1,86 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FeedInfo} from "../../lib/Price.sol";
-
 /// @title Interface that contains all multipool events
 interface IMultipoolEvents {
+    /// @notice Emitted when any transfer event is thrown in multipool mirrors ERC20 tranfer event
+    /// @param from address of sender (zero if mint)
+    /// @param to address of receiver (zero if burn)
+    /// @param amount value that was transferred/minted/burned
+    event ShareTransfer(address indexed from, address indexed to, uint amount);
+
+    /// @notice Thrown right after pool is initialised
+    /// @param initialSharePrice assets initial share price that can't be changed
+    event PoolCreated(uint96 initialSharePrice);
+
     /// @notice Emitted when any quantity or cashback change happens even for multipool share
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
     /// @param collectedCashbacks absolute value of new cashbacks (always 0 for multipool)
-    event AssetChange(address indexed asset, uint quantity, uint128 collectedCashbacks);
+    event AssetChange(address indexed asset, uint128 quantity, uint128 collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
-    /// @param developerAddress address to send arcanum protocol development and maintaince fees
-    /// @param deviationParam curve parameter that is a fee ratio at the half of the curve divided
-    /// by deviation limit
-    /// @param deviationLimit curve parameter that shows maximum deviation changes that may be made
-    /// by callers
-    /// @param depegBaseFee parameter that shows ratio of value taken from deviation fee as base fee
-    /// @param baseFee parameter that shows ratio of value taken from each operation quote value
-    /// @param developerBaseFee parameter that shows ratio of value that is taken from base fee
-    /// share for arcanum protocol developers and maintainers
+    /// @param newDeviationIncreaseFee fee charged when deviation is increased
+    /// @param newDeviationLimit curve parameter determines what is the maximum deviation possible
+    /// to create by swap
+    /// @param newFeeToCashbackRatio ratio or fees taken by cashbacks
+    /// @param newBaseFee fee ratio taken from any swap action
+    /// @param newManagementFee management fee ratio
+    /// @param newManagementFeeRecepient receiver of management fee
     event FeesChange(
-        address indexed developerAddress,
-        uint64 deviationParam,
-        uint64 deviationLimit,
-        uint64 depegBaseFee,
-        uint64 baseFee,
-        uint64 developerBaseFee
+        uint16 newDeviationIncreaseFee,
+        uint16 newDeviationLimit,
+        uint16 newFeeToCashbackRatio,
+        uint16 newBaseFee,
+        uint16 newManagementFee,
+        address newManagementFeeRecepient
     );
 
     /// @notice Thrown when target share of any asset got updated
     /// @param asset changed target share address asset
     /// @param newTargetShare absolute value of updated target share
     /// @param newTotalTargetShares absolute value of new sum of all target shares
-    event TargetShareChange(address indexed asset, uint newTargetShare, uint newTotalTargetShares);
+    event TargetShareChange(
+        address indexed asset, uint16 newTargetShare, uint16 newTotalTargetShares
+    );
 
     /// @notice Thrown when price feed for an asset got updated
     /// @param targetAsset address of asset wich price feed data is changed
     /// @param newFeed updated price feed data
-    event PriceFeedChange(address indexed targetAsset, FeedInfo newFeed);
-
-    /// @notice Thrown when expiration time for share price force push change
-    /// @param validityDuration time in seconds when force push data is valid
-    event SharePriceExpirationChange(uint validityDuration);
+    event PriceFeedChange(address indexed targetAsset, bytes32 newFeed);
 
     /// @notice Thrown when permissions of authorities were changed per each authority.
     /// event provides addresses new permissions
-    /// @param account address of toggled authority
-    /// @param isForcePushAuthority true if is trused to sign force push price data
-    /// @param isTargetShareAuthority true if is trusted to change target shares
-    event AuthorityRightsChange(
-        address indexed account, bool isForcePushAuthority, bool isTargetShareAuthority
+    /// @param oldStrategyManager address of old authority
+    /// @param newStrategyManager address of new authority
+    event StrategyManagerChange(
+        address indexed oldStrategyManager, address indexed newStrategyManager
     );
 
-    /// @notice Thrown when contract is paused or unpaused
-    /// @param isPaused shows new value of pause
-    event PauseChange(bool isPaused);
-
     /// @notice Thrown every time new fee gets collected
-    /// @param totalCollectedBalance shows contracts native token balance which is sum of all fees
-    /// and cashbacks
-    /// @param totalCollectedCashbacks shows sum of all collected cashbacks
-    event CollectedFeesChange(uint totalCollectedBalance, uint totalCollectedCashbacks);
+    /// @param sender the address that invoked the trade
+    /// @param assetIn token that beed sent
+    /// @param assetOut token that been received
+    /// @param amountIn the amount token in sent to pool
+    /// @param priceIn the price of token that been received
+    /// @param priceOut the price of token then been sent
+    /// @param amountOut the amount token out received from pool
+    /// @param collectedManagementFees shows how much fees are earned for manager
+    /// @param collectedOracleFees shows how much fees are earned for oracle
+    event Swap(
+        address indexed sender,
+        address indexed assetIn,
+        address indexed assetOut,
+        uint amountIn,
+        uint amountOut,
+        uint priceIn,
+        uint priceOut,
+        uint collectedManagementFees,
+        uint collectedOracleFees
+    );
+
+    /// @notice Thrown when price verifier is updated.
+    /// @param oldOracle address of old price verifier contract
+    /// @param newOracle address of new price verifier contract
+    event PriceOracleChange(address oldOracle, address newOracle);
 }

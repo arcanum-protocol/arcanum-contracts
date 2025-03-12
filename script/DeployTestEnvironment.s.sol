@@ -8,9 +8,8 @@ import "../src/farm/Farm.sol";
 import "../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {Multicall3} from "../src/mocks/multicall.sol";
-import {UniV3Feed} from "../src/lib/Price.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {toX96, toX32, sort, dynamic, updatePrice} from "../test/MultipoolUtils.t.sol";
+import {toX96, toX32, toX16, updatePrice} from "../test/MultipoolUtils.t.sol";
 
 contract DeployTestEnv is Script {
     function run() external {
@@ -48,35 +47,40 @@ contract DeployTestEnv is Script {
         ERC1967Proxy proxy =
             new ERC1967Proxy{salt: keccak256(abi.encode("chapa chapa"))}(address(mpImpl), "");
         Multipool mp = Multipool(address(proxy));
-        mp.initialize("Exchange tradable fund", "ETF", uint128(toX96(0.1e18)));
+        mp.initialize("Exchange tradable fund", "ETF", address(0), uint96(toX32(0.1e18)));
         console.log("mp ", address(mp));
 
-        mp.setAuthorityRights(deployer, true, true);
-        mp.setSharePriceParams(600, 0);
+        mp.updateStrategyManager(deployer);
 
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.1e18)));
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18)))
+        );
         MockERC20[] memory tokens = new MockERC20[](5);
         for (uint i; i < tokens.length; i++) {
             salt = keccak256(abi.encode("chapa chapa", "token", i));
             tokens[i] = new MockERC20{salt: salt}("token", "token", 0);
             tokens[i].mint(deployer, 100e18);
             uint price = toX96((i + 1) * 0.01e18);
-            updatePrice(address(mp), address(tokens[i]), FeedType.FixedValue, abi.encode(price));
+            updatePrice(
+                address(mp),
+                address(tokens[i]),
+                abi.encodePacked(FeedType.FixedValue, uint64(price))
+            );
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
-            uint[] memory am = new uint[](1);
-            am[0] = 10e18;
+            uint16[] memory am = new uint16[](1);
+            am[0] = 1000;
             mp.updateTargetShares(tk, am);
             console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);
         }
         mp.setFeeParams(
-            toX32(0.15e18),
-            toX32(0.0003e18),
-            toX32(0.6e18),
-            toX32(0.0001e18),
-            toX32(0.15e18),
-            deployer
+            toX16(0.15e18),
+            toX16(0.0003e18),
+            toX16(0.6e18),
+            toX16(0.0001e18),
+            deployer,
+            toX16(0.15e18)
         );
 
         vm.stopBroadcast();
@@ -88,7 +92,7 @@ contract DeployEtfWithFactory is Script {
         // test deployer private key
         uint256 pkey = uint(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
         address deployer = vm.addr(pkey);
-        MultipoolFactory factory = MultipoolFactory(0xAfef20a6b3e05d6bc9b9541d9BF692E7914406F0);
+        // MultipoolFactory factory = MultipoolFactory(0xAfef20a6b3e05d6bc9b9541d9BF692E7914406F0);
 
         vm.startBroadcast(pkey);
 
@@ -107,30 +111,30 @@ contract DeployEtfWithFactory is Script {
         feedData[0] = abi.encode(toX96(0.1e18));
         feedData[1] = abi.encode(toX96(0.5e18));
 
-        uint[] memory targetShares = new uint[](2);
+        uint16[] memory targetShares = new uint16[](2);
         targetShares[0] = 2;
         targetShares[1] = 1;
 
-        factory.spawnMultipool(
-            MultipoolFactory.MultipoolSetupArgs({
-                name: "Test",
-                symbol: "TEST",
-                signatureThershold: 1,
-                sharePriceValidity: 600,
-                initialSharePrice: toX32(1e18),
-                deviationLimit: toX32(0.15e18),
-                halfDeviationFee: toX32(0.003e18),
-                depegBaseFee: toX32(0.3e18),
-                baseFee: toX32(0.01e18),
-                developerBaseFee: toX32(0.01e18),
-                developerAddress: deployer,
-                oracleAddresses: oracleAddresses,
-                assetAddresses: assetAddresses,
-                priceFeedKinds: priceFeedKinds,
-                feedData: feedData,
-                targetShares: targetShares
-            })
-        );
+        //  factory.spawnMultipool(
+        //      MultipoolFactory.MultipoolSetupArgs({
+        //          name: "Test",
+        //          symbol: "TEST",
+        //          signatureThershold: 1,
+        //          sharePriceValidity: 600,
+        //          initialSharePrice: toX32(1e18),
+        //          deviationLimit: toX32(0.15e18),
+        //          halfDeviationFee: toX32(0.003e18),
+        //          depegBaseFee: toX32(0.3e18),
+        //          baseFee: toX32(0.01e18),
+        //          developerBaseFee: toX32(0.01e18),
+        //          developerAddress: deployer,
+        //          oracleAddresses: oracleAddresses,
+        //          assetAddresses: assetAddresses,
+        //          priceFeedKinds: priceFeedKinds,
+        //          feedData: feedData,
+        //          targetShares: targetShares
+        //      })
+        //  );
 
         vm.stopBroadcast();
     }
