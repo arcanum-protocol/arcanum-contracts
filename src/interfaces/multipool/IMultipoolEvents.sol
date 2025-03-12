@@ -3,6 +3,12 @@ pragma solidity ^0.8.0;
 
 /// @title Interface that contains all multipool events
 interface IMultipoolEvents {
+    /// @notice Emitted when any transfer event is thrown in multipool mirrors ERC20 tranfer event
+    /// @param from address of sender (zero if mint)
+    /// @param to address of receiver (zero if burn)
+    /// @param amount value that was transferred/minted/burned
+    event ShareTransfer(address indexed from, address indexed to, uint amount);
+
     /// @notice Thrown right after pool is initialised
     /// @param initialSharePrice assets initial share price that can't be changed
     event PoolCreated(uint96 initialSharePrice);

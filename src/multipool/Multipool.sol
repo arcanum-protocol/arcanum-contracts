@@ -87,6 +87,11 @@ contract Multipool is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    function _afterTokenTransfer(address from, address to, uint256 amount) internal override {
+        super._afterTokenTransfer(from, to, amount);
+        emit ShareTransfer(from, to, amount);
+    }
+
     /// @inheritdoc IMultipoolMethods
     function usedAssetsAndLength(
         uint limit,
