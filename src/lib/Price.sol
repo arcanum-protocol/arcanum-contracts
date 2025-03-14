@@ -6,6 +6,7 @@ import {FixedPoint96} from "../lib/FixedPoint.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
+import {getBytes} from "./Binary.sol";
 
 enum FeedType {
     // Unset value
@@ -18,10 +19,6 @@ enum FeedType {
     Adapter
 }
 
-function extractBytes(bytes32 data, uint offset, uint size) pure returns (uint part) {
-    part = (uint(data) >> (256 - offset * 8 - size * 8)) & ((1 << (size * 8)) - 1);
-}
-
 /// @title Price calculation and provision library
 library PriceMath {
     /// @notice Extracts current price from origin
@@ -29,17 +26,17 @@ library PriceMath {
     /// @param priceFeed struct with data of supplied price feed
     /// @return price value is represented as a Q96 value
     function getPrice(bytes32 priceFeed) internal view returns (uint price) {
-        FeedType kind = FeedType(extractBytes(priceFeed, 0, 1));
+        FeedType kind = FeedType(getBytes(priceFeed, 0, 1));
         if (kind == FeedType.FixedValue) {
-            price = extractBytes(priceFeed, 1, 16);
+            price = getBytes(priceFeed, 1, 16);
         } else if (kind == FeedType.UniV3) {
-            address oracle = address(uint160(extractBytes(priceFeed, 1, 20)));
-            bool reversed = extractBytes(priceFeed, 21, 1) == 1;
-            uint64 twapInterval = uint64(extractBytes(priceFeed, 22, 8));
+            address oracle = address(uint160(getBytes(priceFeed, 1, 20)));
+            bool reversed = getBytes(priceFeed, 21, 1) == 1;
+            uint64 twapInterval = uint64(getBytes(priceFeed, 22, 8));
             price = getTwapX96(oracle, reversed, twapInterval);
         } else if (kind == FeedType.Adapter) {
-            address adapterContract = address(uint160(extractBytes(priceFeed, 1, 20)));
-            uint64 feedId = uint64(extractBytes(priceFeed, 21, 8));
+            address adapterContract = address(uint160(getBytes(priceFeed, 1, 20)));
+            uint64 feedId = uint64(getBytes(priceFeed, 21, 8));
             price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
             revert IMultipoolErrors.NoPriceOriginSet();

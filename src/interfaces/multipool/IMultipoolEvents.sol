@@ -17,7 +17,7 @@ interface IMultipoolEvents {
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
     /// @param collectedCashbacks absolute value of new cashbacks (always 0 for multipool)
-    event AssetChange(address indexed asset, uint128 quantity, uint128 collectedCashbacks);
+    event AssetChange(address indexed asset, uint quantity, uint collectedCashbacks);
 
     /// @notice Emitted when fee charging params change. All ratios are Q32 values.
     /// @param newDeviationIncreaseFee fee charged when deviation is increased
@@ -41,7 +41,7 @@ interface IMultipoolEvents {
     /// @param newTargetShare absolute value of updated target share
     /// @param newTotalTargetShares absolute value of new sum of all target shares
     event TargetShareChange(
-        address indexed asset, uint16 newTargetShare, uint16 newTotalTargetShares
+        address indexed asset, uint newTargetShare, uint newTotalTargetShares
     );
 
     /// @notice Thrown when price feed for an asset got updated

@@ -2,13 +2,32 @@
 pragma solidity ^0.8.0;
 
 import {FixedPoint96, FixedPoint32} from "./FixedPoint.sol";
+import {getBits, setBits} from "./Binary.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 
 struct MpAsset {
+    // 1 bit
     bool isUsed;
-    uint128 quantity;
-    uint16 targetShare;
-    uint112 collectedCashbacks;
+    // 127 bit
+    uint quantity;
+    // 16 bit
+    uint targetShare;
+    // 112 bit
+    uint collectedCashbacks;
+}
+
+function unpackMpAsset(bytes32 b) pure returns (MpAsset memory a) {
+    a.isUsed = getBits(b, 0, 1) != 0;
+    a.quantity = getBits(b, 1, 127);
+    a.targetShare = getBits(b, 128, 16);
+    a.collectedCashbacks = getBits(b, 144, 112);
+}
+
+function packMpAsset(MpAsset memory a) pure returns (bytes32 b) {
+    b = setBits(b, bytes32(uint(a.isUsed ? 1 : 0)), 0, 1);
+    b = setBits(b, bytes32(uint(a.quantity)), 1, 127);
+    b = setBits(b, bytes32(uint(a.targetShare)), 128, 16);
+    b = setBits(b, bytes32(uint(a.collectedCashbacks)), 144, 112);
 }
 
 struct Fees {

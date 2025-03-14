@@ -7,6 +7,7 @@ import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedType} from "../src/lib/Price.sol";
+import {setBytes} from "../src/lib/Binary.sol";
 import {OraclePrice} from "../src/types/OraclePrice.sol";
 import {ReceiverData} from "../src/types/ReceiverData.sol";
 import {IArcanumOracle} from "../src/interfaces/IArcanumOracle.sol";
@@ -155,28 +156,12 @@ contract MultipoolUtils is Test {
         }
     }
 
-    function setBytes(
-        bytes32 data,
-        bytes32 bytesToSet,
-        uint offset,
-        uint size
-    )
-        public
-        view
-        returns (bytes32 updatedData)
-    {
-        console.log("v", uint(((1 << (size * 8)) - 1)));
-        bytes32 mask = bytes32(((1 << (size * 8)) - 1) << ((32 - offset - size) * 8));
-        console.log("m", uint(mask));
-        updatedData = (data & ~mask) | ((bytesToSet << ((32 - offset - size) * 8)) & mask);
-    }
-
-    function fixedValuePrice(uint128 val) public view returns (bytes32 v) {
+    function fixedValuePrice(uint128 val) public pure returns (bytes32 v) {
         v = setBytes(v, bytes32(uint(FeedType.FixedValue)), 0, 1);
         v = setBytes(v, bytes32(uint(val)), 1, 16);
     }
 
-    function adapterPrice(address _addr, uint64 _feedId) public view returns (bytes32 v) {
+    function adapterPrice(address _addr, uint64 _feedId) public pure returns (bytes32 v) {
         v = setBytes(v, bytes32(uint(FeedType.Adapter)), 0, 1);
         v = setBytes(v, bytes32(uint(uint160(_addr))), 1, 20);
         v = setBytes(v, bytes32(uint(uint64(_feedId))), 21, 8);

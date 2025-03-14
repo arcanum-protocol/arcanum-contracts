@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-import {MpAsset, MpContext, Fees} from "../lib/MpContext.sol";
+import {MpAsset, unpackMpAsset, packMpAsset, MpContext, Fees} from "../lib/MpContext.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint.sol";
 
@@ -59,7 +59,7 @@ contract Multipool is
     // Slot 356
     address public strategyManager;
 
-    mapping(address => MpAsset) internal assets;
+    mapping(address => bytes32) internal assets;
     mapping(address => bytes32) internal prices;
     address[] public usedAssets;
 
@@ -120,7 +120,7 @@ contract Multipool is
 
     /// @inheritdoc IMultipoolMethods
     function getAsset(address assetAddress) public view override returns (MpAsset memory asset) {
-        asset = assets[assetAddress];
+        asset = unpackMpAsset(assets[assetAddress]);
     }
 
     function expandToX64(uint16 val) internal pure returns (uint res) {
@@ -249,12 +249,12 @@ contract Multipool is
         {
             {
                 if (assetInAddress == address(this)) {
-                    assetOut = assets[assetOutAddress];
+                    assetOut = unpackMpAsset(assets[assetOutAddress]);
                 } else if (assetOutAddress == address(this)) {
-                    assetIn = assets[assetInAddress];
+                    assetIn = unpackMpAsset(assets[assetInAddress]);
                 } else {
-                    assetIn = assets[assetInAddress];
-                    assetOut = assets[assetOutAddress];
+                    assetIn = unpackMpAsset(assets[assetInAddress]);
+                    assetOut = unpackMpAsset(assets[assetOutAddress]);
                 }
 
                 (amountIn, amountOut) = isExactInput
@@ -278,18 +278,18 @@ contract Multipool is
                 }
 
                 if (assetInAddress == address(this)) {
-                    assets[assetOutAddress] = assetOut;
+                    assets[assetOutAddress] = packMpAsset(assetOut);
                     emit AssetChange(assetInAddress, uint128(totalSupply()), 0);
                     emit AssetChange(
                         assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
                     );
                 } else if (assetOutAddress == address(this)) {
-                    assets[assetInAddress] = assetIn;
+                    assets[assetInAddress] = packMpAsset(assetIn);
                     emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
                     emit AssetChange(assetOutAddress, uint128(totalSupply()), 0);
                 } else {
-                    assets[assetInAddress] = assetIn;
-                    assets[assetOutAddress] = assetOut;
+                    assets[assetInAddress] = packMpAsset(assetIn);
+                    assets[assetOutAddress] = packMpAsset(assetOut);
                     emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
                     emit AssetChange(
                         assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
@@ -332,10 +332,10 @@ contract Multipool is
     /// @inheritdoc IMultipoolMethods
     function increaseCashback(address assetAddress) external payable override {
         uint128 amount = uint128(msg.value);
-        MpAsset memory asset = assets[assetAddress];
+        MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
         asset.collectedCashbacks += uint112(amount);
         emit AssetChange(assetAddress, asset.quantity, amount);
-        assets[assetAddress] = asset;
+        assets[assetAddress] = packMpAsset(asset);
     }
 
     /// @inheritdoc IMultipoolManagerMethods
@@ -376,14 +376,14 @@ contract Multipool is
         for (uint a; a < len;) {
             address assetAddress = assetAddresses[a];
             uint16 targetShare = targetShares[a];
-            MpAsset memory asset = assets[assetAddress];
-            totalTargetSharesCached = totalTargetSharesCached - asset.targetShare + targetShare;
+            MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
+            totalTargetSharesCached = totalTargetSharesCached - uint16(asset.targetShare) + targetShare;
             asset.targetShare = uint16(targetShare);
             if (!asset.isUsed) {
                 usedAssets.push(assetAddress);
                 asset.isUsed = true;
             }
-            assets[assetAddress] = asset;
+            assets[assetAddress] = packMpAsset(asset);
             emit TargetShareChange(assetAddress, targetShare, totalTargetSharesCached);
             unchecked {
                 ++a;
