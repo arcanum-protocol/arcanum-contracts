@@ -143,6 +143,8 @@ contract Deploy is Script {
         MultipoolFactory f = MultipoolFactory(address(factoryProxy));
 
         address mp = computeContractAddress(address(f), 1);
+        console.log("mp ", mp);
+
         IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router.ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE,
@@ -204,18 +206,18 @@ contract Deploy is Script {
         });
         Multipool(mp).swap{value: 1e15}(op, 0xB8c77482e45F1F44dE1745F52C74426C631bDD52, mp, amountOut, true, rd);
 
-        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e16);
-        swapParams = IUniswapV3Router.ExactInputSingleParams({
-            tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            tokenOut: 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84,
-            fee: 10000,
-            recipient: mp,
-            amountIn: 1e16,
-            amountOutMinimum: 1,
-            sqrtPriceLimitX96: 0
-        });
-        amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e16}(swapParams);
-        Multipool(mp).swap{value: 1e16}(op, 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84, mp, amountOut - 1000, true, rd);
+        // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e16);
+        // swapParams = IUniswapV3Router.ExactInputSingleParams({
+        //     tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+        //     tokenOut: 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84,
+        //     fee: 10000,
+        //     recipient: mp,
+        //     amountIn: 1e16,
+        //     amountOutMinimum: 1,
+        //     sqrtPriceLimitX96: 0
+        // });
+        // amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e16}(swapParams);
+        // Multipool(mp).swap{value: 1e16}(op, 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84, mp, amountOut - 1000, true, rd);
         swapParams = IUniswapV3Router.ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599,
