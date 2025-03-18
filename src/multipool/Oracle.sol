@@ -19,6 +19,13 @@ import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
+import {
+    FraudSlot, WithdrawRequest, 
+    OracleData, unpackWithdrawRequest, 
+    packWithdrawRequest, unpackFraudSlot, 
+    packFraudSlot, unpackOracleData, packOracleData
+} from "../types/Oracle.sol";
+
 /// @custom:security-contact badconfig@arcanum.to
 contract Oracle is
     IArcanumOracle,
@@ -37,22 +44,12 @@ contract Oracle is
         __Ownable_init();
     }
 
-    struct OracleData {
-        uint128 stake;
-        uint128 totalShares;
-        bool enabled;
-    }
-
-    struct WithdrawRequest {
-        uint128 amount;
-        uint64 timestamp;
-    }
-
     // user -> oracle
     mapping(address => mapping(address => uint)) stakers;
-    // user -> oracle
-    mapping(address => mapping(address => mapping(uint => WithdrawRequest))) withdrawals;
-    mapping(address => OracleData) oracles;
+    // user -> oracle -> WithdrawRequest
+    mapping(address => mapping(address => mapping(uint => bytes32))) withdrawals;
+    // oracle -> OracleData
+    mapping(address => bytes32) oracles;
 
     // Hardcoded AREV token total supply of 10 mil
     uint internal constant tokenTotalSupply = 10000000e18;
@@ -65,34 +62,7 @@ contract Oracle is
     uint112 totalBurnedAssets;
     uint32  rewardPerSecond;
 
-    // we need to parse this guy manyally as weArePanicing is either bool or 1 bit
-    // it's hard to pack this all up without carrying about this guy
-    // tokenAddress - 160 bits
-    // sharePriceValidityDuration - 31 bits
-    // weArePanicing - 1 bit
-    // lastClaimedTimestamp - 64 bits
     bytes32 fraudSlot;
-
-    struct FraudSlot {
-        address tokenAddress;
-        uint sharePriceValidityDuration;
-        bool weArePanicing;
-        uint lastClaimedTimestamp;
-    }
-
-    function unpackFraudSlot(bytes32 packedSlot) pure internal returns(FraudSlot memory slot) {
-        slot.tokenAddress = address(uint160(getBits(packedSlot, 0, 160)));
-        slot.sharePriceValidityDuration = uint(getBits(packedSlot, 160, 31));
-        slot.weArePanicing = getBits(packedSlot, 191, 1) == 1;
-        slot.lastClaimedTimestamp = uint(getBits(packedSlot, 192, 64));
-    }
-
-    function packFraudSlot(FraudSlot memory slot) pure internal returns(bytes32 packedSlot) {
-        packedSlot = setBits(packedSlot, bytes32(uint(uint160(slot.tokenAddress))), 0, 160);
-        packedSlot = setBits(packedSlot, bytes32(uint(slot.sharePriceValidityDuration)), 160, 31);
-        packedSlot = setBits(packedSlot, bytes32(slot.weArePanicing == true ? uint(1) : 0), 191, 1);
-        packedSlot = setBits(packedSlot, bytes32(uint(uint64(slot.lastClaimedTimestamp))), 192, 64);
-    }
 
     function updateRewardPerSecond(uint32 _rewardPerSecond) public onlyOwner {
         rewardPerSecond = _rewardPerSecond;
@@ -112,8 +82,6 @@ contract Oracle is
         fraudSlot = packFraudSlot(slot);
     }
 
-
-
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     error WeAreCurrentlyInPanic();
@@ -124,7 +92,7 @@ contract Oracle is
     event PanicCreated(bytes reason);
 
     function startPanicing(bytes calldata reason) external {
-        if (!oracles[msg.sender].enabled) revert();
+        if (!unpackOracleData(oracles[msg.sender]).enabled) revert();
         FraudSlot memory slot = unpackFraudSlot(fraudSlot);
         slot.weArePanicing = true;
         fraudSlot = packFraudSlot(slot);
@@ -132,7 +100,7 @@ contract Oracle is
     }
 
     function stake(address oracleAddress, uint amount, address to) external {
-        OracleData memory oracle = oracles[oracleAddress];
+        OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
 
         if (oracle.stake + amount > maxStake) revert StakeIsTooBig();
 
@@ -145,11 +113,11 @@ contract Oracle is
         oracle.stake = oracle.stake + uint128(amount);
         stakers[to][oracleAddress] += newShare;
         
-        oracles[oracleAddress] = oracle;
+        oracles[oracleAddress] = packOracleData(oracle);
     }
 
     function withdraw(address oracleAddress, uint nonce, address to) external {
-        WithdrawRequest memory req = withdrawals[to][oracleAddress][nonce];
+        WithdrawRequest memory req = unpackWithdrawRequest(withdrawals[to][oracleAddress][nonce]);
         FraudSlot memory slot = unpackFraudSlot(fraudSlot);
 
         if (slot.weArePanicing) revert WeAreCurrentlyInPanic();
@@ -160,7 +128,7 @@ contract Oracle is
     }
 
     function unstake(address oracleAddress, uint nonce, uint share, address to) external {
-        OracleData memory oracle = oracles[oracleAddress];
+        OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
         uint amountToRedeem = share * oracle.stake / oracle.totalShares;
 
         oracle.totalShares = oracle.totalShares - uint128(share);
@@ -171,14 +139,14 @@ contract Oracle is
             oracle.enabled = false; 
         }
 
-        WithdrawRequest memory req = withdrawals[to][oracleAddress][nonce];
+        WithdrawRequest memory req = unpackWithdrawRequest(withdrawals[to][oracleAddress][nonce]);
         if (req.timestamp != 0) revert WithdrawalIsNotEmpty();
 
         req.amount = uint128(amountToRedeem);
         req.timestamp = uint64(block.timestamp);
 
-        oracles[oracleAddress] = oracle;
-        withdrawals[to][oracleAddress][nonce] = req;
+        oracles[oracleAddress] = packOracleData(oracle);
+        withdrawals[to][oracleAddress][nonce] = packWithdrawRequest(req);
 
     }
 
@@ -205,7 +173,7 @@ contract Oracle is
         );
         address oracleAddress =
             keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
-        OracleData memory oracle = oracles[oracleAddress];
+        OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
 
         if (oracle.enabled) {
             revert InvalidForcePushAuthority(address(0), address(0));
@@ -222,12 +190,10 @@ contract Oracle is
         // avb tokens
         uint availableReward =
             (block.timestamp - slot.lastClaimedTimestamp) * _rewardPerSecond + _collectedReward;
-        
-        uint income = msg.value;
-        uint contractBalance = address(this).balance - income;
 
+        uint income = msg.value;
         // how much to buy with income max
-        uint valueToBuy = income * (tokenTotalSupply - _totalBurnedAssets) / contractBalance;
+        uint valueToBuy = income * (tokenTotalSupply - _totalBurnedAssets) / (address(this).balance - income);
 
         if (availableReward > valueToBuy) {
             collectedReward = uint112(availableReward - valueToBuy);
