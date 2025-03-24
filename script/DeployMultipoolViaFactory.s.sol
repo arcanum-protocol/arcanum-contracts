@@ -87,14 +87,16 @@ contract Deploy is Script {
             //         if (tokensAddresses[i] == tokensAddresses[y]) {
             //             continue;
             //         }
-            //         (address token0, address token1) = tokensAddresses[i] < tokensAddresses[y] ? (tokensAddresses[i], tokensAddresses[y]) : (tokensAddresses[y], tokensAddresses[i]);
+            //         (address token0, address token1) = tokensAddresses[i] < tokensAddresses[y] ?
+            // (tokensAddresses[i], tokensAddresses[y]) : (tokensAddresses[y], tokensAddresses[i]);
             //         address pool = uf.getPool(token0, token1, 3000);
             //         // 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
             //         if (pool == address(0)) {
             //             // address newPool =
             //             //     uf.createPool(token0, token1, 3000);
             //             // IUniswapV3Pool(newPool).initialize(50000000000);
-            //             IPositionManager(positionManager).createAndInitializePoolIfNecessary(token0, token1, 3000, 50000000000);
+            //             IPositionManager(positionManager).createAndInitializePoolIfNecessary(token0,
+            // token1, 3000, 50000000000);
             //             MockERC20WithDecimals(tokens[i]).approve(
             //                 positionManager, 10000e30
             //             );
@@ -145,7 +147,8 @@ contract Deploy is Script {
         address mp = computeContractAddress(address(f), 1);
         console.log("mp ", mp);
 
-        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router.ExactInputSingleParams({
+        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
+            .ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE,
             fee: 500,
@@ -155,39 +158,41 @@ contract Deploy is Script {
             sqrtPriceLimitX96: 0
         });
         {
-        f.initialize(deployerPublicKey, address(mpImpl));
-        MultipoolCreationParams memory params = MultipoolCreationParams({
-            name: "MpSepolia",
-            symbol: "MPS",
-            initialSharePrice: uint96(toX32(0.1e18)),
-            deviationIncreaseFee: toX16(0.15e18),
-            deviationLimit: toX16(0.0003e18),
-            feeToCashbackRatio: toX16(0.6e18),
-            baseFee: toX16(0.0001e18),
-            managementFeeRecepient: deployerPublicKey,
-            managementFee: toX16(0.15e18),
-            oracleAddress: address(oracle),
-            strategyManager: address(0),
-            assetAddresses: tokensAddresses,
-            priceData: prices,
-            targetShares: s,
-            initialLiquidityAsset: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE
-        });
-        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).deposit{value: 10e18}();
-        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14);
-        // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).transfer(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14);
-        IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e14}(swapParams);
-        f.createMultipool(params);
-
+            f.initialize(deployerPublicKey, address(mpImpl));
+            MultipoolCreationParams memory params = MultipoolCreationParams({
+                name: "MpSepolia",
+                symbol: "MPS",
+                initialSharePrice: uint96(toX32(0.1e18)),
+                deviationIncreaseFee: toX16(0.15e18),
+                deviationLimit: toX16(0.0003e18),
+                feeToCashbackRatio: toX16(0.6e18),
+                baseFee: toX16(0.0001e18),
+                managementFeeRecepient: deployerPublicKey,
+                managementFee: toX16(0.15e18),
+                oracleAddress: address(oracle),
+                strategyManager: address(0),
+                assetAddresses: tokensAddresses,
+                priceData: prices,
+                targetShares: s,
+                initialLiquidityAsset: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE
+            });
+            WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).deposit{value: 10e18}();
+            WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
+                0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14
+            );
+            // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).transfer(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
+            // 1e14);
+            IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{
+                value: 1e14
+            }(swapParams);
+            f.createMultipool(params);
         }
 
-        updatePrice(
-            mp,
-            mp,
-            abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18)))
-        );
+        updatePrice(mp, mp, abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18))));
 
-        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14);
+        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
+            0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14
+        );
         swapParams = IUniswapV3Router.ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: 0xB8c77482e45F1F44dE1745F52C74426C631bDD52,
@@ -197,16 +202,20 @@ contract Deploy is Script {
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0
         });
-        uint amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e14}(swapParams);
+        uint amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45)
+            .exactInputSingle{value: 1e14}(swapParams);
         OraclePrice memory op;
         ReceiverData memory rd = ReceiverData({
             receiverAddress: deployerPublicKey,
             refundAddress: deployerPublicKey,
             refundEthToReceiver: true
         });
-        Multipool(mp).swap{value: 1e15}(op, 0xB8c77482e45F1F44dE1745F52C74426C631bDD52, mp, amountOut, true, rd);
+        Multipool(mp).swap{value: 1e15}(
+            op, 0xB8c77482e45F1F44dE1745F52C74426C631bDD52, mp, amountOut, true, rd
+        );
 
-        // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e16);
+        // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
+        // 1e16);
         // swapParams = IUniswapV3Router.ExactInputSingleParams({
         //     tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
         //     tokenOut: 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84,
@@ -216,8 +225,11 @@ contract Deploy is Script {
         //     amountOutMinimum: 1,
         //     sqrtPriceLimitX96: 0
         // });
-        // amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e16}(swapParams);
-        // Multipool(mp).swap{value: 1e16}(op, 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84, mp, amountOut - 1000, true, rd);
+        // amountOut =
+        // IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value:
+        // 1e16}(swapParams);
+        // Multipool(mp).swap{value: 1e16}(op, 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84, mp,
+        // amountOut - 1000, true, rd);
         swapParams = IUniswapV3Router.ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599,
@@ -227,9 +239,15 @@ contract Deploy is Script {
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0
         });
-        amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e16}(swapParams);
-        Multipool(mp).swap{value: 1e16}(op, 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599, mp, amountOut, true, rd);
-        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e17);
+        amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{
+            value: 1e16
+        }(swapParams);
+        Multipool(mp).swap{value: 1e16}(
+            op, 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599, mp, amountOut, true, rd
+        );
+        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
+            0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e17
+        );
         swapParams = IUniswapV3Router.ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: 0x514910771AF9Ca656af840dff83E8264EcF986CA,
@@ -239,11 +257,14 @@ contract Deploy is Script {
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0
         });
-        amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e17}(swapParams);
-        Multipool(mp).swap{value: 3e17}(op, 0x514910771AF9Ca656af840dff83E8264EcF986CA, mp, amountOut, true, rd);
+        amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{
+            value: 1e17
+        }(swapParams);
+        Multipool(mp).swap{value: 3e17}(
+            op, 0x514910771AF9Ca656af840dff83E8264EcF986CA, mp, amountOut, true, rd
+        );
 
         // MockERC20(tokensAddresses[0]).mint(mp, 10e18);
-
 
         vm.stopBroadcast();
     }
@@ -257,7 +278,6 @@ interface IUniswapV3Pool {
 }
 
 interface IUniswapV3Router {
-
     function factory() external returns (address);
 
     struct ExactInputSingleParams {
@@ -281,9 +301,14 @@ interface IUniswapV3Router {
         uint160 sqrtPriceLimitX96;
     }
 
-    function exactInputSingle(ExactInputSingleParams memory params) external payable returns (uint256 amountOut);
+    function exactInputSingle(ExactInputSingleParams memory params)
+        external
+        payable
+        returns (uint256 amountOut);
 
-    function exactOutputSingle(ExactOutputSingleParams calldata params) external returns (uint256 amountIn);
+    function exactOutputSingle(ExactOutputSingleParams calldata params)
+        external
+        returns (uint256 amountIn);
 }
 
 interface IUniswapV3Factory {
@@ -334,11 +359,12 @@ interface IPositionManager {
         payable
         returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
 
-
     function createAndInitializePoolIfNecessary(
         address tokenA,
         address tokenB,
         uint24 fee,
         uint160 sqrtPriceX96
-    ) external returns (address pool);
+    )
+        external
+        returns (address pool);
 }

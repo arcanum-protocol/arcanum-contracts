@@ -14,7 +14,7 @@ import {ReceiverData} from "../../src/types/ReceiverData.sol";
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
 
-    function testFail_DeviationOverflowFeeWhenIsCloseToDeviationLimit() public {
+    function testRevert_DeviationOverflowFeeWhenIsCloseToDeviationLimit() public {
         bootstrapMultipool(
             vec([token0, token1, token2, token3, token4]),
             vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
@@ -34,6 +34,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         rd.refundAddress = address(0);
         rd.refundEthToReceiver = true;
 
+        vm.expectRevert();
         mp.swap{value: 100e15}(op, address(token0), address(mp), val, true, rd);
     }
 
@@ -284,7 +285,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("BurnWhenDeviationExceedsAccuracy2");
     }
 
-    function testFail_SwapHappyPathWithLowOutput() public {
+    function testRevert_SwapHappyPathWithLowOutput() public {
         bootstrapMultipool(
             vec([token0, token1, token2, token3, token4]),
             vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
@@ -302,6 +303,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         rd.refundAddress = address(0);
         rd.refundEthToReceiver = true;
 
+        vm.expectRevert();
         mp.swap{value: uint128(toX96(0.1e18))}(
             op, address(tokens[0]), address(tokens[2]), 1e18, true, rd
         );

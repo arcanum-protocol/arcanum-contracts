@@ -377,7 +377,8 @@ contract Multipool is
             address assetAddress = assetAddresses[a];
             uint16 targetShare = targetShares[a];
             MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
-            totalTargetSharesCached = totalTargetSharesCached - uint16(asset.targetShare) + targetShare;
+            totalTargetSharesCached =
+                totalTargetSharesCached - uint16(asset.targetShare) + targetShare;
             asset.targetShare = uint16(targetShare);
             if (!asset.isUsed) {
                 usedAssets.push(assetAddress);

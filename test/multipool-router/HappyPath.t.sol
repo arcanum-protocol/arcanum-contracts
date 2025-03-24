@@ -15,7 +15,14 @@ import {
     SwapArgs
 } from "../../src/multipool/MultipoolRouter.sol";
 import {FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, vec, updatePrice, computeContractAddress} from "../MultipoolUtils.t.sol";
+import {
+    MultipoolUtils,
+    toX96,
+    toX32,
+    vec,
+    updatePrice,
+    computeContractAddress
+} from "../MultipoolUtils.t.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {ReceiverData} from "../../src/types/ReceiverData.sol";
@@ -188,5 +195,4 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
         vm.prank(user0);
         r.swap{value: 1e10}(newPool, sa, preSwapCalls, afterSwapCalls);
     }
-
 }

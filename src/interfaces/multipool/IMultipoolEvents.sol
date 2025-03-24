@@ -40,9 +40,7 @@ interface IMultipoolEvents {
     /// @param asset changed target share address asset
     /// @param newTargetShare absolute value of updated target share
     /// @param newTotalTargetShares absolute value of new sum of all target shares
-    event TargetShareChange(
-        address indexed asset, uint newTargetShare, uint newTotalTargetShares
-    );
+    event TargetShareChange(address indexed asset, uint newTargetShare, uint newTotalTargetShares);
 
     /// @notice Thrown when price feed for an asset got updated
     /// @param targetAsset address of asset wich price feed data is changed

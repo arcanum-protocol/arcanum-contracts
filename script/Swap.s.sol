@@ -24,8 +24,11 @@ contract Deploy is Script {
             refundAddress: deployerPublicKey,
             refundEthToReceiver: true
         });
-        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e7);
-        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router.ExactInputSingleParams({
+        WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
+            0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e7
+        );
+        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
+            .ExactInputSingleParams({
             tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             tokenOut: tokenIn,
             fee: 10000,
@@ -34,14 +37,14 @@ contract Deploy is Script {
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0
         });
-        uint amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{value: 1e7}(swapParams);
+        uint amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45)
+            .exactInputSingle{value: 1e7}(swapParams);
         Multipool(mp).swap{value: 1e17}(op, tokenIn, tokenOut, amountOut, true, rd);
         vm.stopBroadcast();
     }
 }
 
 interface IUniswapV3Router {
-
     function factory() external returns (address);
 
     struct ExactInputSingleParams {
@@ -65,7 +68,12 @@ interface IUniswapV3Router {
         uint160 sqrtPriceLimitX96;
     }
 
-    function exactInputSingle(ExactInputSingleParams memory params) external payable returns (uint256 amountOut);
+    function exactInputSingle(ExactInputSingleParams memory params)
+        external
+        payable
+        returns (uint256 amountOut);
 
-    function exactOutputSingle(ExactOutputSingleParams calldata params) external returns (uint256 amountIn);
+    function exactOutputSingle(ExactOutputSingleParams calldata params)
+        external
+        returns (uint256 amountIn);
 }

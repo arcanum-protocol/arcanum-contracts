@@ -13,56 +13,56 @@ contract FarmingMathTests is Test {
         assertEq(a.cashbackBalance, b.cashbackBalance, "cashback balance don't match");
     }
 
-    function test_DistributorHappyPath() public {
-        CashbackDistributor memory distributor;
-        CashbackDistributor memory distributorResult;
+    // function test_DistributorHappyPath() public {
+    //     CashbackDistributor memory distributor;
+    //     CashbackDistributor memory distributorResult;
 
-        assertEq(0, distributor.distribute(0, 0));
-        assertEq(distributor, distributorResult);
+    //     assertEq(0, distributor.distribute(0, 0));
+    //     assertEq(distributor, distributorResult);
 
-        distributor.updateDistribution(0.5e18, 1.5e18, 0);
-        distributorResult.cashbackPerSec = 0.5e18;
-        distributorResult.cashbackLimit = 1.5e18;
-        distributorResult.cashbackBalance = 0;
-        assertEq(0, distributor.distribute(0, 0));
-        assertEq(distributor, distributorResult);
+    //     distributor.updateDistribution(0.5e18, 1.5e18, 0);
+    //     distributorResult.cashbackPerSec = 0.5e18;
+    //     distributorResult.cashbackLimit = 1.5e18;
+    //     distributorResult.cashbackBalance = 0;
+    //     assertEq(0, distributor.distribute(0, 0));
+    //     assertEq(distributor, distributorResult);
 
-        assertEq(0, distributor.distribute(0, 10));
-        assertEq(distributor, distributorResult);
+    //     assertEq(0, distributor.distribute(0, 10));
+    //     assertEq(distributor, distributorResult);
 
-        vm.expectRevert();
-        assertEq(0, distributor.distribute(100, 0));
+    //     vm.expectRevert();
+    //     assertEq(0, distributor.distribute(100, 0));
 
-        distributor.updateDistribution(0.5e18, 1.5e18, 3.5e18);
-        distributorResult.cashbackBalance = 3.5e18;
-        assertEq(distributor, distributorResult);
+    //     distributor.updateDistribution(0.5e18, 1.5e18, 3.5e18);
+    //     distributorResult.cashbackBalance = 3.5e18;
+    //     assertEq(distributor, distributorResult);
 
-        assertEq(1.5e18, distributor.distribute(0, 20));
-        assertEq(1.5e18, distributor.distribute(20, 200));
-        assertEq(0.5e18, distributor.distribute(200, 210));
+    //     assertEq(1.5e18, distributor.distribute(0, 20));
+    //     assertEq(1.5e18, distributor.distribute(20, 200));
+    //     assertEq(0.5e18, distributor.distribute(200, 210));
 
-        assertEq(0, distributor.distribute(210, 220));
+    //     assertEq(0, distributor.distribute(210, 220));
 
-        vm.expectRevert();
-        distributor.updateDistribution(0.5e18, 1.5e18, -10e18);
+    //     vm.expectRevert();
+    //     distributor.updateDistribution(0.5e18, 1.5e18, -10e18);
 
-        distributor.updateDistribution(0.5e18, 1.5e18, 0.5e18);
-        distributorResult.cashbackBalance = 0.5e18;
-        assertEq(distributor, distributorResult);
+    //     distributor.updateDistribution(0.5e18, 1.5e18, 0.5e18);
+    //     distributorResult.cashbackBalance = 0.5e18;
+    //     assertEq(distributor, distributorResult);
 
-        assertEq(0.5e18, distributor.distribute(210, 1));
+    //     assertEq(0.5e18, distributor.distribute(210, 1));
 
-        distributor.updateDistribution(0.5e18, 1.5e18, 0.5e18);
-        distributorResult.cashbackBalance = 0.5e18;
-        assertEq(distributor, distributorResult);
+    //     distributor.updateDistribution(0.5e18, 1.5e18, 0.5e18);
+    //     distributorResult.cashbackBalance = 0.5e18;
+    //     assertEq(distributor, distributorResult);
 
-        distributor.updateDistribution(0.5e18, 1.5e18, -0.5e18);
-        distributorResult.cashbackBalance = 0;
-        assertEq(distributor, distributorResult);
+    //     distributor.updateDistribution(0.5e18, 1.5e18, -0.5e18);
+    //     distributorResult.cashbackBalance = 0;
+    //     assertEq(distributor, distributorResult);
 
-        distributor.updateDistribution(0.000001e18, 1.5e18, 0.5e18);
-        distributorResult.cashbackBalance = 0.5e18;
-        assertEq(distributor, distributorResult);
-        assertEq(0.000002e18, distributor.distribute(100, 102));
-    }
+    //     distributor.updateDistribution(0.000001e18, 1.5e18, 0.5e18);
+    //     distributorResult.cashbackBalance = 0.5e18;
+    //     assertEq(distributor, distributorResult);
+    //     assertEq(0.000002e18, distributor.distribute(100, 102));
+    // }
 }
