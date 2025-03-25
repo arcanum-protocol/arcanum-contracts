@@ -15,8 +15,7 @@ struct WithdrawRequest {
 }
 
 struct FraudSlot {
-    address tokenAddress;
-    uint sharePriceValidityDuration;
+    uint16 sharePriceValidityDuration;
     bool weArePanicking;
     uint lastClaimedTimestamp;
 }
@@ -40,17 +39,15 @@ function packWithdrawRequest(WithdrawRequest memory withdrawRequest)
 }
 
 function unpackFraudSlot(bytes32 packedSlot) pure returns (FraudSlot memory slot) {
-    slot.tokenAddress = address(uint160(getBits(packedSlot, 0, 160)));
-    slot.sharePriceValidityDuration = uint(getBits(packedSlot, 160, 31));
-    slot.weArePanicking = getBits(packedSlot, 191, 1) == 1;
-    slot.lastClaimedTimestamp = uint(getBits(packedSlot, 192, 64));
+    slot.sharePriceValidityDuration = uint16(getBits(packedSlot, 0, 16));
+    slot.weArePanicking = getBits(packedSlot, 16, 1) == 1;
+    slot.lastClaimedTimestamp = uint(getBits(packedSlot, 17, 64));
 }
 
 function packFraudSlot(FraudSlot memory slot) pure returns (bytes32 packedSlot) {
-    packedSlot = setBits(packedSlot, bytes32(uint(uint160(slot.tokenAddress))), 0, 160);
-    packedSlot = setBits(packedSlot, bytes32(uint(slot.sharePriceValidityDuration)), 160, 31);
-    packedSlot = setBits(packedSlot, bytes32(slot.weArePanicking == true ? uint(1) : 0), 191, 1);
-    packedSlot = setBits(packedSlot, bytes32(uint(uint64(slot.lastClaimedTimestamp))), 192, 64);
+    packedSlot = setBits(packedSlot, bytes32(uint(slot.sharePriceValidityDuration)), 0, 16);
+    packedSlot = setBits(packedSlot, bytes32(slot.weArePanicking == true ? uint(1) : 0), 16, 1);
+    packedSlot = setBits(packedSlot, bytes32(uint(uint64(slot.lastClaimedTimestamp))), 17, 64);
 }
 
 function unpackOracleData(bytes32 packedOracleData) pure returns (OracleData memory oracleData) {

@@ -20,7 +20,6 @@ contract OracleTests is Test {
     receive() external payable {}
 
     Oracle oracle;
-    MockERC20 token;
 
     address owner;
     uint ownerPk;
@@ -47,13 +46,11 @@ contract OracleTests is Test {
 
         vm.startPrank(owner);
 
-        token = new MockERC20("token", "token", 0);
-        token.mint(alice, 2000e18);
-        token.mint(bob, 2000e18);
-
         Oracle oracleImpl = new Oracle();
-        ERC1967Proxy proxy =
-            new ERC1967Proxy(address(oracleImpl), abi.encodeWithSignature("initialize()"));
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(oracleImpl),
+            abi.encodeWithSignature("initialize(string,string)", "NAME", "SYMBL")
+        );
 
         oracle = Oracle(address(proxy));
 
@@ -89,7 +86,7 @@ contract OracleTests is Test {
         vm.startPrank(owner);
         oracle.updateRewardPerSecond(12);
         oracle.updateStakeLimits(1e18, 20e18, 86400);
-        oracle.updateFraudSlot(address(token), false, 100);
+        oracle.updateFraudSlot(false, 100);
         vm.stopPrank();
     }
 
@@ -97,20 +94,21 @@ contract OracleTests is Test {
         baseSetup();
         vm.deal(address(oracle), 5e18);
 
+        vm.prank(owner);
+        oracle.transfer(bob, 30e18);
+
         vm.startPrank(bob);
 
-        token.approve(address(oracle), 30e18);
-
-        assertEq(token.balanceOf(bob), 2000e18);
+        assertEq(oracle.balanceOf(bob), 30e18);
         assertEq(alice.balance, 100e18);
 
-        oracle.redeemCollateral(payable(alice), 1e18);
-        assertEq(token.balanceOf(bob), 1999e18);
+        oracle.burn(payable(alice), 1e18);
+        assertEq(oracle.balanceOf(bob), 29e18);
         assertEq(alice.balance, 101e18);
 
-        oracle.redeemCollateral(payable(alice), 1e18);
+        oracle.burn(payable(alice), 1e18);
 
-        assertEq(token.balanceOf(bob), 1998e18);
+        assertEq(oracle.balanceOf(bob), 28e18);
         assertEq(alice.balance, 1019999999e11);
 
         vm.stopPrank();
@@ -120,9 +118,10 @@ contract OracleTests is Test {
         baseSetup();
         vm.warp(100000);
 
-        vm.startPrank(bob);
+        vm.prank(owner);
+        oracle.transfer(bob, 30e18);
 
-        token.approve(address(oracle), 30e18);
+        vm.startPrank(bob);
 
         oracle.stake(provider1, 10e18, bob);
         oracle.stake(provider2, 10e18, alice);
@@ -135,12 +134,12 @@ contract OracleTests is Test {
         vm.expectRevert();
         oracle.unstake(provider1, 1, 10e18, bob);
 
-        assertEq(token.balanceOf(bob), 1980e18);
+        assertEq(oracle.balanceOf(bob), 10e18);
 
         // can unstake
         oracle.unstake(provider2, 1, 5e18, bob);
 
-        assertEq(token.balanceOf(bob), 1980e18);
+        assertEq(oracle.balanceOf(bob), 10e18);
 
         uint ts = vm.getBlockTimestamp();
 
@@ -167,7 +166,7 @@ contract OracleTests is Test {
 
         oracle.withdraw(provider2, 1, bob);
 
-        assertEq(token.balanceOf(bob), 1985e18);
+        assertEq(oracle.balanceOf(bob), 15e18);
         vm.stopPrank();
     }
 
@@ -175,13 +174,16 @@ contract OracleTests is Test {
         baseSetup();
         vm.deal(address(oracle), 5e18);
 
-        vm.startPrank(bob);
-
-        // no approve
+        // no balance
         vm.expectRevert();
+        vm.prank(bob);
         oracle.stake(provider1, 10e18, bob);
 
-        token.approve(address(oracle), 10e18);
+        vm.prank(owner);
+        oracle.transfer(bob, 10e18);
+
+        vm.startPrank(bob);
+
         oracle.stake(provider1, 10e18, bob);
 
         oracle.unstake(provider1, 1, 10e18, bob);
@@ -199,9 +201,11 @@ contract OracleTests is Test {
 
         OraclePrice memory op;
 
+        vm.prank(owner);
+        oracle.transfer(alice, 50e18);
+
         vm.startPrank(alice);
 
-        token.approve(address(oracle), 50e18);
         oracle.stake(provider1, 10e18, alice);
 
         vm.stopPrank();
@@ -226,7 +230,7 @@ contract OracleTests is Test {
         oracle.stake(provider2, 20e18, alice);
 
         vm.prank(owner);
-        oracle.updateFraudSlot(address(token), false, 100);
+        oracle.updateFraudSlot(false, 100);
 
         vm.prank(alice);
         oracle.stake(provider2, 20e18, alice);
@@ -260,9 +264,12 @@ contract OracleTests is Test {
 
     function test_PriceCommiting() public {
         baseSetup();
+
+        vm.prank(owner);
+        oracle.transfer(bob, 20e18);
+
         vm.startPrank(bob);
 
-        token.approve(address(oracle), 20e18);
         oracle.stake(provider1, 10e18, bob);
         vm.stopPrank();
 
@@ -312,9 +319,11 @@ contract OracleTests is Test {
     function test_Panic() public {
         baseSetup();
 
+        vm.prank(owner);
+        oracle.transfer(bob, 20e18);
+
         vm.startPrank(bob);
 
-        token.approve(address(oracle), 20e18);
         oracle.stake(provider1, 10e18, bob);
         oracle.unstake(provider1, 1, 5e18, bob);
         vm.stopPrank();
@@ -350,7 +359,7 @@ contract OracleTests is Test {
         oracle.commitPrice(op);
 
         vm.prank(owner);
-        oracle.updateFraudSlot(address(token), false, 100);
+        oracle.updateFraudSlot(false, 100);
 
         vm.startPrank(bob);
         oracle.stake(provider1, 10e18, bob);
@@ -383,14 +392,13 @@ contract OracleTests is Test {
 
         vm.prank(bob);
         vm.expectRevert();
-        oracle.updateFraudSlot(address(1), false, 100);
+        oracle.updateFraudSlot(false, 100);
 
         vm.prank(owner);
-        oracle.updateFraudSlot(address(1), true, 100);
+        oracle.updateFraudSlot(true, 100);
         FraudSlot memory slot = oracle.getFraudSlot();
         assertEq(slot.lastClaimedTimestamp, 0);
         assertEq(slot.sharePriceValidityDuration, 100);
-        assertEq(slot.tokenAddress, address(1));
         assertEq(slot.weArePanicking, true);
 
         vm.prank(bob);
@@ -410,9 +418,10 @@ contract OracleTests is Test {
         vm.prank(owner);
         oracle.updateRewardPerSecond(1e8);
 
-        vm.startPrank(bob);
+        vm.prank(owner);
+        oracle.transfer(bob, 30e18);
 
-        token.approve(address(oracle), 30e18);
+        vm.startPrank(bob);
 
         // stake is too small
         vm.expectRevert();
@@ -441,9 +450,11 @@ contract OracleTests is Test {
         vm.prank(owner);
         oracle.toggleOracle(provider2);
 
+        vm.prank(owner);
+        oracle.transfer(alice, 20e18);
+
         vm.startPrank(alice);
 
-        token.approve(address(oracle), 20e18);
         oracle.stake(provider1, 5e18, alice);
         oracle.stake(provider2, 1e18, alice);
 
@@ -490,20 +501,20 @@ contract OracleTests is Test {
         vm.prank(owner);
         oracle.updateStakeLimits(1e18, type(uint112).max, 86400);
 
-        token.mint(bob, type(uint112).max);
+        uint balance = oracle.balanceOf(owner);
 
-        vm.prank(bob);
-        token.approve(address(oracle), type(uint112).max);
+        vm.prank(owner);
+        oracle.transfer(bob, balance);
 
-        // stake - 5192296858534827628530496329220095 - 5e33
+        balance = oracle.balanceOf(bob);
+        // stake - full token supply
         vm.prank(bob);
-        oracle.stake(provider3, type(uint112).max - 1, bob);
+        oracle.stake(provider3, balance, bob);
 
         vm.prank(owner);
         oracle.toggleOracle(provider3);
 
         vm.warp(block.timestamp + 10000000);
-        // 10000000 * 429496729500000000 = 4294967295000000000000000 (~4,000,000e18)
         // 2777 hours ~ 115 days
 
         op = createPrice(provider3Pk, provider3, 49432170733128933655371916);
@@ -512,12 +523,11 @@ contract OracleTests is Test {
         oracle.commitPrice{value: 10e18}(op);
 
         od = oracle.getOracle(provider3);
-        // 5e33
-        assertEq(od.stake, 5192296862829794923530496329220094);
-        assertEq(od.totalShares, 5192296858534827628530496329220094);
+        // 1e25
+        assertEq(od.stake, 14294927295000000000000000);
+        assertEq(od.totalShares, 9999960000000000000000000);
 
         vm.warp(block.timestamp + 100000000000);
-        // 100000000000 * 429496729500000000 = 42949672950000000000000000000 (~4e28)
         // 3168 years
 
         op = createPrice(provider3Pk, provider3, 49432170733128933655371916);
@@ -526,8 +536,8 @@ contract OracleTests is Test {
 
         od = oracle.getOracle(provider3);
 
-        assertEq(od.stake, 5192296896140920839586459020759068);
-        assertEq(od.totalShares, 5192296858534827628530496329220094);
+        assertEq(od.stake, 47606053211055962691538974);
+        assertEq(od.totalShares, 9999960000000000000000000);
 
         vm.warp(block.timestamp + 100000000000);
         op = createPrice(provider3Pk, provider3, 49432170733128933655371916);
@@ -536,7 +546,7 @@ contract OracleTests is Test {
         oracle.commitPrice(op);
         // we do not buy anything
         od = oracle.getOracle(provider3);
-        assertEq(od.stake, 5192296896140920839586459020759068);
+        assertEq(od.stake, 47606053211055962691538974);
 
         // basic overflow is impossible
         // available 128 size of stake + 112 max stake restriction
