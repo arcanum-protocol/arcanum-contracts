@@ -6,246 +6,176 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
-import {FeedInfo, FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, sort, dynamic, updatePrice} from "../MultipoolUtils.t.sol";
-import {ForcePushArgs, AssetArgs} from "../../src/types/SwapArgs.sol";
+import {FeedType} from "../../src/lib/Price.sol";
+import {MultipoolUtils, toX96, toX32, vec, updatePrice} from "../MultipoolUtils.t.sol";
+import {OraclePrice} from "../../src/types/OraclePrice.sol";
+import {ReceiverData} from "../../src/types/ReceiverData.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
 
     function testFail_DeviationOverflowFeeWhenIsCloseToDeviationLimit() public {
-        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
 
         uint price = toX96(10e18);
         uint quoteSum = 246.153846e18;
         uint val = (quoteSum << 96) / price;
 
-        SharePriceParams memory sp;
         tokens[0].mint(address(mp), val);
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-                        AssetArgs({
-                            assetAddress: address(mp),
-                            amount: -int((quoteSum << 96) / toX96(0.1e18))
-                        })
-                    ]
-                )
-            ),
-            10000000000e18,
-            users[0],
-            sp
+
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
+        mp.swap{value: 100e15}(op, address(token0), address(mp), val, true, rd);
+    }
+
+    function test_MintWithDeviation() public {
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
         );
-    }
-
-    function test_MintFromAllAssetsWithEqualProportions() public {
-        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
-
-        AssetArgs[] memory args = new AssetArgs[](6);
-
-        uint quoteSum;
-        uint[] memory p = new uint[](5);
-        p[0] = toX96(10e18);
-        p[1] = toX96(20e18);
-        p[2] = toX96(5e18);
-        p[3] = toX96(2.5e18);
-        p[4] = toX96(10e18);
-
-        address[] memory t = new address[](5);
-        t[0] = address(tokens[0]);
-        t[1] = address(tokens[1]);
-        t[2] = address(tokens[2]);
-        t[3] = address(tokens[3]);
-        t[4] = address(tokens[4]);
-
-        for (uint i = 0; i < t.length; i++) {
-            quoteSum += 10e18;
-            uint val = (10e18 << 96) / p[i];
-            changePrice(address(tokens[i]), p[i]);
-            tokens[i].mint(address(mp), val);
-            args[i] = AssetArgs({assetAddress: address(tokens[i]), amount: int(val)});
-        }
-
-        args[5] =
-            AssetArgs({assetAddress: address(mp), amount: -int((quoteSum << 96) / toX96(0.1e18))});
-
-        SharePriceParams memory sp;
-        swap(sort(args), 1e18, users[3], sp);
-
-        snapMultipool("MintFromAllAssetsWithEqualProportions");
-    }
-
-    function test_MintFromSignleAssetWithDeviation() public {
-        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
+        // 15 250 = p1*q1 + ...
+        // quote value = 400 * 10 / 15250 = 0,262295082
+        snapMultipool("MintFromSignleAssetWithDeviation0");
 
         uint newPrice = toX96(10e18);
         uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / newPrice;
+        console.log("val   ", val);
 
         changePrice(address(tokens[0]), newPrice);
         tokens[0].mint(address(mp), val);
 
         vm.prank(owner);
-        updatePrice(address(mp), address(mp), FeedType.FixedValue, abi.encode(toX96(0.09e18)));
-
-        SharePriceParams memory sp;
-        sp.ts = uint128(block.timestamp);
-        sp.value = uint128(toX96(0.1e18));
-        sp.send = true;
-
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-                        AssetArgs({
-                            assetAddress: address(mp),
-                            amount: -int((quoteSum << 96) / toX96(0.1e18))
-                        })
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp
+        updatePrice(
+            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
         );
+        // SharePriceParams memory sp;
+        // sp.ts = uint128(block.timestamp);
+        // sp.value = uint128(toX96(0.1e18));
+        // sp.send = true;
+        // 100.000000000000000000
+        // 7,922,816,351.323433762029153469
+        mp.increaseCashback{value: 1}(address(0));
 
-        snapMultipool("MintFromSignleAssetWithDeviation");
-    }
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = false;
 
-    function testFail_SplittingTokens() public {
-        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+        mp.swap{value: 0.2e18}(op, address(token0), address(mp), val, true, rd);
 
-        tokens[0].mint(address(mp), 1e18);
-        tokens[1].mint(address(mp), 0.5e18);
-
-        // swap 2 tokens for 2 tokens
-        SharePriceParams memory sp;
-        swap(
-            dynamic(
-                [
-                    AssetArgs({assetAddress: address(tokens[0]), amount: int(0.5e18)}),
-                    AssetArgs({assetAddress: address(tokens[0]), amount: int(0.5e18)}),
-                    AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-                    AssetArgs({assetAddress: address(tokens[2]), amount: int(-1e18)}),
-                    AssetArgs({assetAddress: address(tokens[2]), amount: int(-1e18)}),
-                    AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
-                ]
-            ),
-            100e18,
-            users[0],
-            sp
-        );
+        snapMultipool("MintFromSignleAssetWithDeviation1");
     }
 
     function test_SwapHappyPath() public {
-        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
 
         tokens[0].mint(address(mp), 1e18);
-        tokens[1].mint(address(mp), 0.5e18);
 
-        // swap 2 tokens for 2 tokens
-        SharePriceParams memory sp;
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
-                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp
-        );
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
 
+        mp.swap{value: 0.2e18}(op, token0, token1, 1e18, true, rd);
         snapMultipool("SwapHappyPath1");
-
-        vm.prank(users[3]);
-        mp.transfer(address(mp), 17000000000000000000010);
-        // burn everything
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-41e18)}),
-                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-15.5e18)}),
-                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-78e18)}),
-                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-116e18)}),
-                        AssetArgs({assetAddress: address(tokens[4]), amount: int(-30e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp
-        );
-        snapMultipool("SwapHappyPath2");
     }
 
     function test_RemoveOldToken() public {
-        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
 
         changeShare(address(tokens[1]), 0);
 
+        tokens[1].mint(address(mp), 1e18);
+
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
+        vm.expectRevert(abi.encodeWithSignature("TargetShareIsZero()"));
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token1), address(token0), 1e18, true, rd);
+
         tokens[0].mint(address(mp), 1e18);
-        tokens[1].mint(address(mp), 0.5e18);
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(token1), 1e18, true, rd);
 
-        SharePriceParams memory sp;
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
-                        AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            users[3],
-            true,
-            false,
-            abi.encodeWithSignature("TargetShareIsZero()")
-        );
+        // swapExt(
+        //     sort(
+        //         dynamic(
+        //             [
+        //                 AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
+        //             ]
+        //         )
+        //     ),
+        //     100e18,
+        //     users[0],
+        //     sp,
+        //     users[3],
+        //     true,
+        //     false,
+        //     abi.encodeWithSignature("TargetShareIsZero()")
+        // );
 
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[1]), amount: int(-0.1e18)}),
-                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-0.1e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            users[3],
-            true,
-            false,
-            abi.encode(0)
-        );
+        // swapExt(
+        //     sort(
+        //         dynamic(
+        //             [
+        //                 AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[1]), amount: int(-0.1e18)}),
+        //                 AssetArgs({assetAddress: address(tokens[2]), amount: int(-0.1e18)})
+        //             ]
+        //         )
+        //     ),
+        //     100e18,
+        //     users[0],
+        //     sp,
+        //     users[3],
+        //     true,
+        //     false,
+        //     abi.encode(0)
+        // );
 
         snapMultipool("RemoveOldToken");
     }
 
     function test_AddNewTokenAndTryToBurnWithIt() public {
-        bootstrapTokens([uint(400e18), 300e18, 300e18, 300e18, 300e18], users[3]);
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
 
         MockERC20 newOne = new MockERC20("NEW", "NEW", 0);
 
-        changeShare(address(newOne), 10e18);
+        changeShare(address(newOne), 1000);
 
         //uint newPrice = toX96(10e18);
         //uint quoteSum = 10e18;
@@ -254,272 +184,187 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         //changePrice(address(tokens[0]), newPrice);
         tokens[0].mint(address(mp), 1e18);
 
-        SharePriceParams memory sp;
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(newOne), amount: -int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            address(this),
-            true,
-            false,
-            abi.encodeWithSignature("NoPriceOriginSet()")
-        );
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
+        vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(newOne), 1e18, true, rd);
 
         uint newPrice = toX96(10e18);
         changePrice(address(newOne), newPrice);
 
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(newOne), amount: -int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            address(this),
-            true,
-            false,
-            abi.encodePacked("ERC20: transfer amount exceeds balance")
-        );
+        vm.expectRevert(abi.encodePacked("ERC20: transfer amount exceeds balance"));
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(newOne), 1e18, true, rd);
 
         newOne.mint(address(mp), 1e18);
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(newOne), amount: -int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            address(this),
-            true,
-            false,
-            abi.encodeWithSignature("NotEnoughQuantityToBurn()")
-        );
 
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(newOne), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: -int(1000)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            address(this),
-            true,
-            false,
-            abi.encode(0)
-        );
+        vm.expectRevert(abi.encodeWithSignature("NotEnoughQuantityToBurn()"));
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(newOne), 1e18, true, rd);
+
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(newOne), address(token0), 1e18, true, rd);
 
         snapMultipool("AddNewTokenAndTryToBurnWithIt");
         assertEq(
             mp.getAsset(address(newOne)),
-            MpAsset({quantity: 1e18, targetShare: 10e18, collectedCashbacks: 0})
+            MpAsset({quantity: 1e18, targetShare: 1000, collectedCashbacks: 0, isUsed: true})
         );
         assertEq(newOne.balanceOf(address(mp)), 1e18);
 
         newOne.mint(address(mp), 25e18);
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(newOne), amount: int(25e18)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: -int(1000)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            address(this),
-            true,
-            false,
-            abi.encode(0)
+
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(newOne), address(tokens[0]), 25e18, true, rd
         );
 
         snapMultipool("AddNewTokenAndTryToBurnWithIt2");
         assertEq(
             mp.getAsset(address(newOne)),
-            MpAsset({quantity: 26e18, targetShare: 10e18, collectedCashbacks: 0})
+            MpAsset({quantity: 26e18, targetShare: 1000, collectedCashbacks: 0, isUsed: true})
         );
         assertEq(newOne.balanceOf(address(mp)), 26e18);
     }
 
     function test_BurnValue() public {
-        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
-
-        SharePriceParams memory sp;
-
-        vm.prank(users[3]);
-        mp.transfer(address(mp), 17000000000000000000010);
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(mp), amount: int(1000000000000000000000)}),
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(-2e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            users[3],
-            false,
-            false,
-            abi.encode(0)
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
         );
+
+        vm.prank(owner);
+        mp.transfer(address(mp), 1000000005587935455499);
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(mp), address(tokens[0]), 1e21, true, rd);
+
         snapMultipool("BurnValue");
     }
 
     function test_BurnWhenDeviationExceedsAccuracy() public {
-        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
 
-        SharePriceParams memory sp;
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
 
         // removing token 0
         changeShare(address(tokens[0]), 0);
         snapMultipool("BurnWhenDeviationExceedsAccuracy0");
 
-        vm.prank(users[3]);
-        mp.transfer(address(mp), 17000000000000000000010);
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
-                        // leave almost nothing there
-                        AssetArgs({
-                            assetAddress: address(tokens[0]),
-                            amount: int(-39.999999999999999e18)
-                        })
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            users[3],
-            false,
-            false,
-            abi.encode(0)
+        vm.prank(owner);
+        mp.transfer(address(mp), 100000000000000000010);
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(mp), address(tokens[0]), 100000000000000000010, true, rd
         );
+
         snapMultipool("BurnWhenDeviationExceedsAccuracy1");
 
-        uint balance = mp.balanceOf(users[3]);
-        vm.prank(users[3]);
+        uint balance = mp.balanceOf(owner);
+        vm.prank(owner);
         mp.transfer(address(mp), balance);
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        // sleepage can be actually any big value
-                        AssetArgs({assetAddress: address(mp), amount: int(17000000000000000000010)}),
-                        // leave almost nothing there
-                        AssetArgs({
-                            assetAddress: address(tokens[0]),
-                            amount: int(-(40e18 - 39.999999999999999e18))
-                        })
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            users[3],
-            false,
-            false,
-            abi.encode(0)
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(mp), address(tokens[0]), 1000000000000000000010, true, rd
         );
+
         snapMultipool("BurnWhenDeviationExceedsAccuracy2");
     }
 
     function testFail_SwapHappyPathWithLowOutput() public {
-        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
+        );
 
         tokens[0].mint(address(mp), 2e18);
 
         changePrice(address(tokens[2]), toX96(0.000001e18));
 
-        // swap 2 tokens for 2 tokens
-        SharePriceParams memory sp;
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(tokens[2]), amount: int(-1e7)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = address(0);
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
+        mp.swap{value: uint128(toX96(0.1e18))}(
+            op, address(tokens[0]), address(tokens[2]), 1e18, true, rd
         );
     }
 
     function test_MintFromZeroTargetShareToken() public {
-        bootstrapTokens([uint(400e18), 300e18, 400e18, 300e18, 300e18], users[3]);
-
-        SharePriceParams memory sp;
-        changeShare(address(tokens[0]), 0);
-
-        vm.prank(users[3]);
-        mp.transfer(address(mp), 4000e18 + 100);
-
-        swapExt(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: -int(40e18)}),
-                        AssetArgs({assetAddress: address(mp), amount: int(4000e18 + 100)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp,
-            users[3],
-            false,
-            false,
-            abi.encode(0)
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
         );
+
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = address(0);
+        rd.refundEthToReceiver = true;
+
+        changeShare(address(token0), 0);
+
+        vm.prank(owner);
+        mp.transfer(address(mp), 400e19);
+
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(mp), address(token0), 40e18, false, rd);
 
         tokens[0].mint(address(mp), 1e18);
 
         vm.expectRevert(abi.encodeWithSignature("TargetShareIsZero()"));
-        swap(
-            sort(
-                dynamic(
-                    [
-                        AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-                        AssetArgs({assetAddress: address(mp), amount: -int(0.5e18)})
-                    ]
-                )
-            ),
-            100e18,
-            users[0],
-            sp
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(mp), 1e18, false, rd);
+    }
+
+    function test_CheckRefundFee() public {
+        bootstrapMultipool(
+            vec([token0, token1, token2, token3, token4]),
+            vec([uint(400e18), 300e18, 300e18, 300e18, 300e18]),
+            vec([toX96(10e18), toX96(10e18), toX96(5e18), toX96(12.5e18), toX96(10e18)]),
+            vec([1000, 1000, 1000, 1000, 1000])
         );
+
+        OraclePrice memory op;
+        ReceiverData memory rd;
+        rd.receiverAddress = user0;
+        rd.refundAddress = user0;
+        rd.refundEthToReceiver = true;
+
+        vm.prank(user0);
+        tokens[0].transfer(address(mp), 100e18);
+
+        assertEq(tokens[0].balanceOf(user0), 0);
+
+        mp.swap{value: 0.2e18}(op, address(token0), address(token1), 1e18, true, rd);
+
+        assertEq(tokens[0].balanceOf(user0), 99e18);
+
+        vm.prank(owner);
+        mp.transfer(address(mp), 100e18);
+
+        assertEq(mp.balanceOf(user1), 0);
+
+        rd.refundAddress = user1;
+        mp.swap{value: 0.2e18}(op, address(mp), address(token0), 1e18, true, rd);
+
+        assertEq(mp.balanceOf(user1), 99e18);
     }
 }

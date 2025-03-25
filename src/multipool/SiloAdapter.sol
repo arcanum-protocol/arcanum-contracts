@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
-// Multipool can't be understood by your mind, only by your heart
-// good luck little defi explorer
-// oh, if you wana fork, fuck you
 
 import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-import {FeedInfo, FeedType, UniV3Feed, PriceMath} from "../lib/Price.sol";
+import {FeedType, PriceMath} from "../lib/Price.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 import {IWrapper} from "../interfaces/IWrapper.sol";
 import {ISilo, ISiloLens} from "../interfaces/ISiloPool.sol";
@@ -24,7 +21,7 @@ contract SiloPriceAdapter is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    using PriceMath for FeedInfo;
+    using PriceMath for bytes32;
 
     constructor() {
         _disableInitializers();
@@ -41,7 +38,7 @@ contract SiloPriceAdapter is
 
     struct Feed {
         address baseToken;
-        FeedInfo baseFeed;
+        bytes32 baseFeed;
         ISilo siloAddress;
         IERC20 siloCollateralToken;
     }
@@ -50,7 +47,7 @@ contract SiloPriceAdapter is
     address siloLens;
     uint feedNumber;
 
-    function createFeed(address baseToken, ISilo siloPool, FeedInfo calldata baseFeed) external {
+    function createFeed(address baseToken, ISilo siloPool, bytes32 baseFeed) external {
         feeds[feedNumber] = Feed({
             baseToken: baseToken,
             baseFeed: baseFeed,

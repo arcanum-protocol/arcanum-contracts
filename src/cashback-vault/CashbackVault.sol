@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {MpAsset} from "../lib/MpContext.sol";
 import {CashbackDistributor} from "../lib/CashbackDistributor.sol";
-import {FixedPoint96} from "../lib/FixedPoint96.sol";
+import {FixedPoint96} from "../lib/FixedPoint.sol";
 
 import {IMultipool} from "../interfaces/IMultipool.sol";
 

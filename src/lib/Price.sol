@@ -2,10 +2,11 @@
 pragma solidity ^0.8.0;
 
 import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
-import {FixedPoint96} from "../lib/FixedPoint96.sol";
+import {FixedPoint96} from "../lib/FixedPoint.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
 import {IPriceAdapter} from "../interfaces/IPriceAdapter.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
+import {getBytes} from "./Binary.sol";
 
 enum FeedType {
     // Unset value
@@ -18,40 +19,24 @@ enum FeedType {
     Adapter
 }
 
-// Data of uniswap v3 feed
-struct UniV3Feed {
-    // Pool address
-    address oracle;
-    // Shows wether to flip the price
-    bool reversed;
-    // Interval of aggregation in seconds
-    uint twapInterval;
-}
-
-// Any price should have a 2^96 decimals
-// Some unsafe shit here, generally feed type is a simple number and bytes that
-// depend on feed type
-struct FeedInfo {
-    FeedType kind;
-    bytes data;
-}
-
-using {PriceMath.getPrice} for FeedInfo global;
-
 /// @title Price calculation and provision library
 library PriceMath {
     /// @notice Extracts current price from origin
     /// @dev Processed the provided `prceFeed` to get it's current price value.
     /// @param priceFeed struct with data of supplied price feed
     /// @return price value is represented as a Q96 value
-    function getPrice(FeedInfo memory priceFeed) internal view returns (uint price) {
-        if (priceFeed.kind == FeedType.FixedValue) {
-            price = abi.decode(priceFeed.data, (uint));
-        } else if (priceFeed.kind == FeedType.UniV3) {
-            UniV3Feed memory data = abi.decode(priceFeed.data, (UniV3Feed));
-            price = getTwapX96(data.oracle, data.reversed, data.twapInterval);
-        } else if (priceFeed.kind == FeedType.Adapter) {
-            (address adapterContract, uint feedId) = abi.decode(priceFeed.data, (address, uint));
+    function getPrice(bytes32 priceFeed) internal view returns (uint price) {
+        FeedType kind = FeedType(getBytes(priceFeed, 0, 1));
+        if (kind == FeedType.FixedValue) {
+            price = getBytes(priceFeed, 1, 16);
+        } else if (kind == FeedType.UniV3) {
+            address oracle = address(uint160(getBytes(priceFeed, 1, 20)));
+            bool reversed = getBytes(priceFeed, 21, 1) == 1;
+            uint64 twapInterval = uint64(getBytes(priceFeed, 22, 8));
+            price = getTwapX96(oracle, reversed, twapInterval);
+        } else if (kind == FeedType.Adapter) {
+            address adapterContract = address(uint160(getBytes(priceFeed, 1, 20)));
+            uint64 feedId = uint64(getBytes(priceFeed, 21, 8));
             price = IPriceAdapter(adapterContract).getPrice(feedId);
         } else {
             revert IMultipoolErrors.NoPriceOriginSet();

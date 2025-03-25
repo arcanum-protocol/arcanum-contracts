@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 import {Multipool} from "./Multipool.sol";
-import {ForcePushArgs, AssetArgs} from "../types/SwapArgs.sol";
+import {MultipoolCreationParams, MultipoolFactory} from "./Factory.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
+import {ReceiverData} from "../types/ReceiverData.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
@@ -11,57 +13,63 @@ interface WETH is IERC20 {
     function withdraw(uint256 amount) external;
 }
 
+enum CallType {
+    ERC20Transfer,
+    ERC20Approve,
+    Any,
+    Wrap
+}
+
+struct TokenTransferParams {
+    address token;
+    address targetOrOrigin;
+    uint amount;
+}
+
+struct RouterApproveParams {
+    address token;
+    address target;
+    uint amount;
+}
+
+struct WrapParams {
+    address weth;
+    bool wrap;
+    uint ethValue;
+}
+
+struct Call {
+    CallType callType;
+    bytes data;
+}
+
+struct SwapArgs {
+    OraclePrice oraclePrice;
+    address assetIn;
+    address assetOut;
+    uint swapAmount;
+    bool isExactInput;
+    ReceiverData receiverData;
+    uint ethValue;
+}
+
 contract MultipoolRouter is Ownable {
+    constructor(address _factory) {
+        factory = _factory;
+    }
+
+    address public factory;
+
     mapping(address => bool) isContractAllowedToCall;
 
     function toggleContract(address contractAddress) public onlyOwner {
         isContractAllowedToCall[contractAddress] = !isContractAllowedToCall[contractAddress];
     }
 
-    enum CallType {
-        ERC20Transfer,
-        ERC20Approve,
-        Any,
-        Wrap
-    }
-
-    struct TokenTransferParams {
-        address token;
-        address targetOrOrigin;
-        uint amount;
-    }
-
-    struct RouterApproveParams {
-        address token;
-        address target;
-        uint amount;
-    }
-
-    struct WrapParams {
-        address weth;
-        bool wrap;
-        uint ethValue;
-    }
-
-    struct Call {
-        CallType callType;
-        bytes data;
-    }
-
     error CallFailed(uint callNumber, bool isPredecessing);
     error InsufficientEthBalance(uint callNumber, bool isPredecessing);
     error InsufficientEthBalanceCallingSwap();
     error ContractCallNotAllowed(address target);
-
-    struct SwapArgs {
-        ForcePushArgs forcePushArgs;
-        AssetArgs[] assetsToSwap;
-        bool isExactInput;
-        address receiverAddress;
-        bool refundEthToReceiver;
-        address refundAddress;
-        uint ethValue;
-    }
 
     function processCall(Call memory call, uint index, bool isPredecessing) internal {
         if (call.callType == CallType.Any) {
@@ -103,28 +111,45 @@ contract MultipoolRouter is Ownable {
     function swap(
         address poolAddress,
         SwapArgs calldata swapArgs,
-        Call[] calldata paramsBefore,
-        Call[] calldata paramsAfter
+        Call[] calldata callsBefore,
+        Call[] calldata callsAfter
     )
         external
         payable
     {
-        for (uint i; i < paramsBefore.length; ++i) {
-            processCall(paramsBefore[i], i, true);
+        for (uint i; i < callsBefore.length; ++i) {
+            processCall(callsBefore[i], i, true);
         }
 
         if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
         Multipool(poolAddress).swap{value: swapArgs.ethValue}(
-            swapArgs.forcePushArgs,
-            swapArgs.assetsToSwap,
+            swapArgs.oraclePrice,
+            swapArgs.assetIn,
+            swapArgs.assetOut,
+            swapArgs.swapAmount,
             swapArgs.isExactInput,
-            swapArgs.receiverAddress,
-            swapArgs.refundEthToReceiver,
-            swapArgs.refundAddress
+            swapArgs.receiverData
         );
 
-        for (uint i; i < paramsAfter.length; ++i) {
-            processCall(paramsAfter[i], i, false);
+        for (uint i; i < callsAfter.length; ++i) {
+            processCall(callsAfter[i], i, false);
+        }
+    }
+
+    function createMultipool(
+        MultipoolCreationParams calldata creationParams,
+        Call[] calldata callsBefore,
+        Call[] calldata callsAfter
+    )
+        external
+        payable
+    {
+        for (uint i; i < callsBefore.length; ++i) {
+            processCall(callsBefore[i], i, true);
+        }
+        MultipoolFactory(factory).createMultipool(creationParams);
+        for (uint i; i < callsAfter.length; ++i) {
+            processCall(callsAfter[i], i, false);
         }
     }
 }

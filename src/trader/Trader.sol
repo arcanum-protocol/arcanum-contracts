@@ -8,7 +8,8 @@ import {IUniswapV3Pool} from "uniswapv3/interfaces/IUniswapV3Pool.sol";
 import {ICashbackVault} from "../interfaces/ICashbackVault.sol";
 import {IWrapper} from "../interfaces/IWrapper.sol";
 import {Multipool} from "../multipool/Multipool.sol";
-import {AssetArgs, ForcePushArgs} from "../types/SwapArgs.sol";
+import {OraclePrice} from "../types/OraclePrice.sol";
+import {ReceiverData} from "../types/ReceiverData.sol";
 import {ISwapRouter} from "../interfaces/IUniswapRouter.sol";
 
 interface WETH is IERC20 {
@@ -45,10 +46,9 @@ contract Trader {
         bool zeroForOneIn;
         IUniswapV3Pool poolOut;
         bool zeroForOneOut;
-        uint multipoolSleepage;
         uint multipoolFee;
         Multipool multipool;
-        ForcePushArgs fp;
+        OraclePrice oraclePrice;
         uint gasLimit;
         WETH weth;
         ICashbackVault cashback;
@@ -72,41 +72,29 @@ contract Trader {
             uint amountToPay = amount0Delta > 0 ? uint(amount0Delta) : uint(amount1Delta);
             weth.transfer(msg.sender, amountToPay);
 
-            int amount;
+            uint amount;
             if (args.tokenIn != args.multipoolTokenIn) {
                 args.tokenIn.transfer(address(args.firstCall.wrapper), args.tmpAmount);
-                amount = int(
-                    args.firstCall.wrapper.wrap(
-                        args.tmpAmount, address(args.multipool), args.firstCall.data
-                    )
+                amount = args.firstCall.wrapper.wrap(
+                    args.tmpAmount, address(args.multipool), args.firstCall.data
                 );
             } else {
                 args.tokenIn.transfer(address(args.multipool), args.tmpAmount);
-                amount = int(args.tmpAmount);
+                amount = args.tmpAmount;
             }
 
-            AssetArgs[] memory assetArgs = new AssetArgs[](2);
-            if (args.multipoolTokenIn < args.multipoolTokenOut) {
-                assetArgs[0] =
-                    AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
-                assetArgs[1] = AssetArgs({
-                    assetAddress: address(args.multipoolTokenOut),
-                    amount: -int(args.multipoolSleepage)
-                });
-            } else {
-                assetArgs[1] =
-                    AssetArgs({assetAddress: address(args.multipoolTokenIn), amount: amount});
-                assetArgs[0] = AssetArgs({
-                    assetAddress: address(args.multipoolTokenOut),
-                    amount: -int(args.multipoolSleepage)
-                });
-            }
-
-            args.multipool.swap{value: args.multipoolFee}(
-                args.fp, assetArgs, true, address(this), false, address(this)
+            (, uint amountOut) = args.multipool.swap{value: args.multipoolFee}(
+                args.oraclePrice,
+                address(args.multipoolTokenIn),
+                address(args.multipoolTokenOut),
+                amount,
+                true,
+                ReceiverData({
+                    receiverAddress: address(this),
+                    refundAddress: address(this),
+                    refundEthToReceiver: true
+                })
             );
-
-            uint amountOut = args.multipoolTokenOut.balanceOf(address(this));
 
             if (args.tokenOut != args.multipoolTokenOut) {
                 args.multipoolTokenOut.transfer(address(args.secondCall.wrapper), amountOut);

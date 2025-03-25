@@ -7,7 +7,7 @@ import {MockERC20} from "../../src/mocks/erc20.sol";
 import {ISilo, ISiloLens, IBaseSilo} from "../../src/interfaces/ISiloPool.sol";
 import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {SiloPriceAdapter} from "../../src/multipool/SiloAdapter.sol";
-import {FeedInfo, FeedType, PriceMath, UniV3Feed} from "../../src/lib/Price.sol";
+import {FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -48,19 +48,17 @@ contract SiloAdapterTests is Test {
 
         uint priceX96 = price * (value) / IERC20(info.collateralToken).totalSupply();
 
+        bytes memory data = abi.encodePacked(
+            FeedType.UniV3, address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29), false, uint8(60)
+        );
+
+        bytes32 feedData;
+        assembly {
+            feedData := mload(add(data, 32))
+        }
+
         siloAdapter.createFeed(
-            address(baseToken),
-            ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A),
-            FeedInfo({
-                kind: FeedType.UniV3,
-                data: abi.encode(
-                    UniV3Feed({
-                        oracle: address(0x446BF9748B4eA044dd759d9B9311C70491dF8F29),
-                        reversed: false,
-                        twapInterval: 60
-                    })
-                )
-            })
+            address(baseToken), ISilo(0x19d3F8D09773065867e9fD11716229e73481c55A), feedData
         );
         assertEq(priceX96, siloAdapter.getPrice(0));
     }

@@ -1,20 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {FeedInfo} from "../../lib/Price.sol";
-
 /// @title Interface that contains all multipool events
 interface IMultipoolErrors {
-    /// @notice Thrown when force push signature verification fails
-    error InvalidForcePushAuthority();
+    /// @notice Thrown when target share change initiator is invalid
+    error AssetsAreSame();
 
     /// @notice Thrown when target share change initiator is invalid
     error InvalidTargetShareAuthority();
-
-    /// @notice Thrown when force push signature verification fails
-    /// @param blockTimestamp current block timestamp
-    /// @param priceTimestamp signed with price timestamp
-    error ForcePushPriceExpired(uint blockTimestamp, uint priceTimestamp);
 
     /// @notice Thrown when zero amount supplied for any asset token
     error ZeroAmountSupplied();
@@ -25,12 +18,6 @@ interface IMultipoolErrors {
 
     /// @notice Thrown when sleepage check for some asset failed
     error SleepageExceeded();
-
-    /// @notice Thrown when supplied assets have duplicates or are not sorted ascending
-    error AssetsNotSortedOrNotUnique();
-
-    /// @notice Thrown when contract is paused
-    error IsPaused();
 
     /// @notice Thrown when supplied native token value for fee expired
     error FeeExceeded();
@@ -49,10 +36,4 @@ interface IMultipoolErrors {
 
     /// @notice Is thrown if you are trying to increase the deviation while target share is set to 0
     error TargetShareIsZero();
-
-    /// @notice Is thrown if the number of signatures is lower than threshold
-    error InvalidForcePushSignatureNumber();
-
-    /// @notice Is thrown if same force push signature is passed twice
-    error SignaturesNotSortedOrNotUnique();
 }
