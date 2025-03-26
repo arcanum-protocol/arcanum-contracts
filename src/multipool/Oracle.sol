@@ -41,7 +41,7 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         _disableInitializers();
     }
 
-    function initialize(string memory name_, string memory symbol_) public initializer {
+    function initialize(string memory name_, string memory symbol_) public payable initializer {
         _name = name_;
         _symbol = symbol_;
         __Ownable_init();
@@ -218,7 +218,7 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         FraudSlot memory slot = unpackFraudSlot(fraudSlot);
         if (slot.weArePanicking) revert WeAreCurrentlyInPanic();
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
-        uint amountToRedeem = share * oracle.totalShares / oracle.stake;
+        uint amountToRedeem = share * oracle.stake / oracle.totalShares;
 
         oracle.totalShares = oracle.totalShares - uint128(share);
         oracle.stake = oracle.stake - uint128(amountToRedeem);

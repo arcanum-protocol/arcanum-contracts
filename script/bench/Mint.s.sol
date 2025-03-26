@@ -6,6 +6,7 @@ import "../../src/multipool/Multipool.sol";
 import "../../src/multipool/MultipoolRouter.sol";
 import {MockERC20, MockERC20WithDecimals} from "../../src/mocks/erc20.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import {Oracle} from "../../src/multipool/Oracle.sol";
 import {
     toX96, toX32, updatePrice, AbstractFixedValueOracle
 } from "../../test/MultipoolUtils.t.sol";
@@ -73,17 +74,35 @@ contract Mint is Script {
         // fp.signature = abi.encodePacked(r, s, v);
         // }
 
+        Oracle oracle = Oracle(payable(0x224a2AcAB00e97645EA075168b2bf0Ad3124437f));
+
+        // payable(address(oracle)).transfer(1e16);
+
+        oracle.stake(deployerPublicKey, 1e18, deployerPublicKey);
+
         ReceiverData memory rd = ReceiverData({
             receiverAddress: deployerPublicKey,
             refundAddress: deployerPublicKey,
             refundEthToReceiver: true
         });
 
+        uint256 ts = block.timestamp;
+        bytes memory data = abi.encodePacked(
+            address(mp), uint(ts), uint(49432770753888933655371916), uint(block.chainid)
+        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(deployerPrivateKey, keccak256(data).toEthSignedMessageHash());
+
         OraclePrice memory op;
 
+        op.timestamp = uint128(ts);
+        op.sharePrice = uint128(49432770753888933655371916);
+        op.contractAddress = address(mp);
+        op.signature = abi.encodePacked(r, s, v); // bytes32 -> bytes conversion
+
         // mp.swap{value: 1e15}(op, tokens[0], address(mp), 1e18, true, rd);
-        mp.swap{value: 1e17}(op, tokens[1], address(mp), 1e17, true, rd);
-        mp.swap{value: 1e16}(op, tokens[2], address(mp), 1e17, true, rd);
+        // mp.swap{value: 1e17}(op, tokens[1], address(mp), 1e17, true, rd);
+        // mp.swap{value: 1e16}(op, tokens[2], address(mp), 1e17, true, rd);
 
         MockERC20(tokens[1]).mint(address(mp), 1e5);
 

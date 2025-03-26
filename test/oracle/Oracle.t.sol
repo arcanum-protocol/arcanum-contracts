@@ -52,7 +52,7 @@ contract OracleTests is Test {
             abi.encodeWithSignature("initialize(string,string)", "NAME", "SYMBL")
         );
 
-        oracle = Oracle(address(proxy));
+        oracle = Oracle(payable(address(proxy)));
 
         vm.deal(address(oracle), 5e18);
         vm.deal(address(owner), 100e18);
