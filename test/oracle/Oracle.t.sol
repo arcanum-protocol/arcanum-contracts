@@ -9,7 +9,7 @@ import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
 import {Oracle} from "../../src/multipool/Oracle.sol";
 import {FeedType} from "../../src/lib/Price.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
-import {FraudSlot, OracleData} from "../../src/types/Oracle.sol";
+import {Slot, OracleData, StakeOptions} from "../../src/types/Oracle.sol";
 import {MultipoolUtils, toX96, toX32, vec, updatePrice} from "../MultipoolUtils.t.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -86,7 +86,7 @@ contract OracleTests is Test {
         vm.startPrank(owner);
         oracle.updateRewardPerSecond(12);
         oracle.updateStakeLimits(1e18, 20e18, 86400);
-        oracle.updateFraudSlot(false, 100);
+        oracle.updateFraudData(false, 100);
         vm.stopPrank();
     }
 
@@ -104,12 +104,12 @@ contract OracleTests is Test {
 
         oracle.burn(payable(alice), 1e18);
         assertEq(oracle.balanceOf(bob), 29e18);
-        assertEq(alice.balance, 101e18);
+        assertEq(alice.balance, 100000000500000000000);
 
         oracle.burn(payable(alice), 1e18);
 
         assertEq(oracle.balanceOf(bob), 28e18);
-        assertEq(alice.balance, 1019999999e11);
+        assertEq(alice.balance, 100000001000000000000);
 
         vm.stopPrank();
     }
@@ -212,6 +212,8 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.toggleOracle(provider1);
+        vm.prank(owner);
+        oracle.togglePanicAuthority(provider1);
 
         vm.expectRevert();
         vm.prank(alice);
@@ -230,13 +232,15 @@ contract OracleTests is Test {
         oracle.stake(provider2, 20e18, alice);
 
         vm.prank(owner);
-        oracle.updateFraudSlot(false, 100);
+        oracle.updateFraudData(false, 100);
 
         vm.prank(alice);
         oracle.stake(provider2, 20e18, alice);
 
         vm.prank(owner);
         oracle.toggleOracle(provider2);
+        vm.prank(owner);
+        oracle.togglePanicAuthority(provider2);
 
         // stake is too big
         vm.prank(alice);
@@ -248,6 +252,8 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.toggleOracle(provider3);
+        vm.prank(owner);
+        oracle.togglePanicAuthority(provider3);
 
         op = createPrice(ownerPk, owner, 49432770753888933655371916);
 
@@ -284,6 +290,8 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.toggleOracle(provider1);
+        vm.prank(owner);
+        oracle.togglePanicAuthority(provider1);
 
         // only the provider commits price
         vm.expectRevert();
@@ -330,6 +338,8 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.toggleOracle(provider1);
+        vm.prank(owner);
+        oracle.togglePanicAuthority(provider1);
 
         vm.prank(provider1);
         oracle.startPanic("Some reason");
@@ -359,7 +369,7 @@ contract OracleTests is Test {
         oracle.commitPrice(op);
 
         vm.prank(owner);
-        oracle.updateFraudSlot(false, 100);
+        oracle.updateFraudData(false, 100);
 
         vm.startPrank(bob);
         oracle.stake(provider1, 10e18, bob);
@@ -378,7 +388,9 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.updateRewardPerSecond(12);
-        assertEq(oracle.rewardPerSecond(), uint256(12));
+
+        Slot memory slot = oracle.getSlot();
+        assertEq(slot.rewardPerSecond, uint256(12));
 
         vm.prank(bob);
         vm.expectRevert();
@@ -386,17 +398,20 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.updateStakeLimits(10, 500, 1400);
-        assertEq(oracle.minStake(), uint256(10));
-        assertEq(oracle.maxStake(), uint256(500));
-        assertEq(oracle.withdrawalDuration(), uint256(1400));
+        StakeOptions memory so = oracle.getStakeOptions();
+        slot = oracle.getSlot();
+
+        assertEq(so.minStake, uint256(10));
+        assertEq(so.maxStake, uint256(500));
+        assertEq(slot.withdrawalDuration, uint256(1400));
 
         vm.prank(bob);
         vm.expectRevert();
-        oracle.updateFraudSlot(false, 100);
+        oracle.updateFraudData(false, 100);
 
         vm.prank(owner);
-        oracle.updateFraudSlot(true, 100);
-        FraudSlot memory slot = oracle.getFraudSlot();
+        oracle.updateFraudData(true, 100);
+        slot = oracle.getSlot();
         assertEq(slot.lastClaimedTimestamp, 0);
         assertEq(slot.sharePriceValidityDuration, 100);
         assertEq(slot.weArePanicking, true);

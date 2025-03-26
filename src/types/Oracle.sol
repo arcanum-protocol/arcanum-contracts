@@ -3,6 +3,11 @@ pragma solidity ^0.8.0;
 
 import {setBits, getBits} from "../lib/Binary.sol";
 
+struct StakeOptions {
+    uint112 minStake;
+    uint112 maxStake;
+}
+
 struct OracleData {
     uint stake;
     uint totalShares;
@@ -14,10 +19,13 @@ struct WithdrawRequest {
     uint timestamp;
 }
 
-struct FraudSlot {
+struct Slot {
     uint16 sharePriceValidityDuration;
+    uint32 rewardPerSecond;
+    uint32 withdrawalDuration;
+    uint88 totalSupply; // uint88 max 309,485,009,821,345,068,724,781,055 ~300M
+    uint64 lastClaimedTimestamp;
     bool weArePanicking;
-    uint lastClaimedTimestamp;
 }
 
 function unpackWithdrawRequest(bytes32 packedWithdrawRequest)
@@ -38,16 +46,30 @@ function packWithdrawRequest(WithdrawRequest memory withdrawRequest)
         setBits(packedWithdrawRequest, bytes32(uint(uint64(withdrawRequest.timestamp))), 128, 64);
 }
 
-function unpackFraudSlot(bytes32 packedSlot) pure returns (FraudSlot memory slot) {
-    slot.sharePriceValidityDuration = uint16(getBits(packedSlot, 0, 16));
-    slot.weArePanicking = getBits(packedSlot, 16, 1) == 1;
-    slot.lastClaimedTimestamp = uint(getBits(packedSlot, 17, 64));
+// uint16 sharePriceValidityDuration; // u10
+// uint32 rewardPerSecond;
+// uint32 withdrawalDuration;
+// uint88 totalSupply; // uint88 max 309,485,009,821,345,068,724,781,055 ~300M
+// uint64 lastClaimedTimestamp;
+// bool weArePanicking;
+function unpackSlot(bytes32 packedSlot) pure returns (Slot memory slot) {
+    // Restrict to 10 bytes
+    slot.sharePriceValidityDuration = uint16(getBits(packedSlot, 0, 10));
+    slot.rewardPerSecond = uint32(getBits(packedSlot, 10, 32));
+    slot.withdrawalDuration = uint32(getBits(packedSlot, 42, 32));
+    slot.totalSupply = uint88(getBits(packedSlot, 74, 88));
+    slot.lastClaimedTimestamp = uint64(getBits(packedSlot, 162, 64));
+    slot.weArePanicking = getBits(packedSlot, 226, 1) == 1;
 }
 
-function packFraudSlot(FraudSlot memory slot) pure returns (bytes32 packedSlot) {
-    packedSlot = setBits(packedSlot, bytes32(uint(slot.sharePriceValidityDuration)), 0, 16);
-    packedSlot = setBits(packedSlot, bytes32(slot.weArePanicking == true ? uint(1) : 0), 16, 1);
-    packedSlot = setBits(packedSlot, bytes32(uint(uint64(slot.lastClaimedTimestamp))), 17, 64);
+function packSlot(Slot memory slot) pure returns (bytes32 packedSlot) {
+    // Restrict to 10 bytes
+    packedSlot = setBits(packedSlot, bytes32(uint(slot.sharePriceValidityDuration)), 0, 10);
+    packedSlot = setBits(packedSlot, bytes32(uint(slot.rewardPerSecond)), 10, 32);
+    packedSlot = setBits(packedSlot, bytes32(uint(slot.withdrawalDuration)), 42, 32);
+    packedSlot = setBits(packedSlot, bytes32(uint(slot.totalSupply)), 74, 88);
+    packedSlot = setBits(packedSlot, bytes32(uint(slot.lastClaimedTimestamp)), 162, 64);
+    packedSlot = setBits(packedSlot, bytes32(slot.weArePanicking == true ? uint(1) : 0), 226, 1);
 }
 
 function unpackOracleData(bytes32 packedOracleData) pure returns (OracleData memory oracleData) {

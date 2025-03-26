@@ -26,6 +26,7 @@ contract Deploy is Script {
         );
         console.log("oracle ", address(oracleProxy));
         // oracle address 0x224a2AcAB00e97645EA075168b2bf0Ad3124437f
+        // new oracle address 0x621e0e380B71Cfe414e8ECeD92A89F25e28c4543
 
         Multipool mp = Multipool(0x90b1AcD4e333A0fE29D6a90fa77D0c6Cc592c913);
 
@@ -33,10 +34,9 @@ contract Deploy is Script {
 
         Oracle oracle = Oracle(payable(address(oracleProxy)));
         address o = oracle.owner();
-        console2.log(o);
         oracle.updateRewardPerSecond(12);
         oracle.updateStakeLimits(1e18, 20e18, 86400);
-        oracle.updateFraudSlot(false, 1000);
+        oracle.updateFraudData(false, 1000);
 
         oracle.toggleOracle(deployerPublicKey);
         vm.stopBroadcast();
