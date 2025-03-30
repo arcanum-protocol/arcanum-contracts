@@ -43,9 +43,7 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     receive() external payable {}
 
-    function initialize(string memory name_, string memory symbol_) public payable initializer {
-        _name = name_;
-        _symbol = symbol_;
+    function initialize() public payable initializer {
         __Ownable_init();
         _mint(msg.sender, 10000000e18);
     }
@@ -58,7 +56,19 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
     mapping(address => mapping(address => mapping(uint => bytes32))) withdrawals;
     // oracle -> OracleData
     mapping(address => bytes32) oracles;
-    //
+    // oracle -> amount
+    mapping(address => uint) pendingStakes;
+
+    // add different mapping for actual shares
+    // счетчик не виздровнутых шейров
+    // шейры которые не виздровнуты - текущий стейк относительн оминимальноего
+    // unstake - уменьшаем этот счетчик
+    // withdraw - уменьшаем настоящий счетчик
+
+    // добавить бул на оракла тип чтобы не позволять
+    // валидировать (при пересечении стейком нижней границы,
+    // мб юзеры захотели вывести - он сможет вернуть)
+
     mapping(address => bool) panicAuthorities;
 
     uint32 internal constant rewardPerSecondPrecision = 1e8;
@@ -72,8 +82,8 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     mapping(address => mapping(address => uint256)) private _allowances;
 
-    string private _name;
-    string private _symbol;
+    string private constant _name = "Arcanum Revenue Token";
+    string private constant _symbol = "AREV";
 
     function getSlot() public view returns (Slot memory slot) {
         slot = unpackSlot(_slot0);
@@ -132,13 +142,19 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     function togglePanicAuthority(address authority) public onlyOwner {
         panicAuthorities[authority] = !panicAuthorities[authority];
-        emit ToggleAuthority(authority, panicAuthorities[authority]);
+        emit TogglePanicAuthority(authority, panicAuthorities[authority]);
     }
 
-    function slash(address governance, address oracleAddress, int amount) public onlyOwner {
+    function slash(address governance, address oracleAddress, int88 amount) public onlyOwner {
         Slot memory slot = unpackSlot(_slot0);
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
-        oracle.stake = uint(int(oracle.stake) + amount);
+        oracle.stake = uint88(int88(oracle.stake) + amount);
+        pendingStakes[oracleAddress] = uint(int(pendingStakes[oracleAddress]) + int(amount));
+
+        if (oracle.stake < minStake) {
+            oracle.allowedToValidate = false;
+        }
+
         oracles[oracleAddress] = packOracleData(oracle);
         emit Slahed(governance, oracleAddress, amount);
     }
@@ -160,7 +176,7 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     event PanicCreated(bytes reason);
     event ToggleOracle(address oracleAddress, bool enabled);
-    event ToggleAuthority(address authority, bool enabled);
+    event TogglePanicAuthority(address authority, bool enabled);
     event UpdateFraudData(uint16 sharePriceValidityDuration, bool weArePanicking);
     event Slahed(address governance, address oracleAddress, int amountToSlash);
     event Staked(address to, address oracleAddress, uint amount);
@@ -179,11 +195,13 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         emit PanicCreated(reason);
     }
 
-    function stake(address oracleAddress, uint amount, address to) external {
+    function stake(address oracleAddress, uint88 amount, address to) external {
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
 
         if (oracle.stake + amount > maxStake) revert StakeIsTooBig();
         if (oracle.stake + amount < minStake) revert StakeIsTooSmall();
+        // according to the error above it is always stake > maxStake
+        oracle.allowedToValidate = true;
 
         Slot memory slot = unpackSlot(_slot0);
 
@@ -198,8 +216,10 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
             newShare = amount * oracle.totalShares / oracle.stake;
         }
         oracle.totalShares = oracle.totalShares + uint128(newShare);
-        oracle.stake = oracle.stake + uint128(amount);
         stakers[to][oracleAddress] += newShare;
+
+        pendingStakes[oracleAddress] += amount;
+        oracle.stake = oracle.stake + amount;
 
         oracles[oracleAddress] = packOracleData(oracle);
         emit Staked(to, oracleAddress, amount);
@@ -211,6 +231,8 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         if (req.timestamp == 0) revert WithdrawalIsEmpty();
         if (slot.weArePanicking) revert WeAreCurrentlyInPanic();
         if (block.timestamp - req.timestamp < slot.withdrawalDuration) revert WithdrawalDelayed();
+        // underflow on trying to withdraw after slash
+        pendingStakes[oracleAddress] -= req.amount;
         _transfer(address(this), to, req.amount);
         emit Withdraw(to, oracleAddress, req.amount);
         delete withdrawals[to][oracleAddress][nonce];
@@ -220,14 +242,14 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         Slot memory slot = unpackSlot(_slot0);
         if (slot.weArePanicking) revert WeAreCurrentlyInPanic();
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
-        uint amountToRedeem = share * oracle.stake / oracle.totalShares;
+        uint88 amountToRedeem = uint88(share * oracle.stake / oracle.totalShares);
 
         oracle.totalShares = oracle.totalShares - uint128(share);
-        oracle.stake = oracle.stake - uint128(amountToRedeem);
+        oracle.stake = oracle.stake - amountToRedeem;
         stakers[msg.sender][oracleAddress] -= share;
 
         if (oracle.stake < minStake) {
-            oracle.enabled = false;
+            oracle.allowedToValidate = false;
         }
 
         WithdrawRequest memory req = unpackWithdrawRequest(withdrawals[to][oracleAddress][nonce]);
@@ -262,7 +284,7 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
             keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
 
-        if (!oracle.enabled) {
+        if (!oracle.allowedToValidate) {
             revert InvalidForcePushAuthority(oracleAddress, address(msg.sender));
         }
         if (oraclePrice.timestamp + slot.sharePriceValidityDuration < block.timestamp) {
@@ -270,20 +292,22 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         }
 
         // avb tokens
-        uint availableReward = (block.timestamp - slot.lastClaimedTimestamp) * slot.rewardPerSecond
-            * rewardPerSecondPrecision;
+        uint88 availableReward = uint88(
+            (block.timestamp - slot.lastClaimedTimestamp) * slot.rewardPerSecond
+                * rewardPerSecondPrecision
+        );
 
         uint income = msg.value;
         // how much to buy with income max
-        uint valueToBuy = income * slot.totalSupply / (address(this).balance - income);
+        uint88 valueToBuy = uint88(income * slot.totalSupply / (address(this).balance - income));
 
         uint secs = 0;
 
         if (availableReward > valueToBuy) {
             secs = (availableReward - valueToBuy) / slot.rewardPerSecond / rewardPerSecondPrecision;
-            oracle.stake += uint128(valueToBuy);
+            oracle.stake += valueToBuy;
         } else {
-            oracle.stake += uint128(availableReward);
+            oracle.stake += availableReward;
         }
 
         slot.lastClaimedTimestamp = uint64(block.timestamp - secs);

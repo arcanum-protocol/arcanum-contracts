@@ -516,12 +516,12 @@ contract OracleTests is Test {
         vm.prank(owner);
         oracle.updateStakeLimits(1e18, type(uint112).max, 86400);
 
-        uint balance = oracle.balanceOf(owner);
+        uint88 balance = uint88(oracle.balanceOf(owner));
 
         vm.prank(owner);
         oracle.transfer(bob, balance);
 
-        balance = oracle.balanceOf(bob);
+        balance = uint88(oracle.balanceOf(bob));
         // stake - full token supply
         vm.prank(bob);
         oracle.stake(provider3, balance, bob);

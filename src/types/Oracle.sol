@@ -9,9 +9,10 @@ struct StakeOptions {
 }
 
 struct OracleData {
-    uint stake;
+    uint88 stake;
     uint totalShares;
     bool enabled;
+    bool allowedToValidate;
 }
 
 struct WithdrawRequest {
@@ -46,12 +47,6 @@ function packWithdrawRequest(WithdrawRequest memory withdrawRequest)
         setBits(packedWithdrawRequest, bytes32(uint(uint64(withdrawRequest.timestamp))), 128, 64);
 }
 
-// uint16 sharePriceValidityDuration; // u10
-// uint32 rewardPerSecond;
-// uint32 withdrawalDuration;
-// uint88 totalSupply; // uint88 max 309,485,009,821,345,068,724,781,055 ~300M
-// uint64 lastClaimedTimestamp;
-// bool weArePanicking;
 function unpackSlot(bytes32 packedSlot) pure returns (Slot memory slot) {
     // Restrict to 10 bytes
     slot.sharePriceValidityDuration = uint16(getBits(packedSlot, 0, 10));
@@ -73,15 +68,19 @@ function packSlot(Slot memory slot) pure returns (bytes32 packedSlot) {
 }
 
 function unpackOracleData(bytes32 packedOracleData) pure returns (OracleData memory oracleData) {
-    oracleData.stake = getBits(packedOracleData, 0, 128);
-    oracleData.totalShares = getBits(packedOracleData, 128, 127);
-    oracleData.enabled = getBits(packedOracleData, 255, 1) == 1;
+    oracleData.stake = uint88(getBits(packedOracleData, 0, 128)); // 88
+    oracleData.totalShares = getBits(packedOracleData, 128, 126); // 88
+    oracleData.enabled = getBits(packedOracleData, 254, 1) == 1;
+    oracleData.allowedToValidate = getBits(packedOracleData, 255, 1) == 1;
 }
 
 function packOracleData(OracleData memory oracleData) pure returns (bytes32 packedOracleData) {
     packedOracleData = setBits(packedOracleData, bytes32(uint(uint128(oracleData.stake))), 0, 128);
     packedOracleData =
-        setBits(packedOracleData, bytes32(uint(uint128(oracleData.totalShares))), 128, 127);
+        setBits(packedOracleData, bytes32(uint(uint128(oracleData.totalShares))), 128, 126);
     packedOracleData =
-        setBits(packedOracleData, bytes32(oracleData.enabled == true ? uint(1) : 0), 255, 1);
+        setBits(packedOracleData, bytes32(oracleData.enabled == true ? uint(1) : 0), 254, 1);
+    packedOracleData = setBits(
+        packedOracleData, bytes32(oracleData.allowedToValidate == true ? uint(1) : 0), 255, 1
+    );
 }
