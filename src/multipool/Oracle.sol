@@ -146,7 +146,6 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
     }
 
     function slash(address governance, address oracleAddress, int88 amount) public onlyOwner {
-        Slot memory slot = unpackSlot(_slot0);
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
         oracle.stake = uint88(int88(oracle.stake) + amount);
         pendingStakes[oracleAddress] = uint(int(pendingStakes[oracleAddress]) + int(amount));

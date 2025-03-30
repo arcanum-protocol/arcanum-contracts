@@ -57,11 +57,22 @@ interface IMultipoolMethods {
     /// @notice Method that returns ever used tokens in etf by limit and offset.
     /// @param limit The amount of addresses to query
     /// @param offset The index to query from
-    function usedAssetsAndLength(
+    function getUsedAssets(
         uint limit,
         uint offset
     )
         external
         view
         returns (address[] memory assetsRes, uint length);
+
+    /// @notice Method that returns price of Multipool share
+    /// @param limit The amount of addresses to query
+    /// @param offset The index to query from
+    function getSharePricePart(
+        uint limit,
+        uint offset
+    )
+        external
+        view
+        returns (uint pricePart);
 }

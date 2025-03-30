@@ -8,6 +8,7 @@ import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {MpAsset, unpackMpAsset, packMpAsset, MpContext, Fees} from "../lib/MpContext.sol";
+import {getBits} from "../lib/Binary.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint.sol";
 
@@ -61,7 +62,7 @@ contract Multipool is
 
     mapping(address => bytes32) internal assets;
     mapping(address => bytes32) internal prices;
-    address[] public usedAssets;
+    address[] internal usedAssets;
 
     constructor() {
         _disableInitializers();
@@ -93,7 +94,7 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolMethods
-    function usedAssetsAndLength(
+    function getUsedAssets(
         uint limit,
         uint offset
     )
@@ -102,10 +103,30 @@ contract Multipool is
         override
         returns (address[] memory assetsRes, uint length)
     {
-        for (uint i = offset; i < limit + offset; i++) {
+        for (uint i = offset; i < (limit == type(uint).max ? usedAssets.length : limit + offset) ; i++) {
             assetsRes[i] = usedAssets[i];
         }
         length = usedAssets.length;
+    }
+
+    /// @inheritdoc IMultipoolMethods
+    function getSharePricePart(
+        uint limit,
+        uint offset
+    )
+        external
+        view
+        override
+        returns (uint pricePart)
+    {
+        unchecked {
+            for (uint i = offset; i < (limit == type(uint).max ? usedAssets.length : limit + offset); i++) {
+                address assetAddress = usedAssets[i];
+                uint quantity = getBits(assets[assetAddress], 1, 127);
+                if (quantity != 0) pricePart += quantity * prices[assetAddress].getPrice();
+            }
+            pricePart /= totalSupply();
+        }
     }
 
     /// @inheritdoc IMultipoolMethods
