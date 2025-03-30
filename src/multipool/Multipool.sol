@@ -114,7 +114,7 @@ contract Multipool is
         uint limit,
         uint offset
     )
-        external
+        public
         view
         override
         returns (uint pricePart)
@@ -176,9 +176,15 @@ contract Multipool is
             price = oraclePrice.sharePrice;
         } else {
             // We move initial share price by 64 as it's x32 and prices should be x96
-            price = _totalSupply == 0
-                ? uint(_initialSharePrice) << 64
-                : prices[address(this)].getPrice();
+            if (_totalSupply == 0) {
+                price = uint(_initialSharePrice) << 64;
+            } else {
+                // TODO: check if this method's unchecked actually is legit
+                bytes32 sharePriceSlot = prices[address(this)];
+                price = sharePriceSlot == 0 ? 
+                    getSharePricePart(type(uint).max, 0) : 
+                    sharePriceSlot.getPrice();
+            }
         }
 
         ctx.totalTargetShares = _totalTargetShares;
