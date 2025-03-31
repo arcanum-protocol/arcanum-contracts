@@ -25,6 +25,7 @@ struct MultipoolCreationParams {
     bytes32[] priceData;
     uint16[] targetShares;
     address initialLiquidityAsset;
+    uint nonce;
 }
 
 /// @custom:security-contact badconfig@arcanum.to
@@ -58,17 +59,17 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
     {
         address _implementationAddress = implementationAddress;
 
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(_implementationAddress),
-            abi.encodeWithSignature(
-                "initialize(string,string,address,uint96)",
-                params.name,
-                params.symbol,
-                params.oracleAddress,
-                params.initialSharePrice
-            )
-        );
+        ERC1967Proxy proxy = new ERC1967Proxy{
+            salt: keccak256(abi.encodePacked(msg.sender, params.nonce))
+        }(address(_implementationAddress),abi.encode(""));
+        emit MultipoolCreated(address(proxy));
         mp = Multipool(address(proxy));
+        mp.initialize(
+            params.name,
+            params.symbol,
+            params.oracleAddress,
+            params.initialSharePrice
+        );
 
         mp.updateTargetShares(params.assetAddresses, params.targetShares);
 
@@ -106,6 +107,5 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
 
         mp.transferOwnership(msg.sender);
 
-        emit MultipoolCreated(address(mp));
     }
 }

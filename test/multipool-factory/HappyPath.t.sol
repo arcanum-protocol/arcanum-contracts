@@ -82,7 +82,8 @@ contract MultipoolCoreDeviationTests is Test {
                 assetAddresses: assetAddresses,
                 priceData: prices,
                 targetShares: targetShares,
-                initialLiquidityAsset: address(0)
+                initialLiquidityAsset: address(0),
+                nonce: 1
             })
         );
         assertEq(multipool.strategyManager(), address(0));
@@ -131,7 +132,8 @@ contract MultipoolCoreDeviationTests is Test {
                 assetAddresses: assetAddresses,
                 priceData: prices,
                 targetShares: targetShares,
-                initialLiquidityAsset: address(0)
+                initialLiquidityAsset: address(0),
+                nonce: 1
             })
         );
         assertEq(multipool.strategyManager(), address(1));

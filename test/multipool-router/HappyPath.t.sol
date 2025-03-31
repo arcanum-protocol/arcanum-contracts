@@ -77,7 +77,8 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
             assetAddresses: assetAddresses,
             priceData: prices,
             targetShares: targetShares,
-            initialLiquidityAsset: assetAddresses[0]
+            initialLiquidityAsset: assetAddresses[0],
+            nonce: 1
         });
 
         // get new pool address
@@ -150,7 +151,8 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
                     assetAddresses: assetAddresses,
                     priceData: prices,
                     targetShares: targetShares,
-                    initialLiquidityAsset: address(0)
+                    initialLiquidityAsset: address(0),
+                    nonce: 1
                 });
 
                 Call[] memory preCalls = new Call[](0);

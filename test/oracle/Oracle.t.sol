@@ -49,7 +49,7 @@ contract OracleTests is Test {
         Oracle oracleImpl = new Oracle();
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(oracleImpl),
-            abi.encodeWithSignature("initialize(string,string)", "NAME", "SYMBL")
+            abi.encodeWithSignature("initialize()")
         );
 
         oracle = Oracle(payable(address(proxy)));

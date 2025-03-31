@@ -174,7 +174,8 @@ contract Deploy is Script {
                 assetAddresses: tokensAddresses,
                 priceData: prices,
                 targetShares: s,
-                initialLiquidityAsset: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE
+                initialLiquidityAsset: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE,
+                nonce: 1
             });
             WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).deposit{value: 10e18}();
             WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
