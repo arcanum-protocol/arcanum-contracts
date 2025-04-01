@@ -44,7 +44,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
 
     address public implementationAddress;
 
-    event MultipoolCreated(address indexed);
+    event MultipoolCreated(address indexed multipoolAddress);
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
