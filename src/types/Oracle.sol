@@ -16,7 +16,7 @@ struct OracleData {
 }
 
 struct WithdrawRequest {
-    uint amount;
+    uint share;
     uint timestamp;
 }
 
@@ -33,7 +33,7 @@ function unpackWithdrawRequest(bytes32 packedWithdrawRequest)
     pure
     returns (WithdrawRequest memory withdrawRequest)
 {
-    withdrawRequest.amount = uint(getBits(packedWithdrawRequest, 0, 128));
+    withdrawRequest.share = uint(getBits(packedWithdrawRequest, 0, 128));
     withdrawRequest.timestamp = uint(getBits(packedWithdrawRequest, 128, 64));
 }
 
@@ -42,7 +42,7 @@ function packWithdrawRequest(WithdrawRequest memory withdrawRequest)
     returns (bytes32 packedWithdrawRequest)
 {
     packedWithdrawRequest =
-        setBits(packedWithdrawRequest, bytes32(uint(uint128(withdrawRequest.amount))), 0, 128);
+        setBits(packedWithdrawRequest, bytes32(uint(uint128(withdrawRequest.share))), 0, 128);
     packedWithdrawRequest =
         setBits(packedWithdrawRequest, bytes32(uint(uint64(withdrawRequest.timestamp))), 128, 64);
 }

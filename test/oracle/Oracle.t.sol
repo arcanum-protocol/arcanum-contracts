@@ -10,7 +10,7 @@ import {Oracle} from "../../src/multipool/Oracle.sol";
 import {FeedType} from "../../src/lib/Price.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
 import {Slot, OracleData, StakeOptions} from "../../src/types/Oracle.sol";
-import {MultipoolUtils, toX96, toX32, vec, updatePrice} from "../MultipoolUtils.t.sol";
+import {MultipoolUtils, toX96, toX32, vec, updatePrice, SigUtils} from "../MultipoolUtils.t.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -36,6 +36,9 @@ contract OracleTests is Test {
     address provider3;
     uint provider3Pk;
 
+    Oracle oracleImpl;
+    SigUtils internal sigUtils;
+
     function setUp() public {
         (owner, ownerPk) = makeAddrAndKey("Owner");
         (alice,) = makeAddrAndKey("Alice");
@@ -46,13 +49,13 @@ contract OracleTests is Test {
 
         vm.startPrank(owner);
 
-        Oracle oracleImpl = new Oracle();
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(oracleImpl),
-            abi.encodeWithSignature("initialize()")
-        );
+        oracleImpl = new Oracle();
+        ERC1967Proxy proxy =
+            new ERC1967Proxy(address(oracleImpl), abi.encodeWithSignature("initialize()"));
 
         oracle = Oracle(payable(address(proxy)));
+
+        sigUtils = new SigUtils(oracle.DOMAIN_SEPARATOR());
 
         vm.deal(address(oracle), 5e18);
         vm.deal(address(owner), 100e18);
@@ -88,6 +91,112 @@ contract OracleTests is Test {
         oracle.updateStakeLimits(1e18, 20e18, 86400);
         oracle.updateFraudData(false, 100);
         vm.stopPrank();
+    }
+
+    function test_OracleTokenOps() public {
+        Oracle newOracleImpl = new Oracle{salt: keccak256(abi.encode("NewOracle"))}();
+
+        vm.prank(owner);
+        oracle.upgradeTo(address(newOracleImpl));
+
+        assertEq(oracle.name(), "Arcanum Revenue Token");
+        assertEq(oracle.symbol(), "AREV");
+        assertEq(oracle.decimals(), 18);
+        assertEq(oracle.decimals(), 18);
+        assertEq(oracle.totalSupply(), 10000000e18);
+        assertEq(oracle.nonces(bob), 0);
+        assertEq(
+            oracle.DOMAIN_SEPARATOR(),
+            0x56f5319c05977890bdb387360d6f285e08dbd9cf2b2d9a5ad71377e5946f722d
+        );
+
+        vm.prank(owner);
+        vm.expectRevert();
+        oracle.transfer(address(0), 1e18);
+
+        vm.prank(address(0));
+        vm.expectRevert();
+        oracle.transfer(owner, 1e18);
+
+        vm.prank(owner);
+        vm.expectRevert();
+        oracle.approve(address(0), 1e18);
+
+        vm.prank(address(0));
+        vm.expectRevert();
+        oracle.approve(owner, 1e18);
+
+        vm.prank(owner);
+        oracle.approve(bob, 1e18);
+
+        vm.prank(address(0));
+        vm.expectRevert();
+        oracle.increaseAllowance(owner, 1e18);
+
+        vm.prank(owner);
+        oracle.increaseAllowance(bob, 1e18);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        oracle.decreaseAllowance(owner, 1e18);
+
+        vm.prank(owner);
+        oracle.decreaseAllowance(bob, 1e18);
+
+        uint allowance = oracle.allowance(owner, bob);
+
+        assertEq(allowance, 1e18);
+
+        vm.prank(bob);
+        oracle.transferFrom(owner, bob, 5e17);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        oracle.transferFrom(owner, bob, 1e18);
+
+        ERC1967Proxy newProxy = new ERC1967Proxy(address(oracleImpl), "");
+        Oracle newOracle = Oracle(payable(address(newProxy)));
+
+        vm.prank(address(0));
+        // mint zero
+        vm.expectRevert();
+        newOracle.initialize();
+
+        // burn zero
+        vm.prank(address(0));
+        vm.expectRevert();
+        oracle.burn(payable(address(0)), 1e18);
+
+        // insufficient
+        vm.prank(alice);
+        vm.expectRevert();
+        oracle.burn(payable(address(0)), 1e18);
+
+        SigUtils.Permit memory permit = SigUtils.Permit({
+            owner: owner,
+            spender: bob,
+            value: 1e18,
+            nonce: oracle.nonces(owner),
+            deadline: 1 days
+        });
+
+        bytes32 digest = sigUtils.getTypedDataHash(permit);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, digest);
+        uint ts = block.timestamp;
+
+        vm.warp(ts + 10000000);
+
+        vm.expectRevert();
+        oracle.permit(owner, bob, 1e18, 1 days, v, r, s);
+
+        vm.warp(ts);
+
+        // invalid signature
+        vm.expectRevert();
+        oracle.permit(alice, bob, 1e18, 1 days, v, r, s);
+
+        oracle.permit(owner, bob, 1e18, 1 days, v, r, s);
     }
 
     function test_OracleRedeem() public {
@@ -137,6 +246,10 @@ contract OracleTests is Test {
         assertEq(oracle.balanceOf(bob), 10e18);
 
         // can unstake
+        oracle.unstake(provider2, 1, 5e18, bob);
+
+        // withdrawal is not empty
+        vm.expectRevert();
         oracle.unstake(provider2, 1, 5e18, bob);
 
         assertEq(oracle.balanceOf(bob), 10e18);
@@ -381,7 +494,7 @@ contract OracleTests is Test {
         oracle.commitPrice(op);
     }
 
-    function test_Access() public {
+    function test_OracleAccess() public {
         vm.prank(bob);
         vm.expectRevert();
         oracle.updateRewardPerSecond(12);
@@ -422,6 +535,39 @@ contract OracleTests is Test {
 
         vm.prank(owner);
         oracle.toggleOracle(bob);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        oracle.togglePanicAuthority(bob);
+
+        vm.prank(owner);
+        oracle.togglePanicAuthority(bob);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        oracle.updateStake(bob, 1e18);
+
+        vm.prank(owner);
+        oracle.updateFraudData(false, 100);
+
+        vm.prank(owner);
+        oracle.stake(bob, 499, owner);
+
+        vm.prank(owner);
+        oracle.updateStake(bob, 1e18);
+
+        vm.prank(owner);
+        oracle.updateStake(bob, -1e18);
+
+        vm.prank(owner);
+        oracle.transfer(address(oracle), 1e18);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        oracle.transferToGovernance(bob, 1e18);
+
+        vm.prank(owner);
+        oracle.transferToGovernance(bob, 1e18);
     }
 
     function test_OracleStake() public {
@@ -437,10 +583,6 @@ contract OracleTests is Test {
         oracle.transfer(bob, 30e18);
 
         vm.startPrank(bob);
-
-        // stake is too small
-        vm.expectRevert();
-        oracle.stake(provider1, 1e17, bob);
 
         oracle.stake(provider1, 10e18, bob);
         oracle.stake(provider2, 10e18, alice);
@@ -565,5 +707,105 @@ contract OracleTests is Test {
 
         // basic overflow is impossible
         // available 128 size of stake + 112 max stake restriction
+    }
+
+    // pending withdraw slash
+    // basic slash
+    // add tests on updated pending stake
+    // on allowedToValidate
+
+    function test_OracleSlash() public {
+        baseSetup();
+
+        vm.prank(owner);
+        oracle.updateStakeLimits(10e18, 100e18, 86400);
+
+        // must have some token on balance
+        vm.deal(address(oracle), 5e18);
+
+        vm.prank(owner);
+        oracle.updateRewardPerSecond(1e8);
+
+        vm.prank(owner);
+        oracle.transfer(bob, 30e18);
+
+        vm.prank(owner);
+        oracle.transfer(alice, 30e18);
+
+        vm.startPrank(bob);
+
+        oracle.stake(provider1, 10e18, bob);
+        oracle.stake(provider2, 15e18, bob);
+
+        vm.stopPrank();
+
+        OracleData memory od;
+
+        vm.prank(alice);
+        oracle.stake(provider2, 15e18, alice);
+
+        vm.prank(owner);
+        oracle.toggleOracle(provider1);
+
+        vm.prank(owner);
+        oracle.togglePanicAuthority(provider1);
+
+        od = oracle.getOracle(provider2);
+        assertEq(od.totalShares, 30e18);
+        assertEq(od.stake, 30e18);
+        assertEq(od.allowedToValidate, true);
+
+        vm.prank(owner);
+        oracle.updateStake(provider2, -1e18);
+
+        od = oracle.getOracle(provider2);
+        assertEq(od.totalShares, 30e18);
+        assertEq(od.stake, 29e18);
+        assertEq(od.allowedToValidate, true);
+
+        vm.prank(alice);
+        oracle.unstake(provider2, 0, 10e18, alice);
+
+        vm.warp(block.timestamp + 86400);
+
+        od = oracle.getOracle(provider2);
+        assertEq(od.totalShares, 30e18);
+        assertEq(od.stake, 29e18);
+        assertEq(od.allowedToValidate, true);
+
+        vm.prank(owner);
+        oracle.updateStake(provider2, -15e18);
+
+        od = oracle.getOracle(provider2);
+        assertEq(od.totalShares, 30e18);
+        assertEq(od.stake, 14e18);
+        assertEq(od.allowedToValidate, false);
+
+        uint aliceBalance = oracle.balanceOf(alice);
+        assertEq(aliceBalance, 15e18);
+
+        vm.prank(alice);
+        oracle.withdraw(provider2, 0, alice);
+        aliceBalance = oracle.balanceOf(alice);
+        // unstaked half of requested share
+        assertEq(aliceBalance, 19666666666666666666);
+
+        vm.prank(alice);
+        oracle.unstake(provider2, 1, 5e18, alice);
+
+        od = oracle.getOracle(provider2);
+        assertEq(od.totalShares, 20e18);
+        assertEq(od.stake, 14e18);
+        // actual stake - (20 - 5) * 14 / 20 = 10.5
+        assertEq(od.allowedToValidate, false);
+
+        vm.prank(owner);
+        oracle.updateStake(provider2, -1e18);
+
+        od = oracle.getOracle(provider2);
+        assertEq(od.totalShares, 20e18);
+        assertEq(od.stake, 13e18);
+        // actual stake - (20 - 5) * 13 / 20 = 9.75
+        assertEq(od.allowedToValidate, false);
     }
 }

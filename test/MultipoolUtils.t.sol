@@ -12,31 +12,31 @@ import {OraclePrice} from "../src/types/OraclePrice.sol";
 import {ReceiverData} from "../src/types/ReceiverData.sol";
 import {IArcanumOracle} from "../src/interfaces/IArcanumOracle.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
+import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {DummyOracle} from "../src/multipool/DummyOracle.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
-function computeContractAddress(address _origin, uint _nonce) pure returns (address _address) {
-    bytes memory data;
-    if (_nonce == 0x00) {
-        data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(0x80));
-    } else if (_nonce <= 0x7f) {
-        data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, uint8(_nonce));
-    } else if (_nonce <= 0xff) {
-        data = abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce));
-    } else if (_nonce <= 0xffff) {
-        data = abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce));
-    } else if (_nonce <= 0xffffff) {
-        data = abi.encodePacked(bytes1(0xd9), bytes1(0x94), _origin, bytes1(0x83), uint24(_nonce));
-    } else {
-        data = abi.encodePacked(bytes1(0xda), bytes1(0x94), _origin, bytes1(0x84), uint32(_nonce));
-    }
-    bytes32 hash = keccak256(data);
-    assembly {
-        mstore(0, hash)
-        _address := mload(0)
-    }
+function computeContractAddress(
+    address factory,
+    address impl,
+    uint _nonce
+)
+    view
+    returns (address _address)
+{
+    bytes memory bytecode = type(ERC1967Proxy).creationCode;
+    bytecode = abi.encodePacked(bytecode, abi.encode(impl, ""));
+    bytes32 hashed = keccak256(
+        abi.encodePacked(
+            bytes1(0xff),
+            address(factory),
+            keccak256(abi.encodePacked(block.chainid, _nonce)),
+            keccak256(bytecode)
+        )
+    );
+    _address = address(uint160(uint256(hashed)));
 }
 
 function toX96(uint val) pure returns (uint valX96) {
@@ -363,6 +363,47 @@ contract MultipoolUtils is Test {
         if (keccak256(abi.encodePacked((oldJson))) == keccak256(abi.encodePacked((newJson)))) {
             vm.removeFile(nfpath);
         }
+    }
+}
+
+contract SigUtils {
+    bytes32 internal DOMAIN_SEPARATOR;
+
+    constructor(bytes32 _DOMAIN_SEPARATOR) {
+        DOMAIN_SEPARATOR = _DOMAIN_SEPARATOR;
+    }
+
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256
+    // deadline)");
+    bytes32 public constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+
+    struct Permit {
+        address owner;
+        address spender;
+        uint256 value;
+        uint256 nonce;
+        uint256 deadline;
+    }
+
+    // computes the hash of a permit
+    function getStructHash(Permit memory _permit) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                _permit.owner,
+                _permit.spender,
+                _permit.value,
+                _permit.nonce,
+                _permit.deadline
+            )
+        );
+    }
+
+    // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to
+    // recover the signer
+    function getTypedDataHash(Permit memory _permit) public view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, getStructHash(_permit)));
     }
 }
 

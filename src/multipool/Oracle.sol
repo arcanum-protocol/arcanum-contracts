@@ -18,6 +18,8 @@ import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
+import {EIP712} from "openzeppelin/utils/cryptography/EIP712.sol";
+import "openzeppelin/utils/Counters.sol";
 
 import {
     StakeOptions,
@@ -33,11 +35,12 @@ import {
 } from "../types/Oracle.sol";
 
 /// @custom:security-contact badconfig@arcanum.to
-contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgradeable {
+contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgradeable, EIP712 {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
+    using Counters for Counters.Counter;
 
-    constructor() {
+    constructor() EIP712(_name, "1") {
         _disableInitializers();
     }
 
@@ -57,8 +60,11 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
     // oracle -> OracleData
     mapping(address => bytes32) oracles;
     // oracle -> amount
-    mapping(address => uint) pendingStakes;
+    mapping(address => uint) pendingShares;
 
+    // стейк в оракл дате это мой стейк
+    // есть какое то число - тот стейк который относится в withdraw
+    // добавить тесты на фрауд ситуации как работает слеш и проч
     // add different mapping for actual shares
     // счетчик не виздровнутых шейров
     // шейры которые не виздровнуты - текущий стейк относительн оминимальноего
@@ -84,6 +90,17 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     string private constant _name = "Arcanum Revenue Token";
     string private constant _symbol = "AREV";
+
+    // PERMIT
+    mapping(address => Counters.Counter) private _nonces;
+
+    // solhint-disable-next-line var-name-mixedcase
+    bytes32 private constant _PERMIT_TYPEHASH = keccak256(
+        "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+    );
+
+    // solhint-disable-next-line var-name-mixedcase
+    bytes32 private _PERMIT_TYPEHASH_DEPRECATED_SLOT;
 
     function getSlot() public view returns (Slot memory slot) {
         slot = unpackSlot(_slot0);
@@ -145,17 +162,28 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         emit TogglePanicAuthority(authority, panicAuthorities[authority]);
     }
 
-    function slash(address governance, address oracleAddress, int88 amount) public onlyOwner {
+    function updateStake(address oracleAddress, int88 amount) public onlyOwner {
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
         oracle.stake = uint88(int88(oracle.stake) + amount);
-        pendingStakes[oracleAddress] = uint(int(pendingStakes[oracleAddress]) + int(amount));
 
-        if (oracle.stake < minStake) {
+        if (actualStake(oracleAddress, oracle) < minStake) {
             oracle.allowedToValidate = false;
         }
 
         oracles[oracleAddress] = packOracleData(oracle);
-        emit Slahed(governance, oracleAddress, amount);
+        emit Slahed(oracleAddress, amount);
+    }
+
+    function actualStake(
+        address oracleAddress,
+        OracleData memory oracle
+    )
+        internal
+        view
+        returns (uint stake)
+    {
+        stake =
+            (oracle.totalShares - pendingShares[oracleAddress]) * oracle.stake / oracle.totalShares;
     }
 
     function transferToGovernance(address governance, uint amount) public onlyOwner {
@@ -167,7 +195,6 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     error WeAreCurrentlyInPanic();
     error StakeIsTooBig();
-    error StakeIsTooSmall();
     error WithdrawalDelayed();
     error WithdrawalIsNotEmpty();
     error InvalidAuthority();
@@ -177,10 +204,10 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
     event ToggleOracle(address oracleAddress, bool enabled);
     event TogglePanicAuthority(address authority, bool enabled);
     event UpdateFraudData(uint16 sharePriceValidityDuration, bool weArePanicking);
-    event Slahed(address governance, address oracleAddress, int amountToSlash);
+    event Slahed(address oracleAddress, int amountToSlash);
     event Staked(address to, address oracleAddress, uint amount);
-    event Withdraw(address to, address oracleAddress, uint amount);
-    event Unstake(address to, address oracleAddress, uint amount, uint nonce);
+    event Withdraw(address to, address oracleAddress, uint share);
+    event Unstake(address to, address oracleAddress, uint share, uint nonce);
     event TransferToGovernance(address governance, uint amount);
 
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -198,9 +225,6 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
 
         if (oracle.stake + amount > maxStake) revert StakeIsTooBig();
-        if (oracle.stake + amount < minStake) revert StakeIsTooSmall();
-        // according to the error above it is always stake > maxStake
-        oracle.allowedToValidate = true;
 
         Slot memory slot = unpackSlot(_slot0);
 
@@ -217,8 +241,11 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
         oracle.totalShares = oracle.totalShares + uint128(newShare);
         stakers[to][oracleAddress] += newShare;
 
-        pendingStakes[oracleAddress] += amount;
         oracle.stake = oracle.stake + amount;
+
+        if (actualStake(oracleAddress, oracle) > minStake) {
+            oracle.allowedToValidate = true;
+        }
 
         oracles[oracleAddress] = packOracleData(oracle);
         emit Staked(to, oracleAddress, amount);
@@ -226,40 +253,45 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
 
     function withdraw(address oracleAddress, uint nonce, address to) external {
         WithdrawRequest memory req = unpackWithdrawRequest(withdrawals[to][oracleAddress][nonce]);
+        OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
         Slot memory slot = unpackSlot(_slot0);
         if (req.timestamp == 0) revert WithdrawalIsEmpty();
         if (slot.weArePanicking) revert WeAreCurrentlyInPanic();
         if (block.timestamp - req.timestamp < slot.withdrawalDuration) revert WithdrawalDelayed();
-        // underflow on trying to withdraw after slash
-        pendingStakes[oracleAddress] -= req.amount;
-        _transfer(address(this), to, req.amount);
-        emit Withdraw(to, oracleAddress, req.amount);
+
+        uint amountToRedeem = req.share * oracle.stake / oracle.totalShares;
+        _transfer(address(this), to, amountToRedeem);
+
+        pendingShares[oracleAddress] -= req.share;
+        oracle.totalShares = oracle.totalShares - req.share;
+
+        emit Withdraw(to, oracleAddress, req.share);
         delete withdrawals[to][oracleAddress][nonce];
+        oracles[oracleAddress] = packOracleData(oracle);
     }
 
     function unstake(address oracleAddress, uint nonce, uint share, address to) external {
         Slot memory slot = unpackSlot(_slot0);
         if (slot.weArePanicking) revert WeAreCurrentlyInPanic();
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
-        uint88 amountToRedeem = uint88(share * oracle.stake / oracle.totalShares);
+        // uint88 amountToRedeem = uint88(share * oracle.stake / oracle.totalShares);
 
-        oracle.totalShares = oracle.totalShares - uint128(share);
-        oracle.stake = oracle.stake - amountToRedeem;
+        // oracle.totalShares = oracle.totalShares - uint128(share);
+        pendingShares[oracleAddress] = pendingShares[oracleAddress] + share;
+
         stakers[msg.sender][oracleAddress] -= share;
-
-        if (oracle.stake < minStake) {
+        if (actualStake(oracleAddress, oracle) < minStake) {
             oracle.allowedToValidate = false;
         }
-
         WithdrawRequest memory req = unpackWithdrawRequest(withdrawals[to][oracleAddress][nonce]);
         if (req.timestamp != 0) revert WithdrawalIsNotEmpty();
 
-        req.amount = uint128(amountToRedeem);
+        req.share = uint128(share);
         req.timestamp = uint64(block.timestamp);
 
         oracles[oracleAddress] = packOracleData(oracle);
         withdrawals[to][oracleAddress][nonce] = packWithdrawRequest(req);
-        emit Unstake(to, oracleAddress, amountToRedeem, nonce);
+        emit Unstake(to, oracleAddress, share, nonce);
     }
 
     function burn(address payable to, uint88 amountToBurn) external {
@@ -283,7 +315,7 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
             keccak256(data).toEthSignedMessageHash().recover(oraclePrice.signature);
         OracleData memory oracle = unpackOracleData(oracles[oracleAddress]);
 
-        if (!oracle.allowedToValidate) {
+        if (!oracle.enabled || !oracle.allowedToValidate) {
             revert InvalidForcePushAuthority(oracleAddress, address(msg.sender));
         }
         if (oraclePrice.timestamp + slot.sharePriceValidityDuration < block.timestamp) {
@@ -443,5 +475,46 @@ contract Oracle is IArcanumOracle, Initializable, OwnableUpgradeable, UUPSUpgrad
                 _approve(owner, spender, currentAllowance - amount);
             }
         }
+    }
+
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public
+        virtual
+    {
+        require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
+
+        bytes32 structHash = keccak256(
+            abi.encode(_PERMIT_TYPEHASH, owner, spender, value, _useNonce(owner), deadline)
+        );
+
+        bytes32 hash = _hashTypedDataV4(structHash);
+
+        address signer = ECDSA.recover(hash, v, r, s);
+        require(signer == owner, "ERC20Permit: invalid signature");
+
+        _approve(owner, spender, value);
+    }
+
+    function nonces(address owner) public view virtual returns (uint256) {
+        return _nonces[owner].current();
+    }
+
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
+    function _useNonce(address owner) internal virtual returns (uint256 current) {
+        Counters.Counter storage nonce = _nonces[owner];
+        current = nonce.current();
+        nonce.increment();
     }
 }

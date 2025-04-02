@@ -101,12 +101,15 @@ contract Multipool is
         external
         view
         override
-        returns (address[] memory assetsRes, uint length)
+        returns (address[] memory, uint)
     {
-        for (uint i = offset; i < (limit == type(uint).max ? usedAssets.length : limit + offset) ; i++) {
-            assetsRes[i] = usedAssets[i];
+        uint size = (limit > usedAssets.length ? usedAssets.length : limit);
+        address[] memory assetsRes = new address[](size);
+        for (uint i = 0; i < size; i++) {
+            assetsRes[i] = usedAssets[i + offset];
         }
-        length = usedAssets.length;
+        uint length = usedAssets.length;
+        return (assetsRes, length);
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -120,7 +123,11 @@ contract Multipool is
         returns (uint pricePart)
     {
         unchecked {
-            for (uint i = offset; i < (limit == type(uint).max ? usedAssets.length : limit + offset); i++) {
+            for (
+                uint i = offset;
+                i < (limit == type(uint).max ? usedAssets.length : limit + offset);
+                i++
+            ) {
                 address assetAddress = usedAssets[i];
                 uint quantity = getBits(assets[assetAddress], 1, 127);
                 if (quantity != 0) pricePart += quantity * prices[assetAddress].getPrice();
@@ -181,9 +188,9 @@ contract Multipool is
             } else {
                 // TODO: check if this method's unchecked actually is legit
                 bytes32 sharePriceSlot = prices[address(this)];
-                price = sharePriceSlot == 0 ? 
-                    getSharePricePart(type(uint).max, 0) : 
-                    sharePriceSlot.getPrice();
+                price = sharePriceSlot == 0
+                    ? getSharePricePart(type(uint).max, 0)
+                    : sharePriceSlot.getPrice();
             }
         }
 

@@ -78,11 +78,12 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
             priceData: prices,
             targetShares: targetShares,
             initialLiquidityAsset: assetAddresses[0],
-            nonce: 1
+            nonce: 1,
+            owner: owner
         });
 
         // get new pool address
-        address newPool = computeContractAddress(address(f), 1);
+        address newPool = computeContractAddress(address(f), address(mpImpl), 1);
         Call memory c = Call({
             callType: CallType.ERC20Transfer,
             data: abi.encode(
@@ -152,7 +153,8 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
                     priceData: prices,
                     targetShares: targetShares,
                     initialLiquidityAsset: address(0),
-                    nonce: 1
+                    nonce: 1,
+                    owner: owner
                 });
 
                 Call[] memory preCalls = new Call[](0);
@@ -163,7 +165,7 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
             }
         }
 
-        address newPool = computeContractAddress(address(f), 1);
+        address newPool = computeContractAddress(address(f), address(mpImpl), 1);
         MockERC20(token0).mint(user0, 1e18);
 
         vm.prank(user0);
