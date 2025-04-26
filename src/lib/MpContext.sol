@@ -53,7 +53,7 @@ struct MpContext {
     address oracleAddress;
 }
 
-using {ContextMath.calculateDeviationFee, ContextMath.applyCollected} for MpContext global;
+using {ContextMath.calculateDeviationFee, ContextMath.applyCollected, ContextMath.estimateFees} for MpContext global;
 
 library ContextMath {
     function subAbs(uint a, uint b) internal pure returns (uint c) {
@@ -72,6 +72,19 @@ library ContextMath {
         } else {
             revert IMultipoolErrors.NotEnoughQuantityToBurn();
         }
+    }
+
+    function estimateFees(
+        MpContext memory ctx,
+        uint quoteTradeValue
+    )
+        internal
+        pure
+        returns (uint fees, uint cashbacks)
+    {
+        uint collectedBaseFees = (quoteTradeValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
+        cashbacks = ctx.collectedCashbacks;
+        fees = ctx.collectedFees + collectedBaseFees;
     }
 
     function applyCollected(

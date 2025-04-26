@@ -13,6 +13,10 @@ interface IMultipoolEvents {
     /// @param initialSharePrice assets initial share price that can't be changed
     event PoolCreated(uint96 initialSharePrice);
 
+    /// @notice Thrown right after owner is changed not to index all ownership changes
+    /// @param newOwner new owner of the contract
+    event MultipoolOwnerChange(address indexed newOwner);
+
     /// @notice Emitted when any quantity or cashback change happens even for multipool share
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity

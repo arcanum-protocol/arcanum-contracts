@@ -27,6 +27,7 @@ struct MultipoolCreationParams {
     address initialLiquidityAsset;
     address owner;
     uint nonce;
+    address protocolFeeReceiver;
 }
 
 /// @custom:security-contact badconfig@arcanum.to
@@ -45,7 +46,8 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
 
     address public implementationAddress;
 
-    event MultipoolCreated(address indexed multipoolAddress);
+    event MultipoolCreated(address indexed multipoolAddress, string name, string symbol);
+    event ProtocolFeeSent(address indexed multipoolAddress, uint amount, address feeReceiver);
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
@@ -58,17 +60,22 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         payable
         returns (Multipool mp)
     {
+
         address _implementationAddress = implementationAddress;
 
         ERC1967Proxy proxy = new ERC1967Proxy{
-            salt: keccak256(abi.encodePacked(block.chainid, params.nonce))
+            salt: keccak256(abi.encodePacked(block.chainid, params.nonce, msg.sender))
         }(address(_implementationAddress), "");
-        emit MultipoolCreated(address(proxy));
+        emit MultipoolCreated(address(proxy), params.name, params.symbol);
+
+        if (params.protocolFeeReceiver != address(0)) {
+            payable(params.protocolFeeReceiver).transfer(msg.value);
+            emit ProtocolFeeSent(address(proxy), msg.value, params.protocolFeeReceiver);
+        }
+
         mp = Multipool(address(proxy));
         mp.initialize(params.name, params.symbol, params.oracleAddress, params.initialSharePrice);
-
         mp.updateTargetShares(params.assetAddresses, params.targetShares);
-
         mp.updatePrices(params.assetAddresses, params.priceData);
 
         if (params.strategyManager != address(0)) {
@@ -78,7 +85,8 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         if (params.initialLiquidityAsset != address(0)) {
             // Not needed for initial mint, so it's empty
             OraclePrice memory oraclePrice;
-            mp.swap{value: msg.value}(
+
+            mp.swap(
                 oraclePrice,
                 params.initialLiquidityAsset,
                 address(mp),

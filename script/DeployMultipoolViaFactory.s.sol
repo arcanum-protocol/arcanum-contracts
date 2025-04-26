@@ -144,7 +144,7 @@ contract Deploy is Script {
 
         MultipoolFactory f = MultipoolFactory(address(factoryProxy));
 
-        address mp = computeContractAddress(address(f), address(mpImpl), 1);
+        address mp = computeContractAddress(address(f), address(mpImpl), 1, deployerPublicKey);
         console.log("mp ", mp);
 
         IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
@@ -176,7 +176,8 @@ contract Deploy is Script {
                 targetShares: s,
                 initialLiquidityAsset: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE,
                 nonce: 1,
-                owner: deployerPublicKey
+                owner: deployerPublicKey,
+                protocolFeeReceiver: address(0)
             });
             WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).deposit{value: 10e18}();
             WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(

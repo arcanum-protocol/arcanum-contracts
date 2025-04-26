@@ -93,6 +93,11 @@ contract Multipool is
         emit ShareTransfer(from, to, amount);
     }
 
+    function transferOwnership(address newOwner) public override onlyOwner {
+        _transferOwnership(newOwner);
+        emit MultipoolOwnerChange(newOwner);
+    }
+
     /// @inheritdoc IMultipoolMethods
     function getUsedAssets(
         uint limit,
@@ -247,6 +252,65 @@ contract Multipool is
             uint left = balanceOf(address(this));
             if (refundAddress != address(0) && left > 0) {
                 _transfer(address(this), refundAddress, left);
+            }
+        }
+    }
+    function estimate_swap(
+        OraclePrice calldata oraclePrice,
+        address assetInAddress,
+        address assetOutAddress,
+        uint swapAmount,
+        bool isExactInput
+    )
+        external
+        view
+        returns (uint amountIn, uint amountOut, uint fees, uint cashbacks)
+    {
+        if (swapAmount == 0) revert ZeroAmountSupplied();
+        if (assetOutAddress == assetInAddress) revert AssetsAreSame();
+
+        MpContext memory ctx = getContext(oraclePrice);
+        MpAsset memory assetIn;
+        MpAsset memory assetOut;
+        Prices memory price;
+
+        price.priceIn =
+            assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
+        price.priceOut =
+            assetOutAddress == address(this) ? ctx.sharePrice : prices[assetOutAddress].getPrice();
+
+        {
+            {
+                if (assetInAddress == address(this)) {
+                    assetOut = unpackMpAsset(assets[assetOutAddress]);
+                } else if (assetOutAddress == address(this)) {
+                    assetIn = unpackMpAsset(assets[assetInAddress]);
+                } else {
+                    assetIn = unpackMpAsset(assets[assetInAddress]);
+                    assetOut = unpackMpAsset(assets[assetOutAddress]);
+                }
+
+                (amountIn, amountOut) = isExactInput
+                    ? (swapAmount, swapAmount * price.priceIn / price.priceOut)
+                    : (swapAmount * price.priceOut / price.priceIn, swapAmount);
+
+                if (assetInAddress == address(this)) {
+                    ctx.totalSupplyDelta = -int(amountIn);
+                } else if (assetOutAddress == address(this)) {
+                    ctx.totalSupplyDelta = int(amountOut);
+                }
+
+                if (assetInAddress != address(this)) {
+                    ctx.calculateDeviationFee(assetIn, int(amountIn), price.priceIn);
+                }
+                if (assetOutAddress != address(this)) {
+                    ctx.calculateDeviationFee(assetOut, -int(amountOut), price.priceOut);
+                }
+
+                (fees, cashbacks) = ctx.estimateFees(
+                    swapAmount * (isExactInput ? price.priceIn : price.priceOut)
+                        >> FixedPoint96.RESOLUTION
+                );
             }
         }
     }

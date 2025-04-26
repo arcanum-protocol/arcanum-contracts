@@ -21,7 +21,8 @@ import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 function computeContractAddress(
     address factory,
     address impl,
-    uint _nonce
+    uint _nonce,
+    address _owner
 )
     view
     returns (address _address)
@@ -32,7 +33,7 @@ function computeContractAddress(
         abi.encodePacked(
             bytes1(0xff),
             address(factory),
-            keccak256(abi.encodePacked(block.chainid, _nonce)),
+            keccak256(abi.encodePacked(block.chainid, _nonce, _owner)),
             keccak256(bytecode)
         )
     );
