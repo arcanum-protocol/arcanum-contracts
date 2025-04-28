@@ -2,12 +2,12 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
-import "../src/multipool/Multipool.sol";
-import "../src/multipool/MultipoolRouter.sol";
-import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
-import {Oracle} from "../src/multipool/Oracle.sol";
-import {MultipoolFactory, MultipoolCreationParams} from "../src/multipool/Factory.sol";
-import {Trader} from "../src/trader/Trader.sol";
+import "../../src/multipool/Multipool.sol";
+import "../../src/multipool/MultipoolRouter.sol";
+import {MockERC20, MockERC20WithDecimals} from "../../src/mocks/erc20.sol";
+import {Oracle} from "../../src/multipool/Oracle.sol";
+import {MultipoolFactory, MultipoolCreationParams} from "../../src/multipool/Factory.sol";
+import {Trader} from "../../src/trader/Trader.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {
     toX96,
@@ -16,7 +16,7 @@ import {
     updatePrice,
     AbstractFixedValueOracle,
     computeContractAddress
-} from "../test/MultipoolUtils.t.sol";
+} from "../../test/MultipoolUtils.t.sol";
 
 // forge script ./script/bench/Deploy.s.sol --rpc-url=127.0.0.1:8545 --broadcast -vvvv
 contract Deploy is Script {
@@ -26,11 +26,6 @@ contract Deploy is Script {
         address deployerPublicKey = vm.addr(deployerPrivateKey);
         // console.log(deployerPublicKey);
         vm.startBroadcast(deployerPrivateKey);
-        {
-            Trader trader = new Trader{salt: keccak256(abi.encode("Trader"))}();
-            console.log("trader ", address(trader));
-        }
-        // MockERC20WithDecimals[] memory tokens = new MockERC20WithDecimals[](5);
         uint16[] memory s = new uint16[](5);
         bytes32[] memory prices = new bytes32[](5);
         address[] memory tokensAddresses = new address[](5);
@@ -64,62 +59,54 @@ contract Deploy is Script {
             prices[4] = val;
         }
 
-        address positionManager = 0x6b2937Bde17889EDCf8fbD8dE31C3C2a70Bc4d65;
+        address positionManager = 0x3dCc735C74F10FE2B9db2BB55C40fbBbf24490f7;
+        // address universalRouter = 0x4A7b5Da61326A6379179b40d00F57E5bbDC962c2;
 
         // IUniswapV3Factory uf = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
-        IUniswapV3Factory uf = IUniswapV3Factory(0x248AB79Bbb9bC29bB72f7Cd42F17e054Fc40188e);
+        IUniswapV3Factory uf = IUniswapV3Factory(0x961235a9020B05C44DF1026D956D1F4D78014276);
         {
-            // uint8[5] memory decimals = [6, 6, 18, 18, 18];
-            // for (uint i = 0; i < tokens.length; i++) {
-            //     tokens[i] = new MockERC20WithDecimals{
-            //         salt: keccak256(abi.encode("TokenSalt3", "token", i))
-            //     }("token", "token", decimals[i]);
-            //     tokens[i].mint(deployerPublicKey, 10000e30);
-            //     console.log("token", i, " address: ", address(tokens[i]));
+            tokensAddresses[0] = address(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A);
+            tokensAddresses[1] = address(0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714);
+            tokensAddresses[2] = address(0xE0590015A873bF326bd645c3E1266d4db41C4E6B);
+            tokensAddresses[3] = address(0xfe140e1dCe99Be9F4F15d657CD9b7BF622270C50);
+            tokensAddresses[4] = address(0xaEef2f6B429Cb59C9B2D7bB2141ADa993E8571c3);
+            // for (uint i = 0; i < tokensAddresses.length; i++) {
+            //     for (uint y = 0; y < tokensAddresses.length; y++) {
+            //         if (tokensAddresses[i] == tokensAddresses[y]) {
+            //             continue;
+            //         }
+            //         (address token0, address token1) = tokensAddresses[i] < tokensAddresses[y] ?
+            // (tokensAddresses[i], tokensAddresses[y]) : (tokensAddresses[y], tokensAddresses[i]);
+            //         address pool = uf.getPool(token0, token1, 3000);
+            //         // 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
+            //         if (pool == address(0)) {
+            //             // IUniswapV3Pool(newPool).initialize(50000000000);
+            //             IPositionManager(positionManager).createAndInitializePoolIfNecessary(token0,
+            // token1, 3000, 50000000000);
+            //             MockERC20WithDecimals(tokensAddresses[i]).approve(
+            //                 positionManager, 10000e30
+            //             );
+            //             MockERC20WithDecimals(tokensAddresses[y]).approve(
+            //                 positionManager, 10000e30
+            //             );
+            //             IPositionManager.MintParams memory p = IPositionManager.MintParams({
+            //                 token0: token0,
+            //                 token1: token1,
+            //                 fee: 3000,
+            //                 tickLower: 81000,
+            //                 tickUpper: 90000,
+            //                 amount0Desired: 12042000000000000,
+            //                 amount1Desired: 12042000000000000,
+            //                 amount0Min: 0,
+            //                 amount1Min: 0,
+            //                 recipient: deployerPublicKey,
+            //                 deadline: block.timestamp + 1000
+            //             });
+            //             IPositionManager(positionManager).mint{value: 1e16}(p);
+            //             // newPool.mint(deployerPublicKey, 0, 1, 12042000000000000, "");
+            //         }
+            //     }
             // }
-
-            tokensAddresses[0] = address(0xCdFE37e195d98d3C8C669C56a70C418327F17B5f);
-            tokensAddresses[1] = address(0x97f959ff7C81B91CCa5253241f4F585C35b8fd5E);
-            tokensAddresses[2] = address(0x7d6190956Bd55B17524662E7F42f140C403b5c4F);
-            tokensAddresses[3] = address(0x74621BB03a08612D1Ba28563E7dDf8BC43B3Fc50);
-            tokensAddresses[4] = address(0xF1B9706661a8b14AF90E1e756a84Bcef650160BB);
-            for (uint i = 0; i < tokensAddresses.length; i++) {
-                for (uint y = 0; y < tokensAddresses.length; y++) {
-                    if (tokensAddresses[i] == tokensAddresses[y]) {
-                        continue;
-                    }
-                    (address token0, address token1) = tokensAddresses[i] < tokensAddresses[y]
-                        ? (tokensAddresses[i], tokensAddresses[y])
-                        : (tokensAddresses[y], tokensAddresses[i]);
-                    address pool = uf.getPool(token0, token1, 3000);
-                    // 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
-                    if (pool == address(0)) {
-                        // address newPool =
-                        //     uf.createPool(token0, token1, 3000);
-                        // IUniswapV3Pool(newPool).initialize(50000000000);
-                        IPositionManager(positionManager).createAndInitializePoolIfNecessary(
-                            token0, token1, 3000, 50000000000
-                        );
-                        MockERC20WithDecimals(tokensAddresses[i]).approve(positionManager, 10000e30);
-                        MockERC20WithDecimals(tokensAddresses[y]).approve(positionManager, 10000e30);
-                        IPositionManager.MintParams memory p = IPositionManager.MintParams({
-                            token0: token0,
-                            token1: token1,
-                            fee: 3000,
-                            tickLower: 81000,
-                            tickUpper: 90000,
-                            amount0Desired: 12042000000000000,
-                            amount1Desired: 12042000000000000,
-                            amount0Min: 0,
-                            amount1Min: 0,
-                            recipient: deployerPublicKey,
-                            deadline: block.timestamp + 1000
-                        });
-                        IPositionManager(positionManager).mint{value: 1e16}(p);
-                        // newPool.mint(deployerPublicKey, 0, 1, 12042000000000000, "");
-                    }
-                }
-            }
 
             s[0] = 10;
             s[1] = 10;
@@ -128,38 +115,31 @@ contract Deploy is Script {
             s[4] = 10;
         }
 
-        Multipool mpImpl = new Multipool{salt: keccak256(abi.encode("MultipoolSalt"))}();
-        Oracle oracle = new Oracle{salt: keccak256(abi.encode("Oracle"))}();
-        console.log("oracle", address(oracle));
+        Oracle oracle = Oracle(payable(0x97CD13624bB12D4Ec39469b140f529459d5d369d));
 
-        MultipoolFactory factoryImpl =
-            new MultipoolFactory{salt: keccak256(abi.encode("FACTORYSalt"))}();
-        ERC1967Proxy factoryProxy =
-            new ERC1967Proxy{salt: keccak256(abi.encode("FactoryProxy"))}(address(factoryImpl), "");
+        MultipoolFactory f = MultipoolFactory(0x7eFe6656d08f2d6689Ed8ca8b5A3DEA0efaa769f);
+        // arb sepolia
+        WETH weth = WETH(0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701);
+        IUniswapV3Router uniRouter = IUniswapV3Router(0x3aE6D8A282D67893e17AA70ebFFb33EE5aa65893);
+        // address mp = computeContractAddress(address(f),
+        // 0x14090b42338e02C786cDd6F29Bb83553FDe8f084, 1);
+        address mp = 0x46489e10E6E78EAFE087fde1Bc74e745182a2Eab;
+        // console.log("mp ", mp);
 
-        console.log("factory ", address(factoryProxy));
-        console.log("factoryImpl ", address(factoryImpl));
-
-        MultipoolFactory f = MultipoolFactory(address(factoryProxy));
-
-        address mp = computeContractAddress(address(f), address(mpImpl), 1, deployerPublicKey);
-        console.log("mp ", mp);
-
-        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
-            .ExactInputSingleParams({
-            tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            tokenOut: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE,
-            fee: 500,
-            recipient: mp,
-            amountIn: 1e14,
-            amountOutMinimum: 1,
-            sqrtPriceLimitX96: 0
-        });
+        // IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
+        //     .ExactInputSingleParams({
+        //     tokenIn: address(weth),
+        //     tokenOut: tokensAddresses[1],
+        //     fee: 500,
+        //     recipient: mp,
+        //     amountIn: 1e14,
+        //     amountOutMinimum: 1,
+        //     sqrtPriceLimitX96: 0
+        // });
         {
-            f.initialize(deployerPublicKey, address(mpImpl));
             MultipoolCreationParams memory params = MultipoolCreationParams({
-                name: "MpSepolia",
-                symbol: "MPS",
+                name: "MpMonad",
+                symbol: "MPM",
                 initialSharePrice: uint96(toX32(0.1e18)),
                 deviationIncreaseFee: toX16(0.15e18),
                 deviationLimit: toX16(0.0003e18),
@@ -172,48 +152,43 @@ contract Deploy is Script {
                 assetAddresses: tokensAddresses,
                 priceData: prices,
                 targetShares: s,
-                initialLiquidityAsset: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE,
-                nonce: 1,
+                initialLiquidityAsset: address(0),
+                nonce: 2,
                 owner: deployerPublicKey,
-                protocolFeeReceiver: address(0)
+                protocolFeeReceiver: deployerPublicKey
             });
-            WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).deposit{value: 10e18}();
-            WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
-                0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14
-            );
-            // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).transfer(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
-            // 1e14);
-            IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45).exactInputSingle{
-                value: 1e14
-            }(swapParams);
+            // weth.deposit{value: 1e16}();
+            // weth.approve(
+            //     address(uniRouter), 1e14
+            // ); // approve to router
+            // weth.transfer(address(mp), 1e14);
+            // // uniRouter.exactInputSingle{
+            // //     value: 1e14
+            // // }(swapParams);
             f.createMultipool(params);
         }
 
-        updatePrice(mp, mp, abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18))));
+        // updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue,
+        // uint128(toX96(10e18))));
 
-        // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
-        //     0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e14
-        // );
+        // weth.approve(address(uniRouter), 1e14);
         // swapParams = IUniswapV3Router.ExactInputSingleParams({
-        //     tokenIn: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-        //     tokenOut: 0xB8c77482e45F1F44dE1745F52C74426C631bDD52,
+        //     tokenIn: address(weth),
+        //     tokenOut: tokensAddresses[1],
         //     fee: 3000,
         //     recipient: mp,
         //     amountIn: 1e14,
         //     amountOutMinimum: 1,
         //     sqrtPriceLimitX96: 0
         // });
-        // uint amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45)
-        //     .exactInputSingle{value: 1e14}(swapParams);
+        // uint amountOut = uniRouter.exactInputSingle{value: 1e14}(swapParams);
         // OraclePrice memory op;
         // ReceiverData memory rd = ReceiverData({
         //     receiverAddress: deployerPublicKey,
         //     refundAddress: deployerPublicKey,
         //     refundEthToReceiver: true
         // });
-        // Multipool(mp).swap{value: 1e15}(
-        //     op, 0xB8c77482e45F1F44dE1745F52C74426C631bDD52, mp, amountOut, true, rd
-        // );
+        // Multipool(mp).swap{value: 1e15}(op, tokensAddresses[1], mp, amountOut, true, rd);
 
         // //
         // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
