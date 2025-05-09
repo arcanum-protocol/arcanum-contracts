@@ -47,7 +47,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
     address public implementationAddress;
 
     event MultipoolCreated(address indexed multipoolAddress, string name, string symbol);
-    event ProtocolFeeSent(address indexed multipoolAddress, uint amount, address feeReceiver);
+    event ProtocolFeeSent(address indexed multipoolAddress, address indexed feeReceiver, uint amount);
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
@@ -68,10 +68,10 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         }(address(_implementationAddress), "");
         emit MultipoolCreated(address(proxy), params.name, params.symbol);
 
-        if (params.protocolFeeReceiver != address(0)) {
+        if (params.strategyManager != address(0)) {
             payable(params.protocolFeeReceiver).transfer(msg.value);
-            emit ProtocolFeeSent(address(proxy), msg.value, params.protocolFeeReceiver);
         }
+        emit ProtocolFeeSent(address(proxy), params.protocolFeeReceiver, msg.value);
 
         mp = Multipool(address(proxy));
         mp.initialize(params.name, params.symbol, params.oracleAddress, params.initialSharePrice);
