@@ -406,9 +406,12 @@ contract Multipool is
                 fees.refund
             );
         }
-        if (oraclePrice.contractAddress == address(this)) {
+        if (oraclePrice.contractAddress == address(this))  {
             payable(ctx.managementFeeRecepient).transfer(fees.managerEarnedFee);
             IArcanumOracle(ctx.oracleAddress).commitPrice{value: fees.oracleEarnedFee}(oraclePrice);
+        } else if (ctx.oracleAddress != address(0)) {
+            payable(ctx.managementFeeRecepient).transfer(fees.managerEarnedFee);
+            payable(ctx.oracleAddress).transfer(fees.oracleEarnedFee);
         } else {
             payable(ctx.managementFeeRecepient).transfer(
                 fees.managerEarnedFee + fees.oracleEarnedFee
