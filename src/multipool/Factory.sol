@@ -46,8 +46,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
 
     address public implementationAddress;
 
-    event MultipoolCreated(address indexed multipoolAddress, string name, string symbol);
-    event ProtocolFeeSent(address indexed multipoolAddress, address indexed feeReceiver, uint amount);
+    event MultipoolCreated(address indexed multipoolAddress, address indexed feeReceiver, uint feeAmount, string name, string symbol);
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
@@ -66,12 +65,11 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         ERC1967Proxy proxy = new ERC1967Proxy{
             salt: keccak256(abi.encodePacked(block.chainid, params.nonce, msg.sender))
         }(address(_implementationAddress), "");
-        emit MultipoolCreated(address(proxy), params.name, params.symbol);
+        emit MultipoolCreated(address(proxy), params.protocolFeeReceiver, msg.value, params.name, params.symbol);
 
         if (params.strategyManager != address(0)) {
             payable(params.protocolFeeReceiver).transfer(msg.value);
         }
-        emit ProtocolFeeSent(address(proxy), params.protocolFeeReceiver, msg.value);
 
         mp = Multipool(address(proxy));
         mp.initialize(params.name, params.symbol, params.oracleAddress, params.initialSharePrice);
