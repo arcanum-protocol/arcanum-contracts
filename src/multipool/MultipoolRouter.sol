@@ -51,6 +51,7 @@ struct SwapArgs {
     bool isExactInput;
     ReceiverData receiverData;
     uint ethValue;
+    uint minimumReceive;
 }
 
 contract MultipoolRouter is Ownable {
@@ -70,6 +71,7 @@ contract MultipoolRouter is Ownable {
     error InsufficientEthBalance(uint callNumber, bool isPredecessing);
     error InsufficientEthBalanceCallingSwap();
     error ContractCallNotAllowed(address target);
+    error SleepageExceeded();
 
     function processCall(Call memory call, uint index, bool isPredecessing) internal {
         if (call.callType == CallType.Any) {
@@ -122,7 +124,7 @@ contract MultipoolRouter is Ownable {
         }
 
         if (address(this).balance < swapArgs.ethValue) revert InsufficientEthBalanceCallingSwap();
-        Multipool(poolAddress).swap{value: swapArgs.ethValue}(
+        (, uint amountOut) = Multipool(poolAddress).swap{value: swapArgs.ethValue}(
             swapArgs.oraclePrice,
             swapArgs.assetIn,
             swapArgs.assetOut,
@@ -130,6 +132,7 @@ contract MultipoolRouter is Ownable {
             swapArgs.isExactInput,
             swapArgs.receiverData
         );
+        if (amountOut < swapArgs.minimumReceive) revert SleepageExceeded();
 
         for (uint i; i < callsAfter.length; ++i) {
             processCall(callsAfter[i], i, false);

@@ -185,7 +185,8 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
             swapAmount: 1e10,
             isExactInput: true,
             receiverData: rd,
-            ethValue: 1e9
+            ethValue: 1e9,
+            minimumReceive: 0
         });
 
         Call memory c = Call({
