@@ -19,6 +19,8 @@ contract DummyOracle is IArcanumOracle, Ownable {
         priceValidityDuration = _priceValidityDuration;
     }
 
+    receive() external payable {}
+
     function updateParams(address _oracle, uint96 _priceValidityDuration) external onlyOwner {
         oracle = _oracle;
         priceValidityDuration = _priceValidityDuration;

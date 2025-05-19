@@ -179,7 +179,7 @@ contract MultipoolUtils is Test {
         OraclePrice memory oraclePrice;
         ReceiverData memory rd;
         rd.receiverAddress = owner;
-        rd.refundAddress = address(0);
+        rd.refundAddress = owner;
         rd.refundEthToReceiver = true;
 
         for (uint i = 0; i < assets.length; i++) {

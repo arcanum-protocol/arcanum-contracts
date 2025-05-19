@@ -14,6 +14,7 @@ import {
     toX32,
     toX16,
     updatePrice,
+    toX16RatioTick,
     AbstractFixedValueOracle,
     computeContractAddress
 } from "../../test/MultipoolUtils.t.sol";
@@ -32,38 +33,38 @@ contract Deploy is Script {
 
         {
             bytes32 val;
-            bytes memory data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18)));
+            bytes memory data = abi.encodePacked(FeedType.UniV3, 0x0E5b205A058101584d0b94736212A517730F5FC0, true, uint64(0));
             assembly {
                 val := mload(add(data, 32))
             }
             prices[0] = val;
-            data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(20e18)));
+            data = abi.encodePacked(FeedType.UniV3, 0x00F26C926345D6F8e1BfCa684873C35070DC49Fd, false, uint64(0));
             assembly {
                 val := mload(add(data, 32))
             }
             prices[1] = val;
-            data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(30e18)));
+            data = abi.encodePacked(FeedType.UniV3, 0x96c8dfe099cEb7fe7cB9e5e070858f66363BD75C, true, uint64(0));
             assembly {
                 val := mload(add(data, 32))
             }
             prices[2] = val;
-            data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(25e18)));
+            data = abi.encodePacked(FeedType.UniV3, 0xf5E71C63967570Ff6fa4Db961F95e612b54CBe47, true, uint64(0));
             assembly {
                 val := mload(add(data, 32))
             }
             prices[3] = val;
-            data = abi.encodePacked(FeedType.FixedValue, uint128(toX96(1e18)));
+            data = abi.encodePacked(FeedType.UniV3, 0xD1F87e48269F972110F77E989d519Cf151EDb485, true, uint64(0));
             assembly {
                 val := mload(add(data, 32))
             }
             prices[4] = val;
         }
 
-        address positionManager = 0x3dCc735C74F10FE2B9db2BB55C40fbBbf24490f7;
+        // address positionManager = 0x3dCc735C74F10FE2B9db2BB55C40fbBbf24490f7;
         // address universalRouter = 0x4A7b5Da61326A6379179b40d00F57E5bbDC962c2;
 
         // IUniswapV3Factory uf = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
-        IUniswapV3Factory uf = IUniswapV3Factory(0x961235a9020B05C44DF1026D956D1F4D78014276);
+        // IUniswapV3Factory uf = IUniswapV3Factory(0x961235a9020B05C44DF1026D956D1F4D78014276);
         {
             tokensAddresses[0] = address(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A);
             tokensAddresses[1] = address(0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714);
@@ -108,11 +109,11 @@ contract Deploy is Script {
             //     }
             // }
 
-            s[0] = 10;
-            s[1] = 10;
-            s[2] = 10;
-            s[3] = 10;
-            s[4] = 10;
+            // s[0] = 10;
+            // s[1] = 10;
+            // s[2] = 10;
+            // s[3] = 10;
+            // s[4] = 10;
         }
 
         Oracle oracle = Oracle(payable(0x97CD13624bB12D4Ec39469b140f529459d5d369d));
@@ -120,75 +121,89 @@ contract Deploy is Script {
         MultipoolFactory f = MultipoolFactory(0x7eFe6656d08f2d6689Ed8ca8b5A3DEA0efaa769f);
         // arb sepolia
         WETH weth = WETH(0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701);
-        IUniswapV3Router uniRouter = IUniswapV3Router(0x3aE6D8A282D67893e17AA70ebFFb33EE5aa65893);
+        IUniswapV3Router uniRouter = IUniswapV3Router(0x4c4eABd5Fb1D1A7234A48692551eAECFF8194CA7);
+        // NOTACTIVATED  0x22a2485421280363e9567b901F7CA63658f63db8
+        // NOT ACTIVATED TFTF 0x4c4eABd5Fb1D1A7234A48692551eAECFF8194CA7
+        address mp = 0x057A931a8Ab1111fF163745De18040dc0b35F153;
         // address mp = computeContractAddress(address(f),
         // 0x14090b42338e02C786cDd6F29Bb83553FDe8f084, 1);
-        address mp = 0x46489e10E6E78EAFE087fde1Bc74e745182a2Eab;
+        // address mp = 0x46489e10E6E78EAFE087fde1Bc74e745182a2Eab;
         // console.log("mp ", mp);
 
-        // IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
-        //     .ExactInputSingleParams({
-        //     tokenIn: address(weth),
-        //     tokenOut: tokensAddresses[1],
-        //     fee: 500,
-        //     recipient: mp,
-        //     amountIn: 1e14,
-        //     amountOutMinimum: 1,
-        //     sqrtPriceLimitX96: 0
-        // });
+        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
+            .ExactInputSingleParams({
+            tokenIn: address(weth),
+            tokenOut: tokensAddresses[3],
+            fee: 100,
+            recipient: mp,
+            amountIn: 8e18,
+            amountOutMinimum: 1,
+            sqrtPriceLimitX96: 0
+        });
         {
-            MultipoolCreationParams memory params = MultipoolCreationParams({
-                name: "MpMonad",
-                symbol: "MPM",
-                initialSharePrice: uint96(toX32(0.1e18)),
-                deviationIncreaseFee: toX16(0.15e18),
-                deviationLimit: toX16(0.0003e18),
-                feeToCashbackRatio: toX16(0.6e18),
-                baseFee: toX16(0.0001e18),
-                managementFeeRecepient: deployerPublicKey,
-                managementFee: toX16(0.15e18),
-                oracleAddress: address(oracle),
-                strategyManager: address(0),
-                assetAddresses: tokensAddresses,
-                priceData: prices,
-                targetShares: s,
-                initialLiquidityAsset: address(0),
-                nonce: 2,
-                owner: deployerPublicKey,
-                protocolFeeReceiver: deployerPublicKey
-            });
-            // weth.deposit{value: 1e16}();
+            // MultipoolCreationParams memory params = MultipoolCreationParams({
+            //     name: "MpMonad",
+            //     symbol: "MPM",
+            //     initialSharePrice: uint96(toX32(0.001e18)),
+            //     deviationIncreaseFee: toX16(0.00015e18),
+            //     deviationLimit: toX16(3e18),
+            //     feeToCashbackRatio: toX16(0.6e18),
+            //     baseFee: toX16(0.0001e18),
+            //     managementFeeRecepient: deployerPublicKey,
+            //     managementFee: toX16(0.15e14),
+            //     oracleAddress: address(oracle),
+            //     strategyManager: address(0),
+            //     assetAddresses: tokensAddresses,
+            //     priceData: prices,
+            //     targetShares: s,
+            //     initialLiquidityAsset: address(0),
+            //     nonce: 11,
+            //     owner: deployerPublicKey,
+            //     protocolFeeReceiver: deployerPublicKey
+            // });
+            // weth.deposit{value: 8e18}();
             // weth.approve(
-            //     address(uniRouter), 1e14
+                // address(uniRouter), 8e18
             // ); // approve to router
             // weth.transfer(address(mp), 1e14);
-            // // uniRouter.exactInputSingle{
-            // //     value: 1e14
-            // // }(swapParams);
-            f.createMultipool(params);
+            // uniRouter.exactInputSingle{
+            //     value: 1e14
+            // }(swapParams);
+            // f.createMultipool(params);
         }
 
         // updatePrice(address(mp), address(mp), abi.encodePacked(FeedType.FixedValue,
         // uint128(toX96(10e18))));
 
-        // weth.approve(address(uniRouter), 1e14);
+        // weth.approve(address(uniRouter), 1e18);
         // swapParams = IUniswapV3Router.ExactInputSingleParams({
         //     tokenIn: address(weth),
-        //     tokenOut: tokensAddresses[1],
-        //     fee: 3000,
+        //     tokenOut: tokensAddresses[4],
+        //     fee: 100,
         //     recipient: mp,
-        //     amountIn: 1e14,
+        //     amountIn: 1e17,
         //     amountOutMinimum: 1,
         //     sqrtPriceLimitX96: 0
         // });
-        // uint amountOut = uniRouter.exactInputSingle{value: 1e14}(swapParams);
-        // OraclePrice memory op;
-        // ReceiverData memory rd = ReceiverData({
-        //     receiverAddress: deployerPublicKey,
-        //     refundAddress: deployerPublicKey,
-        //     refundEthToReceiver: true
-        // });
-        // Multipool(mp).swap{value: 1e15}(op, tokensAddresses[1], mp, amountOut, true, rd);
+        // uint amountOut = uniRouter.exactInputSingle{value: 1e12}(swapParams);
+        OraclePrice memory op;
+        ReceiverData memory rd = ReceiverData({
+            receiverAddress: deployerPublicKey,
+            refundAddress: deployerPublicKey,
+            refundEthToReceiver: true
+        });
+        // console2.log(amountOut);
+        //  Multipool(mp).setFeeParams(
+        //     toX16RatioTick(0.0003e5),
+        //     toX16RatioTick(0.15e5),
+        //     toX16RatioTick(0.6e5),
+        //     toX16RatioTick(0.01e5),
+        //     deployerPublicKey,
+        //     toX16RatioTick(0.1e5)
+        // );
+        (uint input, uint output, ,) = Multipool(mp).estimate_swap(op, mp, tokensAddresses[1], 10e18, false);
+        Multipool(mp).transfer(mp, input);
+        Multipool(mp).swap{value: 0}(op, mp, tokensAddresses[1], 10e18, false, rd);
 
         // //
         // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,

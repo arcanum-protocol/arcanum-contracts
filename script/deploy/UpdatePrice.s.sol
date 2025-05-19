@@ -23,6 +23,11 @@ contract Deploy is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployerPublicKey = vm.addr(deployerPrivateKey);
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        uint price = Multipool(0x8a3BDf2870CF7931d2d8AC712367d5437D473148).getPrice(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A);
+        console2.log(price);
         // address[] memory tokensAddresses = new address[](4);
 
         //     // tokensAddresses[0] = address(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73);
@@ -36,16 +41,21 @@ contract Deploy is Script {
         // for (uint i = 0; i < tokensAddresses.length; i++) {
         //     MockERC20WithDecimals(tokensAddresses[i]).mint(user, 1000e18);
         // }
-        // WETH(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73).deposit{value: 1e17}();
-        uint balance = WETH(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73).balanceOf(deployerPublicKey);
-        console2.log(balance);
-        WETH(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73).transfer(
-            0x07D966dBA9707a54c7fD0518dc08C84Af0124f34, balance - 1
-        );
+        // WETH(0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701).deposit{value: 5e18}();
+        // uint balance = WETH(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73).balanceOf(deployerPublicKey);
+        // console2.log(balance);
+        // WETH(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73).transfer(
+        //     0x07D966dBA9707a54c7fD0518dc08C84Af0124f34, balance - 1
+        // );
 
-        // updatePrice(address(0x46489e10E6E78EAFE087fde1Bc74e745182a2Eab),
-        // address(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73),
-        // abi.encodePacked(FeedType.FixedValue, uint128(toX96(10e18))));
+        // updatePrice(address(0x057A931a8Ab1111fF163745De18040dc0b35F153),
+        //     address(0x057A931a8Ab1111fF163745De18040dc0b35F153),
+        //     abi.encodePacked(FeedType.FixedValue, uint128(toX96(1e18)))
+        // );
+        // updatePrice(address(0xA664650dF459AA696183d8FddeF6597971836763),
+        //     address(0x00F26C926345D6F8e1BfCa684873C35070DC49Fd),
+        //     abi.encodePacked(FeedType.FixedValue, uint128(toX96(1e16)))
+        // );
         vm.stopBroadcast();
     }
 }
