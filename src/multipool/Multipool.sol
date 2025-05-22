@@ -82,9 +82,9 @@ contract Multipool is
         __ERC20_init(name, symbol);
         __Ownable_init();
         // Set oracle address
-        slot1 = setBits(slot1, bytes32(uint(_oracleAddress)), 0, 160);
+        slot1 = setBits(slot1, bytes32(uint(uint160(_oracleAddress))), 0, 160);
         emit PriceOracleChange(address(0), _oracleAddress);
-        emit PoolCreated();
+        //emit PoolCreated();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -216,6 +216,9 @@ contract Multipool is
         ctx.baseFee = expandFrom20(getBits(_slot, 198, 20));
         ctx.lpBaseFee = expandFrom19(getBits(_slot, 218, 19));
         ctx.managementBaseFee = expandFrom19(getBits(_slot, 237, 19));
+
+        ctx.collectedManagementFee = _collectedManagementFee;
+        ctx.collectedLpFee = _collectedLpFee;
 
     }
 
@@ -414,15 +417,16 @@ contract Multipool is
             );
         }
         if (oraclePrice.contractAddress == address(this))  {
-            payable(ctx.managementFeeRecepient).transfer(fees.managerEarnedFee);
+            collectedLpFee = uint112(fees.lpEarnedFee + ctx.collectedLpFee);
+            collectedManagementFee = uint112(fees.managerEarnedFee + ctx.collectedManagementFee);
             IArcanumOracle(ctx.oracleAddress).commitPrice{value: fees.oracleEarnedFee}(oraclePrice);
         } else if (ctx.oracleAddress != address(0)) {
-            payable(ctx.managementFeeRecepient).transfer(fees.managerEarnedFee);
+            collectedLpFee = uint112(fees.lpEarnedFee + ctx.collectedLpFee);
+            collectedManagementFee = uint112(fees.managerEarnedFee + ctx.collectedManagementFee);
             payable(ctx.oracleAddress).transfer(fees.oracleEarnedFee);
         } else {
-            payable(ctx.managementFeeRecepient).transfer(
-                fees.managerEarnedFee + fees.oracleEarnedFee
-            );
+            collectedLpFee = uint112(fees.lpEarnedFee + ctx.collectedLpFee + fees.oracleEarnedFee);
+            collectedManagementFee = uint112(fees.managerEarnedFee + ctx.collectedManagementFee);
         }
         emit Swap(
             msg.sender,
@@ -457,7 +461,7 @@ contract Multipool is
         onlyOwner
     {
         uint len = priceAssetAddresses.length;
-        if (len) {
+        if (len != 0) {
             for (uint i; i < len;) {
                 address assetAddress = priceAssetAddresses[i];
                 bytes32 _priceData = priceData[i];
@@ -470,7 +474,7 @@ contract Multipool is
         }
 
         len = targetShareAssetAddresses.length;
-        if (len) {
+        if (len != 0) {
             uint16 totalTargetSharesCached = totalTargetShares;
             for (uint a; a < len;) {
                 address assetAddress = targetShareAssetAddresses[a];
@@ -495,7 +499,7 @@ contract Multipool is
 
     struct FeeParams {
         uint24 deviationIncreaseFee;
-        uint24 deviationLimit;
+        uint16 deviationLimit;
         uint24 feeToCashbackRatio;
         uint24 baseFee;
         uint24 managementFee;
@@ -512,7 +516,7 @@ contract Multipool is
         external
         onlyOwner
     {
-        deviationLimit = params.deviationLimit;
+        deviationLimit = uint16(params.deviationLimit);
 
         bytes32 _slot;
         _slot = setBits(_slot, bytes32(uint(uint160(params.oracleAddress))), 0, 160);
@@ -526,6 +530,18 @@ contract Multipool is
         lpFeeReceiver = params.lpFeeReceiver;
 
         // TODO
-        emit FeesChange();
+        //emit FeesChange();
+    }
+
+    function claimLpFees(address to) external returns (uint fee) {
+        if (msg.sender != lpFeeReceiver) revert NotLpFeeReceiver();
+        fee = collectedLpFee;
+        payable(to).transfer(fee);
+    }
+
+    function claimManagementFees(address to) external returns (uint fee) {
+        if (msg.sender != managementFeeReceiver) revert NotManagementFeeReceiver();
+        fee = collectedManagementFee;
+        payable(to).transfer(fee);
     }
 }

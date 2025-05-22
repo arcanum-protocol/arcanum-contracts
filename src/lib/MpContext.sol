@@ -33,6 +33,7 @@ function packMpAsset(MpAsset memory a) pure returns (bytes32 b) {
 struct Fees {
     uint refund;
     uint managerEarnedFee;
+    uint lpEarnedFee;
     uint oracleEarnedFee;
 }
 
@@ -56,6 +57,11 @@ struct MpContext {
     uint collectedLpFee;
 
     address oracleAddress;
+
+   // uint managerEarnedFee;
+   // uint oracleEarnedFee;
+   // uint lpEarnedFee;
+   // uint refund;
 }
 
 using {ContextMath.calculateDeviationFee, ContextMath.applyCollected, ContextMath.estimateFees} for MpContext global;
@@ -112,7 +118,8 @@ library ContextMath {
 
         uint totalEarnedFees = ctx.collectedFees + collectedBaseFees;
         fees.managerEarnedFee = totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
-        fees.oracleEarnedFee = totalEarnedFees - fees.managerEarnedFee;
+        fees.lpEarnedFee = totalEarnedFees * ctx.lpBaseFee >> FixedPoint32.RESOLUTION;
+        fees.oracleEarnedFee = totalEarnedFees - fees.managerEarnedFee - fees.lpEarnedFee;
     }
 
     function calculateDeviationFee(
