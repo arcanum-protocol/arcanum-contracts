@@ -6,6 +6,7 @@ import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool} from "../../src/multipool/Multipool.sol";
+import {Farm} from "../../src/farm/Farm.sol";
 import {MultipoolFactory, MultipoolCreationParams} from "../../src/multipool/Factory.sol";
 import {
     MultipoolRouter,
@@ -30,11 +31,12 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
     receive() external payable {}
 
     function test_HappyPathDeployMPViaRouter() public {
+        Farm farm = new Farm();
         MultipoolFactory f = new MultipoolFactory{salt: keccak256("Factory")}();
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy{salt: keccak256("FactoryProxy")}(
             address(f),
-            abi.encodeWithSignature("initialize(address,address)", address(this), address(mpImpl))
+            abi.encodeWithSignature("initialize(address,address,address)", address(this), address(mpImpl), address(farm))
         );
         f = MultipoolFactory(address(proxy));
         // f.initialize(owner, address(mpImpl));
@@ -104,11 +106,12 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
     }
 
     function test_HappyPathSwapViaRouter() public {
+        Farm farm = new Farm();
         MultipoolFactory f = new MultipoolFactory{salt: keccak256("Factory")}();
         Multipool mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy{salt: keccak256("FactoryProxy")}(
             address(f),
-            abi.encodeWithSignature("initialize(address,address)", address(this), address(mpImpl))
+            abi.encodeWithSignature("initialize(address,address,address)", address(this), address(mpImpl), address(farm))
         );
         f = MultipoolFactory(address(proxy));
         vm.prank(owner);
@@ -195,7 +198,7 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
         Call[] memory preSwapCalls = new Call[](1);
         preSwapCalls[0] = c;
         Call[] memory afterSwapCalls = new Call[](0);
-
+        console2.log("here");
         vm.prank(user0);
         r.swap{value: 1e10}(newPool, sa, preSwapCalls, afterSwapCalls);
     }

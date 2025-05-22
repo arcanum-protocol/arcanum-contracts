@@ -8,6 +8,7 @@ import {MockERC20, MockERC20WithDecimals} from "../src/mocks/erc20.sol";
 import {Oracle} from "../src/multipool/Oracle.sol";
 import {MultipoolFactory, MultipoolCreationParams} from "../src/multipool/Factory.sol";
 import {Trader} from "../src/trader/Trader.sol";
+import {Farm} from "../src/farm/Farm.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {
     toX96,
@@ -156,8 +157,11 @@ contract Deploy is Script {
             sqrtPriceLimitX96: 0
         });
         {
-            f.initialize(deployerPublicKey, address(mpImpl));
+            {{
+                Farm farmImpl = new Farm();
 
+            f.initialize(deployerPublicKey, address(mpImpl), address(farmImpl));
+            }}
             MultipoolCreationParams memory params = MultipoolCreationParams({
                 name: "MpSepolia",
                 symbol: "MPS",

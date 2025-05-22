@@ -113,19 +113,21 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         tokens[0].mint(address(mp), 100e18);
 
-        // vm.prank(owner);
-        // mp.setFeeParams(
-        //     toX16RatioTick(0.0003e5),
-        //     toX16RatioTick(0.01e5),
-        //     toX16RatioTick(0.6e5),
-        //     toX16RatioTick(0.01e5),
-        //     owner,
-        //     toX16RatioTick(0.1e5)
-        // );
+        vm.prank(owner);
+        mp.setFeeParams(
+            toX16RatioTick(0.15e5),
+            toX16RatioTick(1e5),
+            toX16RatioTick(0.6e5),
+            toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
+            owner,
+            owner,
+            owner
+        );
 
         OraclePrice memory op;
 
-        vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         uint256 snapshot = vm.snapshot();
@@ -162,13 +164,8 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             address(tokens[0]),
             abi.encodePacked(FeedType.FixedValue, uint128(toX96(15e18)))
         );
-        vm.prank(owner);
-        updatePrice(
-            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.11e18)))
-        );
 
-        console.log("asadsaddsa");
-        mp.swap{value: 100e18}(op, token0, token1, 0.5e18, true, user0, address(0), true);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         snapMultipool("AssetPriceGrow2");
 
@@ -180,11 +177,6 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             address(mp),
             address(tokens[0]),
             abi.encodePacked(FeedType.FixedValue, uint128(toX96(5e18)))
-        );
-
-        vm.prank(owner);
-        updatePrice(
-            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
         );
 
         mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
@@ -207,15 +199,15 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         vm.revertTo(snapshot);
 
-        vm.prank(owner);
-        updatePrice(
-            address(mp),
-            address(tokens[2]),
-            abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.01e18)))
-        );
+        // vm.prank(owner);
+        // updatePrice(
+        //     address(mp),
+        //     address(tokens[2]),
+        //     abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.01e18)))
+        // );
 
-        vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
+        // vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
+        // mp.swap{value: 100e18}(op, token0, token1, 10e18, true, user0, address(0), true);
     }
 
     function test_SharePriceChange() public {

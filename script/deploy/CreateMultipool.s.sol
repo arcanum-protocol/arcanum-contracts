@@ -78,9 +78,9 @@ contract Deploy is Script {
         {
             tokensAddresses[0] = address(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A);
             tokensAddresses[1] = address(0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714);
-            tokensAddresses[2] = address(0xE0590015A873bF326bd645c3E1266d4db41C4E6B);
-            tokensAddresses[3] = address(0xfe140e1dCe99Be9F4F15d657CD9b7BF622270C50);
-            tokensAddresses[4] = address(0xaEef2f6B429Cb59C9B2D7bB2141ADa993E8571c3);
+            // tokensAddresses[2] = address(0xE0590015A873bF326bd645c3E1266d4db41C4E6B);
+            // tokensAddresses[3] = address(0xfe140e1dCe99Be9F4F15d657CD9b7BF622270C50);
+            // tokensAddresses[4] = address(0xaEef2f6B429Cb59C9B2D7bB2141ADa993E8571c3);
             // for (uint i = 0; i < tokensAddresses.length; i++) {
             //     for (uint y = 0; y < tokensAddresses.length; y++) {
             //         if (tokensAddresses[i] == tokensAddresses[y]) {
@@ -119,8 +119,8 @@ contract Deploy is Script {
             //     }
             // }
 
-            // s[0] = 10;
-            // s[1] = 10;
+            s[0] = 10;
+            s[1] = 10;
             // s[2] = 10;
             // s[3] = 10;
             // s[4] = 10;
@@ -183,7 +183,7 @@ contract Deploy is Script {
             //     priceData: prices,
             //     targetShares: s,
             //     initialLiquidityAsset: address(0),
-            //     nonce: 11,
+            //     nonce: 12,
             //     owner: deployerPublicKey,
             //     protocolFeeReceiver: deployerPublicKey
             // });

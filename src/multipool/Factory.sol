@@ -7,6 +7,7 @@ import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {Multipool, IERC20, OraclePrice} from "./Multipool.sol";
+import {Farm} from "../farm/Farm.sol";
 
 struct MultipoolCreationParams {
     string name;
@@ -35,15 +36,17 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         _disableInitializers();
     }
 
-    function initialize(address owner, address implementation) public initializer {
+    function initialize(address owner, address implementation, address farmImpl) public initializer {
         __Ownable_init();
         transferOwnership(owner);
         implementationAddress = implementation;
+        farmImplementationAddress = farmImpl;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     address public implementationAddress;
+    address public farmImplementationAddress;
 
     event MultipoolCreated(
         address indexed multipoolAddress,
@@ -55,6 +58,10 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
+    }
+
+    function updateFarmImplementationAddress(address newFarmImplementationAddress) external onlyOwner {
+        farmImplementationAddress = newFarmImplementationAddress;
     }
 
     ///@dev it's important to remember: if this function is used with no initial liquidity
@@ -89,7 +96,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
                 address(mp),
                 IERC20(params.initialLiquidityAsset).balanceOf(address(mp)),
                 true,
-                address(0),
+                params.owner,
                 params.owner,
                 true
             );
@@ -108,5 +115,12 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         );
 
         mp.transferOwnership(params.owner);
+
+        ERC1967Proxy farmProxy = new ERC1967Proxy{
+            salt: keccak256(abi.encodePacked(address(this), address(mp)))
+        }(address(farmImplementationAddress), "");
+
+        Farm farm = Farm(payable(address(farmProxy)));
+        farm.initialize(params.owner, address(mp));
     }
 }

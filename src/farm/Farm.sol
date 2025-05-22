@@ -1,230 +1,180 @@
-// // SPDX-License-Identifier: GPL-3.0
-// pragma solidity ^0.8.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.0;
 
-// import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-// import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-// import {FarmingMath, PoolInfo, UserInfo} from "../lib/Farm.sol";
-// import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
-// import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
-// import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
-// import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
+import {UserInfo, PoolInfo, FarmingMath} from "../lib/Farm.sol";
+import {Multipool} from "../multipool/Multipool.sol";
+import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
+import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
 
-// /// @custom:security-contact badconfig@arcanum.to
-// contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
-//     using SafeERC20 for IERC20;
-//     using FarmingMath for PoolInfo;
+/// @custom:security-contact badconfig@arcanum.to
+contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
+    using SafeERC20 for IERC20;
+    using FarmingMath for PoolInfo;
 
-//     constructor() {
-//         _disableInitializers();
-//     }
+    constructor() {
+        _disableInitializers();
+    }
 
-//     function initialize(address owner) public initializer {
-//         __ReentrancyGuard_init();
-//         __Ownable_init();
-//         transferOwnership(owner);
-//     }
-// //     - Ферма в идеале одна на чейн
-// // - Ферма в идеале умеет максимально дешево на ресив
-// принимать токены от юзеров, либо же придется делать
-// разными адресами, чтоб работать с address(this).balance и знать
-// что все деньги на ее адресе - ее, но я думаю вариант 1 норм
-// // - У фермы как и сейчас есть маппинг в котором есть
-// адрес мультипула -> адрес юзера -> депозит и реворд дебт (или че там еще нам нужно сохранить)
-// // - Овнер решает сколько денег пойдет в реварды а сколько
-// пойдет ему в корман, овнер определяется делая запрос к тому, кто овнер мультипула
-// // - Есть второй токен который тоже дается как реворд опционально - это наш протокольный токен.
-// // Можно теоретически сделать чтоб в ферму можно было как в массив добавлять разные эти токены,
-// // или просто дать овнеру возможность включать 3й
-// кастомынй токен (чисто юзлес фича пришла в голову).
-// // Но самое важное что второй токен точно должен быть,
-// его  должны настраивать как-то мы, полагаю лучше всего это делать так,
-// // чтоб мы настраивали сколько токенов в секунду (как овнеры контракта)
-// // - Ферма в идеале умеет максимально дешево на ресив принимать токены от юзеров, либо же придется делать разными адресами, чтоб работать с address(this).balance и знать что все деньги на ее адресе - ее, но я думаю вариант 1 норм
-// // - У фермы как и сейчас есть маппинг в котором есть адрес мультипула -> адрес юзера -> депозит и реворд дебт (или че там еще нам нужно сохранить) 
-// // - Овнер решает сколько денег пойдет в реварды а сколько пойдет ему в корман, овнер определяется делая запрос к тому, кто овнер мультипула
-// // - Есть второй токен который тоже дается как реворд опционально - это наш протокольный токен. 
-// // Можно теоретически сделать чтоб в ферму можно было как в массив добавлять разные эти токены, 
-// // или просто дать овнеру возможность включать 3й кастомынй токен (чисто юзлес фича пришла в голову). 
-// // Но самое важное что второй токен точно должен быть, его  должны настраивать как-то мы, полагаю лучше всего это делать так, 
-// // чтоб мы настраивали сколько токенов в секунду (как овнеры контракта) 
-// // а депать сами токены мог любой адрес пермишнлесс (но это явно будем мы)
+    function initialize(address owner, address _protocolToken) public initializer {
+        __ReentrancyGuard_init();
+        __Ownable_init();
+        transferOwnership(owner);
+        protocolToken = _protocolToken;
+    }
 
-//     // multipool => info
-//     mapping(address => PoolInfo) private poolInfo;
-//     // multipool => userAddress => info
-//     mapping(address => mapping(address => UserInfo)) private userInfo;
-//     uint public poolNumber;
-//     bool public isPaused;
+    receive() external payable nonReentrant {}
 
-//     error IsPaused();
-//     error CantCompound();
+//     - Ферма в идеале одна на чейн
+// - Ферма в идеале умеет максимально дешево на ресив принимать токены от юзеров, либо же придется делать разными адресами, чтоб работать с address(this).balance и знать что все деньги на ее адресе - ее, но я думаю вариант 1 норм
+// - У фермы как и сейчас есть маппинг в котором есть адрес мультипула -> адрес юзера -> депозит и реворд дебт (или че там еще нам нужно сохранить) 
+// - Овнер решает сколько денег пойдет в реварды а сколько пойдет ему в корман, овнер определяется делая запрос к тому, кто овнер мультипула
+// - Есть второй токен который тоже дается как реворд опционально - это наш протокольный токен. 
+// Можно теоретически сделать чтоб в ферму можно было как в массив добавлять разные эти токены, 
+// или просто дать овнеру возможность включать 3й кастомынй токен (чисто юзлес фича пришла в голову). 
+// Но самое важное что второй токен точно должен быть, его  должны настраивать как-то мы, полагаю лучше всего это делать так, 
+// чтоб мы настраивали сколько токенов в секунду (как овнеры контракта) 
+// а депать сами токены мог любой адрес пермишнлесс (но это явно будем мы)
 
-//     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
-//     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
-//     event PauseChange(bool isPaused);
+    // poolAddress => info
+    mapping(address => PoolInfo) private poolInfo;
+    // poolAddress => userAddress => info
+    mapping(address => mapping(address => UserInfo)) private userInfo;
+    bool public isPaused;
+    address public protocolToken;
 
-//     modifier notPaused() {
-//         if (isPaused) revert IsPaused();
-//         _;
-//     }
 
-//     function getUser(
-//         uint poolId,
-//         address userAddress
-//     )
-//         external
-//         view
-//         returns (UserInfo memory user)
-//     {
-//         user = userInfo[poolId][userAddress];
-//     }
+    error IsPaused();
+    error CantCompound();
 
-//     function getPool(uint poolId) external view returns (PoolInfo memory pool) {
-//         pool = poolInfo[poolId];
-//     }
+    event Deposit(address indexed user, address indexed pool, uint256 amount);
+    event Withdraw(address indexed user, address indexed pool, uint256 amount);
+    event PauseChange(bool isPaused);
 
-//     function availableRewards(
-//         uint poolId,
-//         address userAddress
-//     )
-//         external
-//         view
-//         returns (uint reward, uint reward2)
-//     {
-//         PoolInfo memory pool = poolInfo[poolId];
-//         UserInfo memory user = userInfo[poolId][userAddress];
-//         (reward, reward2) = pool.updateRewards(user, block.timestamp);
-//     }
+    modifier notPaused() {
+        if (isPaused) revert IsPaused();
+        _;
+    }
 
-//     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function getUser(
+        address multipool,
+        address userAddress
+    )
+        external
+        view
+        returns (UserInfo memory user)
+    {
+        user = userInfo[multipool][userAddress];
+    }
 
-//     function deposit(
-//         uint256 poolId,
-//         uint256 depositAmount,
-//         bool compoundRewards
-//     )
-//         external
-//         notPaused
-//         nonReentrant
-//     {
-//         PoolInfo memory pool = poolInfo[poolId];
-//         UserInfo memory user = userInfo[poolId][msg.sender];
+    function getPool(
+        address multipool
+    )
+        external
+        view
+        returns (PoolInfo memory pool)
+    {
+        pool = poolInfo[multipool];
+    }
 
-//         if (depositAmount > 0) {
-//             IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
-//         }
+    // TODO possibly modifies the state
 
-//         (uint rewards, uint rewards2) = pool.deposit(user, block.timestamp, depositAmount);
+    // function availableRewards(
+    //     address poolAddress,
+    //     address userAddress
+    // )
+    //     public
+    //     view
+    //     returns (uint reward, uint rewardProtocol)
+    // {
+    //     PoolInfo memory pool = poolInfo[poolAddress];
+    //     UserInfo memory user = userInfo[poolAddress][userAddress];
+    //     uint newRewards = Multipool(pool.multipoolAddress).claimLpFees(address(this));
+    //     (reward, rewardProtocol) = pool.updateRewards(user, block.timestamp, newRewards);
+    // }
 
-//         if (rewards > 0) {
-//             if (!compoundRewards) {
-//                 IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
-//             } else if (pool.lockAsset == pool.rewardAsset) {
-//                 pool.deposit(user, block.timestamp, rewards);
-//             } else {
-//                 revert CantCompound();
-//             }
-//         }
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-//         if (rewards2 > 0) {
-//             IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
-//         }
+    function deposit(
+        address poolAddress,
+        uint256 depositAmount
+    )
+        external
+        notPaused
+        nonReentrant
+    {
+        PoolInfo memory pool = poolInfo[poolAddress];
+        UserInfo memory user = userInfo[poolAddress][msg.sender];
 
-//         poolInfo[poolId] = pool;
-//         userInfo[poolId][msg.sender] = user;
+        if (depositAmount > 0) {
+            IERC20(pool.multipoolAddress).safeTransferFrom(msg.sender, address(this), depositAmount);
+        }
+        uint newRewards = Multipool(pool.multipoolAddress).claimLpFees(address(this));
+        (uint reward, uint protocolReward) = pool.deposit(user, block.timestamp, depositAmount, newRewards);
 
-//         emit Deposit(msg.sender, poolId, depositAmount);
-//     }
+        payable(msg.sender).transfer(reward);
 
-//     function withdraw(
-//         uint256 poolId,
-//         uint256 withdrawAmount,
-//         bool compoundRewards
-//     )
-//         external
-//         payable
-//         notPaused
-//         nonReentrant
-//     {
-//         PoolInfo memory pool = poolInfo[poolId];
-//         UserInfo memory user = userInfo[poolId][msg.sender];
+        if (protocolReward > 0) {
+            IERC20(protocolToken).safeTransfer(msg.sender, protocolReward);
+        }
 
-//         (uint rewards, uint rewards2) = pool.withdraw(user, block.timestamp, withdrawAmount);
+        poolInfo[poolAddress] = pool;
+        userInfo[poolAddress][msg.sender] = user;
 
-//         if (rewards > 0) {
-//             if (!compoundRewards) {
-//                 IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
-//             } else if (pool.lockAsset == pool.rewardAsset) {
-//                 pool.deposit(user, block.timestamp, rewards);
-//             } else {
-//                 revert CantCompound();
-//             }
-//         }
+        emit Deposit(msg.sender, poolAddress, depositAmount);
+    }
 
-//         if (rewards2 > 0) {
-//             IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
-//         }
+    function withdraw(
+        address poolAddress,
+        uint256 withdrawAmount
+    )
+        external
+        payable
+        notPaused
+        nonReentrant
+    {
+        PoolInfo memory pool = poolInfo[poolAddress];
+        UserInfo memory user = userInfo[poolAddress][msg.sender];
 
-//         if (withdrawAmount > 0) {
-//             IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
-//         }
+        uint newRewards = Multipool(pool.multipoolAddress).claimLpFees(address(this));
+        (uint reward, uint protocolReward) = pool.withdraw(user, block.timestamp, withdrawAmount, newRewards);
 
-//         poolInfo[poolId] = pool;
-//         userInfo[poolId][msg.sender] = user;
+        payable(msg.sender).transfer(reward);
 
-//         emit Withdraw(msg.sender, poolId, withdrawAmount);
-//     }
+        if (protocolReward > 0) {
+            IERC20(protocolToken).safeTransfer(msg.sender, protocolReward);
+        }
 
-//     function updateDistribution(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
-//         PoolInfo memory pool = poolInfo[poolId];
+        if (withdrawAmount > 0) {
+            IERC20(pool.multipoolAddress).safeTransfer(msg.sender, withdrawAmount);
+        }
 
-//         pool.updateDistribution(block.timestamp, rewardsDelta, newRpb);
+        poolInfo[poolAddress] = pool;
+        userInfo[poolAddress][msg.sender] = user;
 
-//         if (rewardsDelta >= 0) {
-//             IERC20(pool.rewardAsset).safeTransferFrom(msg.sender, address(this),
-// uint(rewardsDelta));
-//         } else {
-//             IERC20(pool.rewardAsset).safeTransfer(msg.sender, uint(-rewardsDelta));
-//         }
+        emit Withdraw(msg.sender, poolAddress, withdrawAmount);
+    }
 
-//         poolInfo[poolId] = pool;
-//     }
+    function updateDistribution(address poolAddress, int rewardsDelta, uint newRpb) external onlyOwner {
+        PoolInfo memory pool = poolInfo[poolAddress];
 
-//     function updateDistribution2(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
-//         PoolInfo memory pool = poolInfo[poolId];
+        pool.updateDistribution(block.timestamp, rewardsDelta, newRpb);
 
-//         pool.updateDistribution2(block.timestamp, rewardsDelta, newRpb);
+        if (rewardsDelta >= 0) {
+            IERC20(protocolToken).safeTransferFrom(msg.sender, address(this), uint(rewardsDelta));
+        } else {
+            IERC20(protocolToken).safeTransfer(msg.sender, uint(-rewardsDelta));
+        }
 
-//         if (rewardsDelta >= 0) {
-//             IERC20(pool.rewardAsset2).safeTransferFrom(
-//                 msg.sender, address(this), uint(rewardsDelta)
-//             );
-//         } else {
-//             IERC20(pool.rewardAsset2).safeTransfer(msg.sender, uint(-rewardsDelta));
-//         }
+        poolInfo[poolAddress] = pool;
+    }
 
-//         poolInfo[poolId] = pool;
-//     }
-
-//     function addPool(
-//         address lockAsset,
-//         address rewardAsset,
-//         address rewardAsset2
-//     )
-//         external
-//         onlyOwner
-//     {
-//         PoolInfo memory pool;
-//         pool.lockAsset = lockAsset;
-//         pool.rewardAsset = rewardAsset;
-//         pool.rewardAsset2 = rewardAsset2;
-//         poolInfo[poolNumber] = pool;
-//         poolNumber += 1;
-//     }
-
-//     function togglePause() external onlyOwner {
-//         isPaused = !isPaused;
-//         emit PauseChange(isPaused);
-//     }
-// }
+    function togglePause() external onlyOwner {
+        isPaused = !isPaused;
+        emit PauseChange(isPaused);
+    }
+}

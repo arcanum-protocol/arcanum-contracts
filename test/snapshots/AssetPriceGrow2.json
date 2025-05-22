@@ -1,0 +1,88 @@
+{
+  "multipool": {
+    "baseFee": "858993",
+    "cashbackFeeShare": "103079215",
+    "collectedLpFee": "262063849801322",
+    "collectedManagementFee": "262063849801322",
+    "deviationIncreaseFee": "25769803",
+    "deviationLimit": "4294967296",
+    "managementFeeRecepientAddress": "0xc5f490E2e433D3DC0E8f9aA55e5e9E29822E310E",
+    "oracleAddress": "0xc5f490E2e433D3DC0E8f9aA55e5e9E29822E310E",
+    "totalSupply": "15750000000000000000000",
+    "totalTargetShares": "5000"
+  },
+  "tokens": {
+    "token0": {
+      "collectedCashbacks": "7919999753516166",
+      "quantity": "402000000000000000000",
+      "targetShare": "1000"
+    },
+    "token1": {
+      "collectedCashbacks": "7919999753516166",
+      "quantity": "294500000000000000000",
+      "targetShare": "1000"
+    },
+    "token2": {
+      "collectedCashbacks": "0",
+      "quantity": "400000000000000000000",
+      "targetShare": "1000"
+    },
+    "token3": {
+      "collectedCashbacks": "0",
+      "quantity": "300000000000000000000",
+      "targetShare": "1000"
+    },
+    "token4": {
+      "collectedCashbacks": "0",
+      "quantity": "300000000000000000000",
+      "targetShare": "1000"
+    }
+  },
+  "users": {
+    "multipool": {
+      "ETH balance": "199345864152961429459",
+      "share balance": "0",
+      "token0 balance": "500000000000000000000",
+      "token1 balance": "294500000000000000000",
+      "token2 balance": "400000000000000000000",
+      "token3 balance": "300000000000000000000",
+      "token4 balance": "300000000000000000000"
+    },
+    "user0": {
+      "ETH balance": "100000000000000000000",
+      "share balance": "0",
+      "token0 balance": "100000000000000000000",
+      "token1 balance": "105500000000000000000",
+      "token2 balance": "100000000000000000000",
+      "token3 balance": "100000000000000000000",
+      "token4 balance": "100000000000000000000"
+    },
+    "user1": {
+      "ETH balance": "100000000000000000000",
+      "share balance": "0",
+      "token0 balance": "100000000000000000000",
+      "token1 balance": "100000000000000000000",
+      "token2 balance": "100000000000000000000",
+      "token3 balance": "100000000000000000000",
+      "token4 balance": "100000000000000000000"
+    },
+    "user2": {
+      "ETH balance": "100000000000000000000",
+      "share balance": "0",
+      "token0 balance": "100000000000000000000",
+      "token1 balance": "100000000000000000000",
+      "token2 balance": "100000000000000000000",
+      "token3 balance": "100000000000000000000",
+      "token4 balance": "100000000000000000000"
+    },
+    "user3": {
+      "ETH balance": "100000000000000000000",
+      "share balance": "0",
+      "token0 balance": "100000000000000000000",
+      "token1 balance": "100000000000000000000",
+      "token2 balance": "100000000000000000000",
+      "token3 balance": "100000000000000000000",
+      "token4 balance": "100000000000000000000"
+    }
+  }
+}

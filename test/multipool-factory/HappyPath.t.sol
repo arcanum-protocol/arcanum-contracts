@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import "../../src/lib/MpContext.sol";
+import {Farm} from "../../src/farm/Farm.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {Multipool} from "../../src/multipool/Multipool.sol";
 import {MultipoolFactory, MultipoolCreationParams} from "../../src/multipool/Factory.sol";
@@ -24,6 +25,8 @@ contract MultipoolCoreDeviationTests is Test {
     address bob;
 
     function setUp() public {
+        Farm farm = new Farm();
+
         (owner, ownerPk) = makeAddrAndKey("Factory owner");
         (bob,) = makeAddrAndKey("Factory worker");
         vm.startPrank(owner);
@@ -32,7 +35,7 @@ contract MultipoolCoreDeviationTests is Test {
         MultipoolFactory factoryImplementation = new MultipoolFactory();
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(factoryImplementation),
-            abi.encodeWithSignature("initialize(address,address)", address(owner), mpImpl)
+            abi.encodeWithSignature("initialize(address,address,address)", address(owner), mpImpl, address(farm))
         );
         factory = MultipoolFactory(address(proxy));
         vm.stopPrank();

@@ -47,24 +47,14 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         uint newPrice = toX96(10e18);
         uint quoteSum = 10e18;
         uint val = (quoteSum << 96) / newPrice;
-        console.log("val   ", val);
 
         changePrice(address(tokens[0]), newPrice);
         tokens[0].mint(address(mp), val);
 
-        vm.prank(owner);
-        updatePrice(
-            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
-        );
-        // SharePriceParams memory sp;
-        // sp.ts = uint128(block.timestamp);
-        // sp.value = uint128(toX96(0.1e18));
-        // sp.send = true;
-        // 100.000000000000000000
-        // 7,922,816,351.323433762029153469
         mp.increaseCashback{value: 1}(address(0));
 
         OraclePrice memory op;
+        console2.log("val   ", val);
 
         mp.swap{value: 0.2e18}(op, address(token0), address(mp), val, true, user0, address(0), false);
 

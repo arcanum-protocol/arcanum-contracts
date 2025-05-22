@@ -33,10 +33,13 @@ contract DeployTestEnv is Script {
             salt = keccak256(abi.encode("chipi daba", 1));
             MultipoolFactory factoryImpl = new MultipoolFactory{salt: salt}();
             console.log("factory impl", address(factoryImpl));
+            salt = keccak256(abi.encode("chipi daba du", 1));
+            Farm farmImpl = new Farm{salt: salt}();
+            console.log("farm impl", address(farmImpl));
             salt = keccak256(abi.encode("chipi chipi", 1));
             ERC1967Proxy factoryProxy = new ERC1967Proxy{salt: salt}(address(factoryImpl), "");
             MultipoolFactory factory = MultipoolFactory(address(factoryProxy));
-            factory.initialize(deployer, address(mpImpl));
+            factory.initialize(deployer, address(mpImpl), address(farmImpl));
             console.log("factory ", address(factory));
         }
 

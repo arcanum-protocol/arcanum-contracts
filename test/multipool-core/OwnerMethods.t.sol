@@ -30,26 +30,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         mp.swap{value: uint128(toX96(0.1e18))}(
             oraclePrice, address(tokens[0]), address(mp), val, true, user0, address(0), true
         );
-        // swapExt(
-        //     sort(
-        //         dynamic(
-        //             [
-        //                 AssetArgs({assetAddress: address(tokens[0]), amount: int(val)}),
-        //                 AssetArgs({
-        //                     assetAddress: address(mp),
-        //                     amount: -int((quoteSum << 96) / toX96(0.1e18))
-        //                 })
-        //             ]
-        //         )
-        //     ),
-        //     100e18,
-        //     users[0],
-        //     sp,
-        //     users[3],
-        //     true,
-        //     false,
-        //     abi.encode(0)
-        // );
+
 
         snapMultipool("MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt1");
 
@@ -66,29 +47,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt3");
 
         vm.prank(users[0]);
-        mp.transfer(address(mp), (quoteSum << 96) / toX96(0.1e18) / 2);
+        mp.transfer(address(mp), 10000);
 
-        mp.swap{value: 1e13}(oraclePrice, address(mp), address(tokens[0]), 10000, true, user2, address(0), false);
-        // swapExt(
-        //     sort(
-        //         dynamic(
-        //             [
-        //                 AssetArgs({assetAddress: address(tokens[0]), amount: -int(10000)}),
-        //                 AssetArgs({
-        //                     assetAddress: address(mp),
-        //                     amount: int((quoteSum << 96) / toX96(0.1e18) / 2)
-        //                 })
-        //             ]
-        //         )
-        //     ),
-        //     100e18,
-        //     users[2],
-        //     sp,
-        //     users[2],
-        //     true,
-        //     false,
-        //     abi.encode(0)
-        // );
+        mp.swap{value: 1e17}(oraclePrice, address(mp), address(tokens[0]), 10000, true, user2, address(0), false);
 
         snapMultipool("MakeDeviationAndCollectFeesThenAddCashbackAndCollectIt4");
     }
