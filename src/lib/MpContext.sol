@@ -45,11 +45,16 @@ struct MpContext {
     uint deviationLimit;
     uint feeToCashbackRatio;
     uint baseFee;
+    uint lpBaseFee;
     uint managementBaseFee;
+
     uint deviationFees;
     uint collectedCashbacks;
     uint collectedFees;
-    address managementFeeRecepient;
+
+    uint collectedManagementFee;
+    uint collectedLpFee;
+
     address oracleAddress;
 }
 

@@ -8,7 +8,7 @@ import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {MpAsset, unpackMpAsset, packMpAsset, MpContext, Fees} from "../lib/MpContext.sol";
-import {getBits} from "../lib/Binary.sol";
+import {getBits, setBits} from "../lib/Binary.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint.sol";
 
@@ -22,7 +22,6 @@ import {OraclePrice} from "../types/OraclePrice.sol";
 import {ReceiverData} from "../types/ReceiverData.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
@@ -37,7 +36,6 @@ contract Multipool is
     IMultipool,
     Initializable,
     ERC20Upgradeable,
-    ERC20PermitUpgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable
 {
@@ -45,20 +43,25 @@ contract Multipool is
     using {PriceMath.getPrice} for bytes32;
 
     // Slot 354
-    uint16 internal deviationIncreaseFee;
-    uint16 internal deviationLimit;
-    uint16 internal feeToCashbackRatio;
-    uint16 internal baseFee;
-    address internal managementFeeRecepient;
-    uint16 internal managementFee;
-    uint16 internal totalTargetShares;
+    //address internal oracleAddress;
+    //uint19 internal deviationIncreaseFee;
+    //uint19 internal feeToCashbackRatio;
+    //uint20 internal baseFee;
+    //uint19 internal lpFee;
+    //uint19 internal managementFee;
+    bytes32 internal slot1;
+
 
     // Slot 355
-    address internal oracleAddress;
-    uint96 internal initialSharePrice;
+    uint112 internal collectedLpFee;
+    uint112 internal collectedManagementFee;
+    uint16 internal totalTargetShares;
+    uint16 internal deviationLimit;
+
 
     // Slot 356
-    address public strategyManager;
+    address public managementFeeReceiver;
+    address public lpFeeReceiver;
 
     mapping(address => bytes32) internal assets;
     mapping(address => bytes32) internal prices;
@@ -71,19 +74,17 @@ contract Multipool is
     function initialize(
         string memory name,
         string memory symbol,
-        address _oracleAddress,
-        uint96 _sharePrice
+        address _oracleAddress
     )
         public
         initializer
     {
         __ERC20_init(name, symbol);
-        __ERC20Permit_init(name);
         __Ownable_init();
-        oracleAddress = _oracleAddress;
-        initialSharePrice = _sharePrice;
+        // Set oracle address
+        slot1 = setBits(slot1, bytes32(uint(_oracleAddress)), 0, 160);
         emit PriceOracleChange(address(0), _oracleAddress);
-        emit PoolCreated(_sharePrice);
+        emit PoolCreated();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -156,8 +157,16 @@ contract Multipool is
         asset = unpackMpAsset(assets[assetAddress]);
     }
 
-    function expandToX64(uint16 val) internal pure returns (uint res) {
-        res = uint(val) * (5 << 32) / 1e5;
+    function expandFrom20(uint val) internal pure returns (uint res) {
+        res = val * (1 << 32) / 1e6;
+    }
+
+    function expandFrom19(uint val) internal pure returns (uint res) {
+        res = val * (2 << 32) / 1e6;
+    }
+
+    function expandFrom16(uint val) internal pure returns (uint res) {
+        res = val * (5 << 32) / 1e5;
     }
 
     /// @notice Assembles context for swappping
@@ -172,16 +181,12 @@ contract Multipool is
     {
         uint _totalSupply = totalSupply();
 
-        uint16 _deviationIncreaseFee = deviationIncreaseFee;
-        uint16 _deviationLimit = deviationLimit;
-        uint16 _feeToCashbackRatio = feeToCashbackRatio;
-        uint16 _baseFee = baseFee;
-        address _managementFeeRecepient = managementFeeRecepient;
-        uint16 _managementFee = managementFee;
-        uint16 _totalTargetShares = totalTargetShares;
+        bytes32 _slot = slot1;
 
-        address _oracleAddress = oracleAddress;
-        uint96 _initialSharePrice = initialSharePrice;
+        uint112 _collectedLpFee = collectedLpFee;
+        uint112 _collectedManagementFee = collectedManagementFee;
+        uint16 _totalTargetShares = totalTargetShares;
+        uint16 _deviationLimit = deviationLimit;
 
         uint price;
         if (oraclePrice.contractAddress == address(this)) {
@@ -189,7 +194,8 @@ contract Multipool is
         } else {
             // We move initial share price by 64 as it's x32 and prices should be x96
             if (_totalSupply == 0) {
-                price = uint(_initialSharePrice) << 64;
+                // initial share price is 1 native token
+                price = uint(1 << 96);
             } else {
                 // TODO: check if this method's unchecked actually is legit
                 bytes32 sharePriceSlot = prices[address(this)];
@@ -202,14 +208,15 @@ contract Multipool is
         ctx.totalTargetShares = _totalTargetShares;
         ctx.sharePrice = price;
         ctx.oldTotalSupply = _totalSupply;
-        ctx.deviationIncreaseFee = expandToX64(_deviationIncreaseFee);
-        ctx.deviationLimit = expandToX64(_deviationLimit);
-        ctx.feeToCashbackRatio = expandToX64(_feeToCashbackRatio);
-        ctx.baseFee = expandToX64(_baseFee);
-        ctx.managementBaseFee = expandToX64(_managementFee);
+        ctx.deviationLimit = expandFrom16(_deviationLimit);
 
-        ctx.managementFeeRecepient = _managementFeeRecepient;
-        ctx.oracleAddress = _oracleAddress;
+        ctx.oracleAddress = address(uint160(getBits(_slot, 0, 160)));
+        ctx.deviationIncreaseFee = expandFrom19(getBits(_slot, 160, 19));
+        ctx.feeToCashbackRatio = expandFrom19(getBits(_slot, 179, 19));
+        ctx.baseFee = expandFrom20(getBits(_slot, 198, 20));
+        ctx.lpBaseFee = expandFrom19(getBits(_slot, 218, 19));
+        ctx.managementBaseFee = expandFrom19(getBits(_slot, 237, 19));
+
     }
 
     /// @notice Proceeses asset transfer
@@ -440,99 +447,85 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolManagerMethods
-    function updatePrices(
-        address[] calldata assetAddresses,
-        bytes32[] calldata priceData
-    )
-        external
-        override
-        onlyOwner
-    {
-        uint len = assetAddresses.length;
-        for (uint i; i < len;) {
-            address assetAddress = assetAddresses[i];
-            bytes32 _priceData = priceData[i];
-            prices[assetAddress] = _priceData;
-            emit PriceFeedChange(assetAddress, _priceData);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @inheritdoc IMultipoolManagerMethods
-    function updateTargetShares(
-        address[] calldata assetAddresses,
+    function updateAssets(
+        address[] calldata priceAssetAddresses,
+        bytes32[] calldata priceData,
+        address[] calldata targetShareAssetAddresses,
         uint16[] calldata targetShares
     )
         external
-        override
-    {
-        if (strategyManager != msg.sender && owner() != msg.sender) {
-            revert InvalidTargetShareAuthority();
-        }
-
-        uint len = assetAddresses.length;
-        uint16 totalTargetSharesCached = totalTargetShares;
-        for (uint a; a < len;) {
-            address assetAddress = assetAddresses[a];
-            uint16 targetShare = targetShares[a];
-            MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
-            totalTargetSharesCached =
-                totalTargetSharesCached - uint16(asset.targetShare) + targetShare;
-            asset.targetShare = uint16(targetShare);
-            if (!asset.isUsed) {
-                usedAssets.push(assetAddress);
-                asset.isUsed = true;
-            }
-            assets[assetAddress] = packMpAsset(asset);
-            emit TargetShareChange(assetAddress, targetShare, totalTargetSharesCached);
-            unchecked {
-                ++a;
-            }
-        }
-        totalTargetShares = totalTargetSharesCached;
-    }
-
-    /// @inheritdoc IMultipoolManagerMethods
-    function setFeeParams(
-        uint16 newDeviationIncreaseFee,
-        uint16 newDeviationLimit,
-        uint16 newFeeToCashbackRatio,
-        uint16 newBaseFee,
-        address newManagementFeeRecepient,
-        uint16 newManagementFee
-    )
-        external
-        override
         onlyOwner
     {
-        deviationIncreaseFee = newDeviationIncreaseFee;
-        deviationLimit = newDeviationLimit;
-        feeToCashbackRatio = newFeeToCashbackRatio;
-        baseFee = newBaseFee;
-        managementFeeRecepient = newManagementFeeRecepient;
-        managementFee = newManagementFee;
+        uint len = priceAssetAddresses.length;
+        if (len) {
+            for (uint i; i < len;) {
+                address assetAddress = priceAssetAddresses[i];
+                bytes32 _priceData = priceData[i];
+                prices[assetAddress] = _priceData;
+                emit PriceFeedChange(assetAddress, _priceData);
+                unchecked {
+                    ++i;
+                }
+            }
+        }
 
-        emit FeesChange(
-            newDeviationIncreaseFee,
-            newDeviationLimit,
-            newFeeToCashbackRatio,
-            newBaseFee,
-            newManagementFee,
-            newManagementFeeRecepient
-        );
+        len = targetShareAssetAddresses.length;
+        if (len) {
+            uint16 totalTargetSharesCached = totalTargetShares;
+            for (uint a; a < len;) {
+                address assetAddress = targetShareAssetAddresses[a];
+                uint16 targetShare = targetShares[a];
+                MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
+                totalTargetSharesCached =
+                    totalTargetSharesCached - uint16(asset.targetShare) + targetShare;
+                asset.targetShare = uint16(targetShare);
+                if (!asset.isUsed) {
+                    usedAssets.push(assetAddress);
+                    asset.isUsed = true;
+                }
+                assets[assetAddress] = packMpAsset(asset);
+                emit TargetShareChange(assetAddress, targetShare, totalTargetSharesCached);
+                unchecked {
+                    ++a;
+                }
+            }
+            totalTargetShares = totalTargetSharesCached;
+        }
     }
 
-    /// @inheritdoc IMultipoolManagerMethods
-    function updateStrategyManager(address newStrategyManager) external override onlyOwner {
-        emit StrategyManagerChange(strategyManager, newStrategyManager);
-        strategyManager = newStrategyManager;
+    struct FeeParams {
+        uint24 deviationIncreaseFee;
+        uint24 deviationLimit;
+        uint24 feeToCashbackRatio;
+        uint24 baseFee;
+        uint24 managementFee;
+        uint24 lpFee;
+
+        address managementFeeReceiver;
+        address lpFeeReceiver;
+        address oracleAddress;
     }
 
-    /// @inheritdoc IMultipoolManagerMethods
-    function updateOracleAddress(address _oracleAddress) external override onlyOwner {
-        emit PriceOracleChange(oracleAddress, _oracleAddress);
-        oracleAddress = _oracleAddress;
+    function setFeeParams(
+        FeeParams calldata params
+    )
+        external
+        onlyOwner
+    {
+        deviationLimit = params.deviationLimit;
+
+        bytes32 _slot;
+        _slot = setBits(_slot, bytes32(uint(uint160(params.oracleAddress))), 0, 160);
+        _slot = setBits(_slot, bytes32(uint(params.deviationIncreaseFee)), 160, 19);
+        _slot = setBits(_slot, bytes32(uint(params.feeToCashbackRatio)), 179, 19);
+        _slot = setBits(_slot, bytes32(uint(params.baseFee)), 198, 20);
+        _slot = setBits(_slot, bytes32(uint(params.lpFee)), 218, 19);
+        _slot = setBits(_slot, bytes32(uint(params.managementFee)), 237, 19);
+
+        managementFeeReceiver = params.managementFeeReceiver;
+        lpFeeReceiver = params.lpFeeReceiver;
+
+        // TODO
+        emit FeesChange();
     }
 }
