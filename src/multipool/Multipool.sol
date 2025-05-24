@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-import {MpAsset, unpackMpAsset, packMpAsset, MpContext, Fees} from "../lib/MpContext.sol";
+import {MpAsset, MpOutcome, unpackMpAsset, packMpAsset, MpContext} from "../lib/MpContext.sol";
 import {getBits, setBits} from "../lib/Binary.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint.sol";
@@ -73,18 +73,13 @@ contract Multipool is
 
     function initialize(
         string memory name,
-        string memory symbol,
-        address _oracleAddress
+        string memory symbol
     )
         public
         initializer
     {
         __ERC20_init(name, symbol);
         __Ownable_init();
-        // Set oracle address
-        slot1 = setBits(slot1, bytes32(uint(uint160(_oracleAddress))), 0, 160);
-        emit PriceOracleChange(address(0), _oracleAddress);
-        //emit PoolCreated();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -169,26 +164,11 @@ contract Multipool is
         res = val * (5 << 32) / 1e5;
     }
 
-    /// @notice Assembles context for swappping
-    /// @param oraclePrice signed multipool price related data
-    /// @return ctx state memory context used across swapping
-    /// @dev tries to apply signed share price if provided address matches otherwhise ignores
-    /// struct
-    function getContext(OraclePrice calldata oraclePrice)
+    function getSharePrice(OraclePrice calldata oraclePrice, uint _totalSupply)
         public
         view
-        returns (MpContext memory ctx)
+        returns (uint price)
     {
-        uint _totalSupply = totalSupply();
-
-        bytes32 _slot = slot1;
-
-        uint112 _collectedLpFee = collectedLpFee;
-        uint112 _collectedManagementFee = collectedManagementFee;
-        uint16 _totalTargetShares = totalTargetShares;
-        uint16 _deviationLimit = deviationLimit;
-
-        uint price;
         if (oraclePrice.contractAddress == address(this)) {
             price = oraclePrice.sharePrice;
         } else {
@@ -204,10 +184,28 @@ contract Multipool is
                     : sharePriceSlot.getPrice();
             }
         }
+    }
+
+    /// @notice Assembles context for swappping
+    /// @return ctx state memory context used across swapping
+    /// @dev tries to apply signed share price if provided address matches otherwhise ignores
+    /// struct
+    function getContext()
+        public
+        view
+        returns (MpContext memory ctx)
+    {
+        uint _totalSupply = totalSupply();
+
+        bytes32 _slot = slot1;
+
+        uint112 _collectedLpFee = collectedLpFee;
+        uint112 _collectedManagementFee = collectedManagementFee;
+        uint16 _totalTargetShares = totalTargetShares;
+        uint16 _deviationLimit = deviationLimit;
 
         ctx.totalTargetShares = _totalTargetShares;
-        ctx.sharePrice = price;
-        ctx.oldTotalSupply = _totalSupply;
+        ctx.totalSupply = _totalSupply;
         ctx.deviationLimit = expandFrom16(_deviationLimit);
 
         ctx.oracleAddress = address(uint160(getBits(_slot, 0, 160)));
@@ -265,63 +263,58 @@ contract Multipool is
             }
         }
     }
-    function estimate_swap(
+
+    function estimateSwap(
         OraclePrice calldata oraclePrice,
         address assetInAddress,
         address assetOutAddress,
         uint swapAmount,
         bool isExactInput
     )
-        external
+        internal
         view
-        returns (uint amountIn, uint amountOut, uint fees, uint cashbacks)
+        returns (
+            MpAsset memory assetIn,
+            uint priceIn,
+            MpAsset memory assetOut,
+            uint priceOut,
+            MpContext memory ctx,
+            uint sharePrice,
+            MpOutcome memory r
+        )
     {
         if (swapAmount == 0) revert ZeroAmountSupplied();
         if (assetOutAddress == assetInAddress) revert AssetsAreSame();
 
-        MpContext memory ctx = getContext(oraclePrice);
-        MpAsset memory assetIn;
-        MpAsset memory assetOut;
-        Prices memory price;
+        ctx = getContext();
+        sharePrice = getSharePrice(oraclePrice, ctx.totalSupply);
 
-        price.priceIn =
-            assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
-        price.priceOut =
-            assetOutAddress == address(this) ? ctx.sharePrice : prices[assetOutAddress].getPrice();
+        if (assetOutAddress != address(this)) {
+            assetOut = unpackMpAsset(assets[assetOutAddress]);
+            priceOut = prices[assetOutAddress].getPrice();
+        }
 
-        {
-            {
-                if (assetInAddress == address(this)) {
-                    assetOut = unpackMpAsset(assets[assetOutAddress]);
-                } else if (assetOutAddress == address(this)) {
-                    assetIn = unpackMpAsset(assets[assetInAddress]);
-                } else {
-                    assetIn = unpackMpAsset(assets[assetInAddress]);
-                    assetOut = unpackMpAsset(assets[assetOutAddress]);
-                }
+        if (assetInAddress != address(this)) {
+            assetIn = unpackMpAsset(assets[assetInAddress]);
+            priceIn = prices[assetInAddress].getPrice();
+        }
 
-                (amountIn, amountOut) = isExactInput
-                    ? (swapAmount, swapAmount * price.priceIn / price.priceOut)
-                    : (swapAmount * price.priceOut / price.priceIn, swapAmount);
+        if (assetInAddress == address(this)) {
+            r = ctx.calculateBurn(
+                assetOut, swapAmount,
+                isExactInput, priceOut, sharePrice
+            );
 
-                if (assetInAddress == address(this)) {
-                    ctx.totalSupplyDelta = -int(amountIn);
-                } else if (assetOutAddress == address(this)) {
-                    ctx.totalSupplyDelta = int(amountOut);
-                }
-
-                if (assetInAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetIn, int(amountIn), price.priceIn);
-                }
-                if (assetOutAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetOut, -int(amountOut), price.priceOut);
-                }
-
-                (fees, cashbacks) = ctx.estimateFees(
-                    swapAmount * (isExactInput ? price.priceIn : price.priceOut)
-                        >> FixedPoint96.RESOLUTION
-                );
-            }
+        } else if (assetOutAddress == address(this)) {
+            r = ctx.calculateMint(
+                 assetIn, swapAmount,
+                isExactInput, priceIn, sharePrice
+            );
+        } else {
+            r = ctx.calculateSwap(
+                assetIn, assetOut, swapAmount,
+                isExactInput, priceIn, priceOut, sharePrice
+            );
         }
     }
 
@@ -332,101 +325,64 @@ contract Multipool is
         address assetOutAddress,
         uint swapAmount,
         bool isExactInput,
-        ReceiverData calldata data
+        address receiverAddress,
+        address refundAddress,
+        bool refundEthToReceiver
     )
         external
         payable
         override
         returns (uint amountIn, uint amountOut)
     {
-        if (swapAmount == 0) revert ZeroAmountSupplied();
-        if (assetOutAddress == assetInAddress) revert AssetsAreSame();
+        (
+            MpAsset memory assetIn,
+            uint priceIn,
+            MpAsset memory assetOut,
+            uint priceOut,
+            MpContext memory ctx,
+            , // sharePrice
+            MpOutcome memory r
+        ) = estimateSwap(oraclePrice, assetInAddress, assetOutAddress, swapAmount, isExactInput);
 
-        MpContext memory ctx = getContext(oraclePrice);
-        MpAsset memory assetIn;
-        MpAsset memory assetOut;
-        Prices memory price;
-
-        price.priceIn =
-            assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
-        price.priceOut =
-            assetOutAddress == address(this) ? ctx.sharePrice : prices[assetOutAddress].getPrice();
-
-        Fees memory fees;
-
-        {
-            {
-                if (assetInAddress == address(this)) {
-                    assetOut = unpackMpAsset(assets[assetOutAddress]);
-                } else if (assetOutAddress == address(this)) {
-                    assetIn = unpackMpAsset(assets[assetInAddress]);
-                } else {
-                    assetIn = unpackMpAsset(assets[assetInAddress]);
-                    assetOut = unpackMpAsset(assets[assetOutAddress]);
-                }
-
-                (amountIn, amountOut) = isExactInput
-                    ? (swapAmount, swapAmount * price.priceIn / price.priceOut)
-                    : (swapAmount * price.priceOut / price.priceIn, swapAmount);
-
-                if (assetInAddress == address(this)) {
-                    ctx.totalSupplyDelta = -int(amountIn);
-                } else if (assetOutAddress == address(this)) {
-                    ctx.totalSupplyDelta = int(amountOut);
-                }
-
-                receiveAsset(assetIn, assetInAddress, amountIn, data.refundAddress);
-                transferAsset(assetOutAddress, amountOut, data.receiverAddress);
-
-                if (assetInAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetIn, int(amountIn), price.priceIn);
-                }
-                if (assetOutAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetOut, -int(amountOut), price.priceOut);
-                }
-
-                if (assetInAddress == address(this)) {
-                    assets[assetOutAddress] = packMpAsset(assetOut);
-                    emit AssetChange(assetInAddress, uint128(totalSupply()), 0);
-                    emit AssetChange(
-                        assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
-                    );
-                } else if (assetOutAddress == address(this)) {
-                    assets[assetInAddress] = packMpAsset(assetIn);
-                    emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-                    emit AssetChange(assetOutAddress, uint128(totalSupply()), 0);
-                } else {
-                    assets[assetInAddress] = packMpAsset(assetIn);
-                    assets[assetOutAddress] = packMpAsset(assetOut);
-                    emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-                    emit AssetChange(
-                        assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
-                    );
-                }
-                fees = ctx.applyCollected(
-                    swapAmount * (isExactInput ? price.priceIn : price.priceOut)
-                        >> FixedPoint96.RESOLUTION,
-                    msg.value
-                );
-            }
+        if (assetInAddress == address(this)) {
+            assets[assetOutAddress] = packMpAsset(assetOut);
+            emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
+            emit AssetChange(assetInAddress, uint128(ctx.totalSupply - r.amountOut), 0);
+        } else if (assetOutAddress == address(this)) {
+            assets[assetInAddress] = packMpAsset(assetIn);
+            emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+            emit AssetChange(assetOutAddress, uint128(ctx.totalSupply + r.amountOut), 0);
+        } else {
+            assets[assetInAddress] = packMpAsset(assetIn);
+            assets[assetOutAddress] = packMpAsset(assetOut);
+            emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
+            emit AssetChange(assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks);
         }
 
-        if (fees.refund > 0) {
-            payable(data.refundEthToReceiver ? data.receiverAddress : msg.sender).transfer(
-                fees.refund
+        receiveAsset(assetIn, assetInAddress, r.amountIn, refundAddress);
+        transferAsset(assetOutAddress, r.amountOut, receiverAddress);
+
+        if (msg.value + r.cashbacksRefund < (r.lpEarnedFee + ctx.collectedLpFee + r.oracleEarnedFee)) revert FeeExceeded();
+
+        //TODO: переписать нахуй чтоб лишний раз не отправлялось а уменьшало необходимое велью
+        // точно есть несостыковки как минимум с рефандом эфира в целом
+        if (r.cashbacksRefund > 0) {
+            payable(refundEthToReceiver ? receiverAddress : msg.sender).transfer(
+                r.cashbacksRefund
             );
         }
+
         if (oraclePrice.contractAddress == address(this))  {
-            collectedLpFee = uint112(fees.lpEarnedFee + ctx.collectedLpFee);
-            collectedManagementFee = uint112(fees.managerEarnedFee + ctx.collectedManagementFee);
-            IArcanumOracle(ctx.oracleAddress).commitPrice{value: fees.oracleEarnedFee}(oraclePrice);
+            collectedLpFee = uint112(r.lpEarnedFee + ctx.collectedLpFee);
+            collectedManagementFee = uint112(r.managerEarnedFee + ctx.collectedManagementFee);
+            IArcanumOracle(ctx.oracleAddress).commitPrice{value: r.oracleEarnedFee}(oraclePrice);
         } else if (ctx.oracleAddress != address(0)) {
-            collectedLpFee = uint112(fees.lpEarnedFee + ctx.collectedLpFee);
-            collectedManagementFee = uint112(fees.managerEarnedFee + ctx.collectedManagementFee);
-            payable(ctx.oracleAddress).transfer(fees.oracleEarnedFee);
+            collectedLpFee = uint112(r.lpEarnedFee + ctx.collectedLpFee);
+            collectedManagementFee = uint112(r.managerEarnedFee + ctx.collectedManagementFee);
+            payable(ctx.oracleAddress).transfer(r.oracleEarnedFee);
         } else {
-            collectedLpFee = uint112(fees.lpEarnedFee + ctx.collectedLpFee + fees.oracleEarnedFee);
-            collectedManagementFee = uint112(fees.managerEarnedFee + ctx.collectedManagementFee);
+            collectedLpFee = uint112(r.lpEarnedFee + ctx.collectedLpFee + r.oracleEarnedFee);
+            collectedManagementFee = uint112(r.managerEarnedFee + ctx.collectedManagementFee);
         }
         emit Swap(
             msg.sender,
@@ -434,10 +390,10 @@ contract Multipool is
             assetOutAddress,
             amountIn,
             amountOut,
-            price.priceIn,
-            price.priceOut,
-            fees.managerEarnedFee,
-            fees.oracleEarnedFee
+            priceIn,
+            priceOut,
+            r.managerEarnedFee,
+            r.oracleEarnedFee
         );
     }
 
@@ -450,7 +406,6 @@ contract Multipool is
         assets[assetAddress] = packMpAsset(asset);
     }
 
-    /// @inheritdoc IMultipoolManagerMethods
     function updateAssets(
         address[] calldata priceAssetAddresses,
         bytes32[] calldata priceData,

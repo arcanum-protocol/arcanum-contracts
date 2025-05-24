@@ -59,7 +59,7 @@ struct MpOutcome {
    uint amountOut;
 }
 
-using {ContextMath.calculateMintFees, ContextMath.calculateBurnFees, ContextMath.calculateSwapFees} for MpContext global;
+using {ContextMath.calculateMint, ContextMath.calculateBurn, ContextMath.calculateSwap} for MpContext global;
 
 library ContextMath {
     function subAbs(uint a, uint b) internal pure returns (uint c) {
@@ -162,7 +162,7 @@ library ContextMath {
         }
     }
 
-    function calculateSwapFees(
+    function calculateSwap(
         MpContext memory ctx,
         MpAsset memory assetIn,
         MpAsset memory assetOut,
@@ -272,7 +272,7 @@ library ContextMath {
         distributeFees(ctx, r, totalEarnedFees, refund);
     }
 
-    function calculateMintFees(
+    function calculateMint(
         MpContext memory ctx,
         MpAsset memory assetIn,
         uint swapAmount,
@@ -344,7 +344,7 @@ library ContextMath {
         distributeFees(ctx, r, totalEarnedFees, refund);
     }
 
-    function calculateBurnFees(
+    function calculateBurn(
         MpContext memory ctx,
         MpAsset memory assetOut,
         uint swapAmount,

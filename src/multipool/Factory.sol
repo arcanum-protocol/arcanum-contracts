@@ -12,15 +12,7 @@ import {ReceiverData} from "../types/ReceiverData.sol";
 struct MultipoolCreationParams {
     string name;
     string symbol;
-    uint96 initialSharePrice;
-    uint16 deviationIncreaseFee;
-    uint16 deviationLimit;
-    uint16 feeToCashbackRatio;
-    uint16 baseFee;
-    address managementFeeRecepient;
-    uint16 managementFee;
-    address oracleAddress;
-    address strategyManager;
+    Multipool.FeeParams fee;
     address[] assetAddresses;
     bytes32[] priceData;
     uint16[] targetShares;
@@ -67,18 +59,14 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
         }(address(_implementationAddress), "");
         emit MultipoolCreated(address(proxy), params.protocolFeeReceiver, msg.value, params.name, params.symbol);
 
-        if (params.strategyManager != address(0)) {
-            payable(params.protocolFeeReceiver).transfer(msg.value);
-        }
-
         mp = Multipool(address(proxy));
-        mp.initialize(params.name, params.symbol, params.oracleAddress, params.initialSharePrice);
-        mp.updateTargetShares(params.assetAddresses, params.targetShares);
-        mp.updatePrices(params.assetAddresses, params.priceData);
-
-        if (params.strategyManager != address(0)) {
-            mp.updateStrategyManager(params.strategyManager);
-        }
+        mp.initialize(params.name, params.symbol);
+        mp.updateAssets(
+            params.assetAddresses,
+            params.priceData,
+            params.assetAddresses,
+            params.targetShares
+        );
 
         if (params.initialLiquidityAsset != address(0)) {
             // Not needed for initial mint, so it's empty
@@ -98,14 +86,7 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
             );
         }
 
-        mp.setFeeParams(
-            params.deviationIncreaseFee,
-            params.deviationLimit,
-            params.feeToCashbackRatio,
-            params.baseFee,
-            params.managementFeeRecepient,
-            params.managementFee
-        );
+        mp.setFeeParams(params.fee);
 
         mp.transferOwnership(params.owner);
     }

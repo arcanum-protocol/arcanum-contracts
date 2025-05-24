@@ -30,8 +30,6 @@ interface IMultipoolMethods {
     /// @param assetOutAddress Asset that is received from pool
     /// @param isExactInput if true - swap amount is specified as amount in, if false - as amount
     /// out
-    /// @param data Arguments with return data
-    /// `receiverAddress`, else, `msg.sender` will be used
     /// @dev This is a low level method that works via direct token transfer on contract and method
     /// execution. Should be used in other contracts only
     /// Fees are charged in native token equivalend via transferring them before invocation or in
@@ -42,7 +40,9 @@ interface IMultipoolMethods {
         address assetOutAddress,
         uint swapAmount,
         bool isExactInput,
-        ReceiverData calldata data
+        address receiverAddress,
+        address refundAddress,
+        bool refundEthToReceiver
     )
         external
         payable
