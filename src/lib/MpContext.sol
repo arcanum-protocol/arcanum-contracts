@@ -30,18 +30,10 @@ function packMpAsset(MpAsset memory a) pure returns (bytes32 b) {
     b = setBits(b, bytes32(uint(a.collectedCashbacks)), 144, 112);
 }
 
-struct Fees {
-    uint refund;
-    uint managerEarnedFee;
-    uint lpEarnedFee;
-    uint oracleEarnedFee;
-}
-
 struct MpContext {
-    uint sharePrice;
-    uint oldTotalSupply;
-    int totalSupplyDelta;
+    uint totalSupply;
     uint totalTargetShares;
+
     uint deviationIncreaseFee;
     uint deviationLimit;
     uint feeToCashbackRatio;
@@ -50,126 +42,375 @@ struct MpContext {
     uint managementBaseFee;
 
     uint deviationFees;
-    uint collectedCashbacks;
-    uint collectedFees;
 
     uint collectedManagementFee;
     uint collectedLpFee;
 
     address oracleAddress;
-
-   // uint managerEarnedFee;
-   // uint oracleEarnedFee;
-   // uint lpEarnedFee;
-   // uint refund;
 }
 
-using {ContextMath.calculateDeviationFee, ContextMath.applyCollected, ContextMath.estimateFees} for MpContext global;
+struct MpOutcome {
+   uint managerEarnedFee;
+   uint oracleEarnedFee;
+   uint lpEarnedFee;
+   uint cashbacksRefund;
+
+   uint amountIn;
+   uint amountOut;
+}
+
+using {ContextMath.calculateMintFees, ContextMath.calculateBurnFees, ContextMath.calculateSwapFees} for MpContext global;
 
 library ContextMath {
     function subAbs(uint a, uint b) internal pure returns (uint c) {
-        c = a > b ? a - b : b - a;
+        unchecked {
+            c = a > b ? a - b : b - a;
+        }
     }
 
-    function pos(int a) internal pure returns (uint b) {
-        b = a > 0 ? uint(a) : uint(-a);
+    function cashback(
+        uint dOld,
+        uint dNew,
+        uint collectedCb
+    )
+        internal
+        pure
+        returns (uint c)
+    {
+        //TODO: is it safe?
+        unchecked {
+            if (dOld == 0) return collectedCb;
+            c = (dOld - dNew) * collectedCb / dOld;
+        }
     }
 
-    function addDelta(uint a, int b) internal pure returns (uint c) {
-        if (b > 0) {
-            c = a + uint(b);
-        } else if (a >= uint(-b)) {
-            c = a - uint(-b);
+    function mul32(uint a, uint b)
+        internal
+        pure
+        returns (uint c)
+    {
+        //TODO: is it safe?
+        unchecked {
+            c = (a * b) >> 32;
+        }
+    }
+
+    function div32(uint a, uint b)
+        internal
+        pure
+        returns (uint c)
+    {
+        //TODO: is it safe?
+        unchecked {
+            c = (a << 32) / b;
+        }
+    }
+
+    function mul96(uint a, uint b)
+        internal
+        pure
+        returns (uint c)
+    {
+        //TODO: is it safe?
+        unchecked {
+            c = (a * b) >> 96;
+        }
+    }
+
+    function div96(uint a, uint b)
+        internal
+        pure
+        returns (uint c)
+    {
+        //TODO: is it safe?
+        unchecked {
+            c = (a << 96) / b;
+        }
+    }
+
+    function distributeFees(
+        MpContext memory ctx,
+        MpOutcome memory r,
+        uint totalEarnedFees,
+        uint refund
+    )
+        internal
+        pure
+    {
+           uint managerEarnedFee = mul32(totalEarnedFees, ctx.managementBaseFee);
+           uint lpEarnedFee = mul32(totalEarnedFees, ctx.lpBaseFee);
+           r.oracleEarnedFee = totalEarnedFees - managerEarnedFee - lpEarnedFee;
+           r.managerEarnedFee = managerEarnedFee;
+           r.lpEarnedFee = lpEarnedFee;
+           r.cashbacksRefund = refund;
+    }
+
+    function deviation(
+        uint quantity,
+        uint price,
+        uint tvl,
+        uint targetShare
+    )
+        internal
+        pure
+        returns (uint d)
+    {
+        //TODO: is it safe?
+        unchecked {
+            if (tvl == 0) return 0;
+            d = subAbs((quantity * price << FixedPoint32.RESOLUTION) / tvl, targetShare);
+        }
+    }
+
+    function calculateSwapFees(
+        MpContext memory ctx,
+        MpAsset memory assetIn,
+        MpAsset memory assetOut,
+        uint swapAmount,
+        bool isExactInput,
+        uint priceIn,
+        uint priceOut,
+        uint sharePrice
+    )
+        internal
+        pure
+        returns (MpOutcome memory r)
+    {
+        if (assetIn.targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
+
+        uint quoteDelta;
+        uint amountIn;
+        uint amountOut;
+
+        if (isExactInput) {
+            quoteDelta = mul96(swapAmount, priceIn);
+            amountIn = swapAmount;
+            amountOut = div96(quoteDelta, priceOut);
+
         } else {
-            revert IMultipoolErrors.NotEnoughQuantityToBurn();
+            quoteDelta = mul96(swapAmount, priceOut);
+            amountIn = div96(quoteDelta, priceIn);
+            amountOut = swapAmount;
         }
+
+        uint newQuantityIn = assetIn.quantity + amountIn;
+        uint newQuantityOut = assetOut.quantity - amountOut;
+
+        r.amountIn = amountIn;
+        r.amountOut = amountOut;
+
+        assetIn.quantity = uint128(newQuantityIn);
+        assetOut.quantity = uint128(newQuantityOut);
+
+        uint totalEarnedFees = mul32(quoteDelta, ctx.baseFee);
+
+        uint tvl = ctx.totalSupply * sharePrice;
+        if (tvl == 0 || (ctx.deviationIncreaseFee == 0 && ctx.deviationLimit == 0)) {
+            distributeFees(ctx, r, totalEarnedFees, 0);
+            return r;
+        }
+
+        uint dNewIn;
+        uint dNewOut;
+        uint dOldIn;
+        uint dOldOut;
+
+        {{
+            uint targetShareIn = div32(uint(assetIn.targetShare), ctx.totalTargetShares);
+            dOldIn = deviation(assetIn.quantity, priceIn, tvl, targetShareIn);
+            dNewIn = deviation(newQuantityIn, priceIn, tvl, targetShareIn);
+        }}
+
+        {{
+            uint targetShareOut = div32(uint(assetOut.targetShare), ctx.totalTargetShares);
+            dOldOut = deviation(assetOut.quantity, priceOut, tvl, targetShareOut);
+            dNewOut = deviation(newQuantityOut, priceOut, tvl, targetShareOut);
+        }}
+
+        uint refund;
+
+        if (dNewIn > dOldIn && dNewOut > dOldOut) {
+            if (ctx.deviationLimit < dNewIn || ctx.deviationLimit < dNewOut) revert IMultipoolErrors.DeviationExceedsLimit();
+
+            uint fullDeviationFee = mul32(ctx.deviationIncreaseFee, quoteDelta);
+            uint collectedCashback = mul32(fullDeviationFee, ctx.feeToCashbackRatio);
+
+            //TODO: is this safe?
+            unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback) * 2; }
+            assetIn.collectedCashbacks += uint112(collectedCashback);
+            assetOut.collectedCashbacks += uint112(collectedCashback);
+        } else {
+            if (dNewIn > dOldIn) {
+                if (ctx.deviationLimit < dNewIn) revert IMultipoolErrors.DeviationExceedsLimit();
+
+                uint fullDeviationFee = mul32(ctx.deviationIncreaseFee, quoteDelta);
+                uint collectedCashback = mul32(fullDeviationFee, ctx.feeToCashbackRatio);
+
+                //TODO: is this safe?
+                unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback); }
+                assetIn.collectedCashbacks += uint112(collectedCashback);
+            } else {
+                uint cb = cashback(dOldIn, dNewIn, assetIn.collectedCashbacks);
+                refund += cb;
+                assetIn.collectedCashbacks -= uint112(cb);
+            }
+            if (dNewOut > dOldOut) {
+                if (ctx.deviationLimit < dNewOut) revert IMultipoolErrors.DeviationExceedsLimit();
+
+                uint fullDeviationFee = mul32(ctx.deviationIncreaseFee, quoteDelta);
+                uint collectedCashback = mul32(fullDeviationFee, ctx.feeToCashbackRatio);
+
+                unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback); }
+                assetIn.collectedCashbacks += uint112(collectedCashback);
+            } else {
+                uint cb = cashback(dOldOut, dNewOut, assetOut.collectedCashbacks);
+                refund += cb;
+                assetIn.collectedCashbacks -= uint112(cb);
+            }
+        }
+
+        distributeFees(ctx, r, totalEarnedFees, refund);
     }
 
-    function estimateFees(
+    function calculateMintFees(
         MpContext memory ctx,
-        uint quoteTradeValue
+        MpAsset memory assetIn,
+        uint swapAmount,
+        bool isExactInput,
+        uint priceIn,
+        uint sharePrice
     )
         internal
         pure
-        returns (uint fees, uint cashbacks)
+        returns (MpOutcome memory r)
     {
-        uint collectedBaseFees = (quoteTradeValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
-        cashbacks = ctx.collectedCashbacks;
-        fees = ctx.collectedFees + collectedBaseFees;
+        if (assetIn.targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
+
+        uint quoteDelta;
+        uint amountIn;
+        uint amountOut;
+
+        if (isExactInput) {
+            quoteDelta = mul96(swapAmount, priceIn);
+            amountIn = swapAmount;
+            amountOut = div96(quoteDelta, sharePrice);
+
+        } else {
+            quoteDelta = mul96(swapAmount, sharePrice);
+            amountIn = div96(quoteDelta, priceIn);
+            amountOut = swapAmount;
+        }
+
+        uint newQuantityIn = assetIn.quantity + amountIn;
+        assetIn.quantity = uint128(newQuantityIn);
+
+        r.amountIn = amountIn;
+        r.amountOut = amountOut;
+
+        uint totalEarnedFees = mul32(quoteDelta, ctx.baseFee);
+
+        uint tvl = ctx.totalSupply * sharePrice;
+        if (tvl == 0 || (ctx.deviationIncreaseFee == 0 && ctx.deviationLimit == 0)) {
+            distributeFees(ctx, r, totalEarnedFees, 0);
+            return r;
+        }
+
+        uint dNewIn;
+        uint dOldIn;
+
+        {{
+            uint targetShareIn = div32(uint(assetIn.targetShare), ctx.totalTargetShares);
+            dOldIn = deviation(assetIn.quantity, priceIn, tvl, targetShareIn);
+            dNewIn = deviation(newQuantityIn, priceIn, tvl + quoteDelta, targetShareIn);
+        }}
+
+        uint refund;
+
+        if (dNewIn > dOldIn) {
+            if (ctx.deviationLimit < dNewIn) revert IMultipoolErrors.DeviationExceedsLimit();
+
+            uint fullDeviationFee = mul32(ctx.deviationIncreaseFee, quoteDelta);
+            uint collectedCashback = mul32(fullDeviationFee, ctx.feeToCashbackRatio);
+
+            //TODO: is this safe?
+            unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback); }
+            assetIn.collectedCashbacks += uint112(collectedCashback);
+        } else {
+            uint cb = cashback(dOldIn, dNewIn, assetIn.collectedCashbacks);
+            refund += cb;
+            assetIn.collectedCashbacks -= uint112(cb);
+        }
+
+        distributeFees(ctx, r, totalEarnedFees, refund);
     }
 
-    function applyCollected(
+    function calculateBurnFees(
         MpContext memory ctx,
-        uint quoteTradeValue,
-        uint ethDeposit
+        MpAsset memory assetOut,
+        uint swapAmount,
+        bool isExactInput,
+        uint priceOut,
+        uint sharePrice
     )
         internal
         pure
-        returns (Fees memory fees)
+        returns (MpOutcome memory r)
     {
-        uint collectedBaseFees = (quoteTradeValue * ctx.baseFee) >> FixedPoint32.RESOLUTION;
+        uint quoteDelta;
+        uint amountIn;
+        uint amountOut;
 
-        fees.refund = collectedBaseFees + ctx.deviationFees + ctx.collectedFees;
+        if (isExactInput) {
+            quoteDelta = mul96(swapAmount, sharePrice);
+            amountIn = swapAmount;
+            amountOut = div96(quoteDelta, priceOut);
 
-        if (fees.refund > ctx.collectedCashbacks + ethDeposit) {
-            revert IMultipoolErrors.FeeExceeded();
+        } else {
+            quoteDelta = mul96(swapAmount, priceOut);
+            amountIn = div96(quoteDelta, sharePrice);
+            amountOut = swapAmount;
         }
-        fees.refund = ctx.collectedCashbacks + ethDeposit - fees.refund;
 
-        uint totalEarnedFees = ctx.collectedFees + collectedBaseFees;
-        fees.managerEarnedFee = totalEarnedFees * ctx.managementBaseFee >> FixedPoint32.RESOLUTION;
-        fees.lpEarnedFee = totalEarnedFees * ctx.lpBaseFee >> FixedPoint32.RESOLUTION;
-        fees.oracleEarnedFee = totalEarnedFees - fees.managerEarnedFee - fees.lpEarnedFee;
-    }
+        uint newQuantityOut = assetOut.quantity + amountIn;
+        assetOut.quantity = uint128(newQuantityOut);
 
-    function calculateDeviationFee(
-        MpContext memory ctx,
-        MpAsset memory asset,
-        int quantityDelta,
-        uint price
-    )
-        internal
-        pure
-    {
-        uint newQuantity = addDelta(asset.quantity, quantityDelta);
-        uint newTotalSupply = addDelta(ctx.oldTotalSupply, ctx.totalSupplyDelta);
-        uint targetShare =
-            (uint(asset.targetShare) << FixedPoint32.RESOLUTION) / ctx.totalTargetShares;
+        r.amountIn = amountIn;
+        r.amountOut = amountOut;
 
-        uint dOld = ctx.oldTotalSupply == 0
-            ? 0
-            : subAbs(
-                (uint(asset.quantity) * price << FixedPoint32.RESOLUTION) / ctx.oldTotalSupply
-                    / ctx.sharePrice,
-                targetShare
-            );
-        uint dNew = newTotalSupply == 0
-            ? 0
-            : subAbs(
-                (newQuantity * price << FixedPoint32.RESOLUTION) / newTotalSupply / ctx.sharePrice,
-                targetShare
-            );
-        uint quotedDelta = (pos(quantityDelta) * price) >> FixedPoint96.RESOLUTION;
+        uint totalEarnedFees = mul32(quoteDelta, ctx.baseFee);
 
-        if (dNew > dOld && ctx.oldTotalSupply != 0) {
-            if (targetShare == 0) revert IMultipoolErrors.TargetShareIsZero();
-            if (!(ctx.deviationLimit >= dNew)) revert IMultipoolErrors.DeviationExceedsLimit();
-            uint fullDeviationFee =
-                (ctx.deviationIncreaseFee * quotedDelta) >> FixedPoint32.RESOLUTION;
-            uint collectedFees =
-                (fullDeviationFee * ctx.feeToCashbackRatio) >> FixedPoint32.RESOLUTION;
-
-            asset.collectedCashbacks += uint112(fullDeviationFee - collectedFees);
-            ctx.collectedFees = collectedFees;
-            ctx.deviationFees = fullDeviationFee - collectedFees;
-        } else if (dNew <= dOld) {
-            uint cashback = dOld == 0
-                ? asset.collectedCashbacks
-                : (dOld - dNew) * asset.collectedCashbacks / dOld;
-
-            ctx.collectedCashbacks += cashback;
-            asset.collectedCashbacks -= uint112(cashback);
+        uint tvl = ctx.totalSupply * sharePrice;
+        if (tvl == 0 || (ctx.deviationIncreaseFee == 0 && ctx.deviationLimit == 0)) {
+            distributeFees(ctx, r, totalEarnedFees, 0);
+            return r;
         }
-        asset.quantity = uint128(newQuantity);
+
+        uint dNewOut;
+        uint dOldOut;
+
+        {{
+            uint targetShareIn = div32(uint(assetOut.targetShare), ctx.totalTargetShares);
+            dOldOut = deviation(assetOut.quantity, priceOut, tvl, targetShareIn);
+            dNewOut = deviation(newQuantityOut, priceOut, tvl - quoteDelta, targetShareIn);
+        }}
+
+        uint refund;
+
+        if (dNewOut > dOldOut) {
+            if (ctx.deviationLimit < dNewOut) revert IMultipoolErrors.DeviationExceedsLimit();
+
+            uint fullDeviationFee = mul32(ctx.deviationIncreaseFee, quoteDelta);
+            uint collectedCashback = mul32(fullDeviationFee, ctx.feeToCashbackRatio);
+
+            //TODO: is this safe?
+            unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback); }
+            assetOut.collectedCashbacks += uint112(collectedCashback);
+        } else {
+            uint cb = cashback(dOldOut, dNewOut, assetOut.collectedCashbacks);
+            refund += cb;
+            assetOut.collectedCashbacks -= uint112(cb);
+        }
+
+        distributeFees(ctx, r, totalEarnedFees, refund);
     }
 }
