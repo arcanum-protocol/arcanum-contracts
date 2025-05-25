@@ -364,6 +364,7 @@ contract Multipool is
 
         if (msg.value + r.cashbacksRefund < (r.lpEarnedFee + ctx.collectedLpFee + r.oracleEarnedFee)) revert FeeExceeded();
 
+        //if (msg.value > (r.lpEarnedFee + ctx.collectedLpFee + r.oracleEarnedFee))
         //TODO: переписать нахуй чтоб лишний раз не отправлялось а уменьшало необходимое велью
         // точно есть несостыковки как минимум с рефандом эфира в целом
         if (r.cashbacksRefund > 0) {

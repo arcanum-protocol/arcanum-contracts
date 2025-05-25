@@ -100,7 +100,7 @@ contract MultipoolUtils is Test {
         mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
-        mp.initialize("Name", "SYMBOL", address(oracle), uint96(toX32(0.1e18)));
+        mp.initialize("Name", "SYMBOL"); //address(oracle), uint96(toX32(0.1e18))
         router = new MultipoolRouter(address(0));
     }
 
