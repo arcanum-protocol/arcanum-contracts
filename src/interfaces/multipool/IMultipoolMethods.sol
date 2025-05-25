@@ -19,9 +19,8 @@ interface IMultipoolMethods {
 
     /// @notice Gets asset related info
     /// @param assetAddress address of asset wich data to provide
-    /// @return asset asset related data structure
     /// @dev Reads exacly two storage slots
-    function getAsset(address assetAddress) external view returns (MpAsset memory asset);
+    function getAsset(address assetAddress) external view returns (bool isUsed, uint quantity, uint collectedCashback, uint targetShare);
 
     /// @notice Method that executes every trading in multipool, minting and burning is
     /// reached by setting in or out address as multipool's address
