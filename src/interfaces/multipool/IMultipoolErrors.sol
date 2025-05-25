@@ -7,7 +7,7 @@ interface IMultipoolErrors {
     error AssetsAreSame();
 
     /// @notice Thrown when management fee receiver authority is invalid
-    error NotManagementFeeReceiver();
+    error NotManagerFeeReceiver();
 
     /// @notice Thrown when lp fee receiver authority is invalid
     error NotLpFeeReceiver();

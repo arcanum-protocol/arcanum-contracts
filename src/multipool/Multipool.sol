@@ -54,7 +54,7 @@ contract Multipool is
     // Slot 355
     bytes32 internal mpFees2;
 
-    address public managementFeeReceiver;
+    address public managerFeeReceiver;
     address public lpFeeReceiver;
 
     mapping(address => bytes32) internal assets;
@@ -146,6 +146,17 @@ contract Multipool is
         return unpackMpAsset(assets[assetAddress]);
     }
 
+    function getConfig() public view returns (
+        bytes32 _mpFees1,
+        bytes32 _mpFees2,
+        address _manageFeeReceiver,
+        address _lpFeeReceiver,
+        uint _totalSupply
+
+    ) {
+        return (mpFees1, mpFees2, managerFeeReceiver, lpFeeReceiver, totalSupply());
+    }
+
     function getSharePrice(OraclePrice calldata oraclePrice, uint _totalSupply)
         public
         view
@@ -210,6 +221,42 @@ contract Multipool is
         }
     }
 
+    function checkSwap(
+        OraclePrice calldata oraclePrice,
+        address assetInAddress,
+        address assetOutAddress,
+        uint swapAmount,
+        bool isExactInput
+    )
+        external
+        view
+        returns (
+            uint amountIn,
+            uint amountOut,
+            uint managerEarnedFee,
+            uint oracleEarnedFee,
+            uint lpEarnedFee,
+            uint cashbacksRefund
+        )
+    {
+        (
+            ,,,,,,
+            uint _managerEarnedFee,
+            uint _oracleEarnedFee,
+            uint _lpEarnedFee,
+            uint _cashbacksRefund,
+            uint _amountIn,
+            uint _amountOut,
+            ,,,,,,,
+        ) = estimateSwap(oraclePrice, assetInAddress, assetOutAddress, swapAmount, isExactInput);
+        managerEarnedFee = _managerEarnedFee;
+        oracleEarnedFee = _oracleEarnedFee;
+        lpEarnedFee = _lpEarnedFee;
+        cashbacksRefund = _cashbacksRefund;
+        amountIn = _amountIn;
+        amountOut = _amountOut;
+    }
+
     /// @inheritdoc IMultipoolMethods
     function swap(
         OraclePrice calldata oraclePrice,
@@ -224,7 +271,7 @@ contract Multipool is
         external
         payable
         override
-        returns (uint, uint)
+        returns (uint amountIn, uint amountOut)
     {
         (
             uint _totalSupply,
@@ -240,30 +287,36 @@ contract Multipool is
             uint lpEarnedFee,
             uint cashbacksRefund,
 
-            uint amountIn,
-            uint amountOut,
+            uint _amountIn,
+            uint _amountOut,
 
             uint quantityIn,
             uint targetShareIn,
             uint collectedCashbacksIn,
+            uint priceIn,
+
             uint quantityOut,
             uint targetShareOut,
-            uint collectedCashbacksOut
+            uint collectedCashbacksOut,
+            uint priceOut
         ) = estimateSwap(oraclePrice, assetInAddress, assetOutAddress, swapAmount, isExactInput);
+
+        amountIn = _amountIn;
+        amountOut = _amountOut;
 
         if (assetInAddress == address(this)) {
             assets[assetOutAddress] = packMpAsset(true, quantityOut, collectedCashbacksOut, targetShareOut);
-            emit AssetChange(assetOutAddress, quantityOut, collectedCashbacksOut);
+            emit AssetChange(assetOutAddress, uint128(quantityOut), uint112(collectedCashbacksOut));
             emit AssetChange(assetInAddress, uint128(_totalSupply - amountOut), 0);
         } else if (assetOutAddress == address(this)) {
             assets[assetInAddress] = packMpAsset(true, quantityIn, collectedCashbacksIn, targetShareIn);
-            emit AssetChange(assetInAddress, quantityIn, collectedCashbacksIn);
+            emit AssetChange(assetInAddress, uint128(quantityIn), uint112(collectedCashbacksIn));
             emit AssetChange(assetOutAddress, uint128(_totalSupply + amountOut), 0);
         } else {
             assets[assetOutAddress] = packMpAsset(true, quantityOut, collectedCashbacksOut, targetShareOut);
             assets[assetInAddress] = packMpAsset(true, quantityIn, collectedCashbacksIn, targetShareIn);
-            emit AssetChange(assetInAddress, quantityIn, collectedCashbacksIn);
-            emit AssetChange(assetOutAddress, quantityOut, collectedCashbacksOut);
+            emit AssetChange(assetInAddress, uint128(quantityIn), uint112(collectedCashbacksIn));
+            emit AssetChange(assetOutAddress, uint128(quantityOut), uint112(collectedCashbacksOut));
         }
 
         receiveAsset(assetInAddress, quantityIn, refundAddress);
@@ -294,17 +347,19 @@ contract Multipool is
         }
 
         mpFees2 = packMpFees2(collectedLpFee, collectedManagerFee, totalTargetShares, deviationLimit);
-       // emit Swap(
-       //     msg.sender,
-       //     assetInAddress,
-       //     assetOutAddress,
-       //     amountIn,
-       //     amountOut,
-       //     priceIn,
-       //     priceOut,
-       //     r.managerEarnedFee,
-       //     r.oracleEarnedFee
-       // );
+
+        emit Swap(
+            msg.sender,
+            assetInAddress,
+            assetOutAddress,
+            uint112(amountIn),
+            uint112(amountOut),
+            priceIn,
+            priceOut,
+            uint112(managerEarnedFee),
+            uint112(lpEarnedFee),
+            uint112(oracleEarnedFee)
+        );
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -312,7 +367,7 @@ contract Multipool is
         uint128 amount = uint128(msg.value);
         (bool isUsed, uint quantity, uint collectedCashback, uint s) = unpackMpAsset(assets[assetAddress]);
         collectedCashback += amount;
-        emit AssetChange(assetAddress, quantity, amount);
+        emit AssetChange(assetAddress, uint128(quantity), uint112(collectedCashback));
         assets[assetAddress] = packMpAsset(isUsed, quantity, collectedCashback, s);
     }
 
@@ -354,7 +409,7 @@ contract Multipool is
                     usedAssets.push(assetAddress);
                 }
                 assets[assetAddress] = packMpAsset(isUsed, q, c, assetTargetShare);
-                emit TargetShareChange(assetAddress, targetShare, totalTargetShares);
+                emit TargetShareChange(assetAddress, uint16(targetShare), totalTargetShares);
                 unchecked {
                     ++a;
                 }
@@ -363,43 +418,49 @@ contract Multipool is
         }
     }
 
-    struct FeeParams {
-        uint24 deviationIncreaseFee;
-        uint16 deviationLimit;
-        uint24 feeToCashbackRatio;
-        uint24 baseFee;
-        uint24 managerFee;
-        uint24 lpFee;
-
-        address managementFeeReceiver;
-        address lpFeeReceiver;
-        address oracleAddress;
-    }
-
     function setFeeParams(
-        FeeParams calldata params
+        uint24 deviationIncreaseFee,
+        uint16 deviationLimit,
+        uint24 feeToCashbackRatio,
+        uint24 baseFee,
+        uint24 managerFee,
+        uint24 lpFee,
+
+        address _managerFeeReceiver,
+        address _lpFeeReceiver,
+        address oracleAddress
     )
         external
         onlyOwner
     {
         bytes32 fees2 = mpFees2;
         (uint c1, uint c2, uint t,) = unpackMpFees2(fees2);
-        mpFees2 = packMpFees2(c1, c2, t, params.deviationLimit);
+        mpFees2 = packMpFees2(c1, c2, t, deviationLimit);
 
         mpFees1 = packMpFees1(
-            params.oracleAddress,
-            params.deviationIncreaseFee,
-            params.feeToCashbackRatio,
-            params.baseFee,
-            params.lpFee,
-            params.managerFee
+            oracleAddress,
+            deviationIncreaseFee,
+            feeToCashbackRatio,
+            baseFee,
+            lpFee,
+            managerFee
         );
 
-        managementFeeReceiver = params.managementFeeReceiver;
-        lpFeeReceiver = params.lpFeeReceiver;
+        managerFeeReceiver = _managerFeeReceiver;
+        lpFeeReceiver = _lpFeeReceiver;
 
-        // TODO
-        //emit FeesChange();
+        emit FeesChange(
+          deviationIncreaseFee,
+          deviationLimit,
+          feeToCashbackRatio,
+          baseFee,
+          managerFee,
+          lpFee,
+
+          managerFeeReceiver,
+          lpFeeReceiver,
+          oracleAddress
+        );
     }
 
     function claimLpFees(address to) external returns (uint fee) {
@@ -425,7 +486,7 @@ contract Multipool is
             uint deviationLimit
         ) = unpackMpFees2(fees);
 
-        if (msg.sender != managementFeeReceiver) revert NotManagementFeeReceiver();
+        if (msg.sender != managerFeeReceiver) revert NotManagerFeeReceiver();
         fee = collectedManagerFee;
         fees = packMpFees2(collectedLpFee, 0, totalTargetShares, deviationLimit);
         payable(to).transfer(fee);
@@ -462,10 +523,12 @@ contract Multipool is
             uint quantityIn,
             uint targetShareIn,
             uint collectedCashbacksIn,
+            uint priceIn,
 
             uint quantityOut,
             uint targetShareOut,
-            uint collectedCashbacksOut
+            uint collectedCashbacksOut,
+            uint priceOut
         )
     {
         if (swapAmount == 0) revert ZeroAmountSupplied();
@@ -489,9 +552,6 @@ contract Multipool is
             uint _totalTargetShares,
             uint _deviationLimit
         ) = unpackMpFees2(mpFees2);
-
-        uint priceIn;
-        uint priceOut;
 
         if (assetOutAddress != address(this)) {
             (,quantityOut, collectedCashbacksOut, targetShareOut) = unpackMpAsset(assets[assetOutAddress]);
