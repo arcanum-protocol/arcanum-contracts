@@ -165,7 +165,6 @@ contract Multipool is
         if (oraclePrice.contractAddress == address(this)) {
             price = oraclePrice.sharePrice;
         } else {
-            // We move initial share price by 64 as it's x32 and prices should be x96
             if (_totalSupply == 0) {
                 // initial share price is 1 native token
                 price = uint(1 << 96);
@@ -334,17 +333,15 @@ contract Multipool is
         }
 
         if (oraclePrice.contractAddress == address(this))  {
-            collectedLpFee = lpEarnedFee + collectedLpFee;
-            collectedManagerFee = managerEarnedFee + collectedManagerFee;
+            collectedLpFee += lpEarnedFee;
             IArcanumOracle(oracleAddress).commitPrice{value: oracleEarnedFee}(oraclePrice);
         } else if (oracleAddress != address(0)) {
-            collectedLpFee = lpEarnedFee + collectedLpFee;
-            collectedManagerFee = managerEarnedFee + collectedManagerFee;
+            collectedLpFee += lpEarnedFee;
             payable(oracleAddress).transfer(oracleEarnedFee);
         } else {
-            collectedLpFee = lpEarnedFee + collectedLpFee + oracleEarnedFee;
-            collectedManagerFee = managerEarnedFee + collectedManagerFee;
+            collectedLpFee += lpEarnedFee + oracleEarnedFee;
         }
+        collectedManagerFee += managerEarnedFee;
 
         mpFees2 = packMpFees2(collectedLpFee, collectedManagerFee, totalTargetShares, deviationLimit);
 
