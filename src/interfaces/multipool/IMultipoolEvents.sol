@@ -9,31 +9,26 @@ interface IMultipoolEvents {
     /// @param amount value that was transferred/minted/burned
     event ShareTransfer(address indexed from, address indexed to, uint amount);
 
-    /// @notice Thrown right after pool is initialised
-    /// @param initialSharePrice assets initial share price that can't be changed
-    event PoolCreated(uint96 initialSharePrice);
+    /// @notice Thrown right after owner is changed not to index all ownership changes
+    /// @param newOwner new owner of the contract
+    event MultipoolOwnerChange(address indexed newOwner);
 
     /// @notice Emitted when any quantity or cashback change happens even for multipool share
     /// @param asset address of changed assets (address(this) for multipool)
     /// @param quantity absolute value of new stored quantity
     /// @param collectedCashbacks absolute value of new cashbacks (always 0 for multipool)
-    event AssetChange(address indexed asset, uint quantity, uint collectedCashbacks);
+    event AssetChange(address indexed asset, uint128 quantity, uint112 collectedCashbacks);
 
-    /// @notice Emitted when fee charging params change. All ratios are Q32 values.
-    /// @param newDeviationIncreaseFee fee charged when deviation is increased
-    /// @param newDeviationLimit curve parameter determines what is the maximum deviation possible
-    /// to create by swap
-    /// @param newFeeToCashbackRatio ratio or fees taken by cashbacks
-    /// @param newBaseFee fee ratio taken from any swap action
-    /// @param newManagementFee management fee ratio
-    /// @param newManagementFeeRecepient receiver of management fee
     event FeesChange(
-        uint16 newDeviationIncreaseFee,
-        uint16 newDeviationLimit,
-        uint16 newFeeToCashbackRatio,
-        uint16 newBaseFee,
-        uint16 newManagementFee,
-        address newManagementFeeRecepient
+        uint24 deviationIncreaseFee,
+        uint16 deviationLimit,
+        uint24 feeToCashbackRatio,
+        uint24 baseFee,
+        uint24 managerFee,
+        uint24 lpFee,
+        address managerFeeReceiver,
+        address lpFeeReceiver,
+        address oracleAddress
     );
 
     /// @notice Thrown when target share of any asset got updated
@@ -41,7 +36,7 @@ interface IMultipoolEvents {
     /// @param newTargetShare absolute value of updated target share
     /// @param newTotalTargetShares absolute value of new sum of all target shares
     event TargetShareChange(
-        address indexed asset, uint newTargetShare, uint newTotalTargetShares
+        address indexed asset, uint16 newTargetShare, uint16 newTotalTargetShares
     );
 
     /// @notice Thrown when price feed for an asset got updated
@@ -49,38 +44,16 @@ interface IMultipoolEvents {
     /// @param newFeed updated price feed data
     event PriceFeedChange(address indexed targetAsset, bytes32 newFeed);
 
-    /// @notice Thrown when permissions of authorities were changed per each authority.
-    /// event provides addresses new permissions
-    /// @param oldStrategyManager address of old authority
-    /// @param newStrategyManager address of new authority
-    event StrategyManagerChange(
-        address indexed oldStrategyManager, address indexed newStrategyManager
-    );
-
-    /// @notice Thrown every time new fee gets collected
-    /// @param sender the address that invoked the trade
-    /// @param assetIn token that beed sent
-    /// @param assetOut token that been received
-    /// @param amountIn the amount token in sent to pool
-    /// @param priceIn the price of token that been received
-    /// @param priceOut the price of token then been sent
-    /// @param amountOut the amount token out received from pool
-    /// @param collectedManagementFees shows how much fees are earned for manager
-    /// @param collectedOracleFees shows how much fees are earned for oracle
     event Swap(
         address indexed sender,
         address indexed assetIn,
         address indexed assetOut,
-        uint amountIn,
-        uint amountOut,
+        uint128 amountIn,
+        uint128 amountOut,
         uint priceIn,
         uint priceOut,
-        uint collectedManagementFees,
-        uint collectedOracleFees
+        uint112 collectedManagerFees,
+        uint112 collectedLpFees,
+        uint112 collectedOracleFees
     );
-
-    /// @notice Thrown when price verifier is updated.
-    /// @param oldOracle address of old price verifier contract
-    /// @param newOracle address of new price verifier contract
-    event PriceOracleChange(address oldOracle, address newOracle);
 }

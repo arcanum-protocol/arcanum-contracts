@@ -3,51 +3,41 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import {MockERC20} from "../src/mocks/erc20.sol";
-import {Multipool, MpContext, MpAsset} from "../src/multipool/Multipool.sol";
+import {Multipool} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeedType} from "../src/lib/Price.sol";
 import {setBytes} from "../src/lib/Binary.sol";
 import {OraclePrice} from "../src/types/OraclePrice.sol";
-import {ReceiverData} from "../src/types/ReceiverData.sol";
 import {IArcanumOracle} from "../src/interfaces/IArcanumOracle.sol";
 import {IPriceAdapter} from "../src/interfaces/IPriceAdapter.sol";
+import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {DummyOracle} from "../src/multipool/DummyOracle.sol";
 
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 function computeContractAddress(
-        address _origin,
-        uint _nonce
-    )
-        pure
-        returns (address _address)
-    {
-        bytes memory data;
-        if (_nonce == 0x00) {
-            data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(0x80));
-        } else if (_nonce <= 0x7f) {
-            data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, uint8(_nonce));
-        } else if (_nonce <= 0xff) {
-            data =
-                abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce));
-        } else if (_nonce <= 0xffff) {
-            data =
-                abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce));
-        } else if (_nonce <= 0xffffff) {
-            data =
-                abi.encodePacked(bytes1(0xd9), bytes1(0x94), _origin, bytes1(0x83), uint24(_nonce));
-        } else {
-            data =
-                abi.encodePacked(bytes1(0xda), bytes1(0x94), _origin, bytes1(0x84), uint32(_nonce));
-        }
-        bytes32 hash = keccak256(data);
-        assembly {
-            mstore(0, hash)
-            _address := mload(0)
-        }
-    }
+    address factory,
+    address impl,
+    uint _nonce,
+    address _owner
+)
+    view
+    returns (address _address)
+{
+    bytes memory bytecode = type(ERC1967Proxy).creationCode;
+    bytecode = abi.encodePacked(bytecode, abi.encode(impl, ""));
+    bytes32 hashed = keccak256(
+        abi.encodePacked(
+            bytes1(0xff),
+            address(factory),
+            keccak256(abi.encodePacked(block.chainid, _nonce, _owner)),
+            keccak256(bytecode)
+        )
+    );
+    _address = address(uint160(uint256(hashed)));
+}
 
 function toX96(uint val) pure returns (uint valX96) {
     valX96 = (val << 96) / 1e18;
@@ -109,19 +99,21 @@ contract MultipoolUtils is Test {
         mpImpl = new Multipool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(mpImpl), "");
         mp = Multipool(address(proxy));
-        mp.initialize("Name", "SYMBOL", address(oracle), uint96(toX32(0.1e18)));
+        mp.initialize("Name", "SYMBOL"); //address(oracle), uint96(toX32(0.1e18))
         router = new MultipoolRouter(address(0));
     }
 
-    function assertEq(MpAsset memory a, MpAsset memory b) public pure {
-        assertEq(a.quantity, b.quantity, "MpAsset quantity");
-        assertEq(a.collectedCashbacks, b.collectedCashbacks, "MpAsset cashbacks");
-        assertEq(a.targetShare, b.targetShare, "MpAsset share");
-    }
+    // function assertEq(MpAsset memory a, MpAsset memory b) public pure {
+    //     assertEq(a.quantity, b.quantity, "MpAsset quantity");
+    //     assertEq(a.collectedCashbacks, b.collectedCashbacks, "MpAsset cashbacks");
+    //     assertEq(a.targetShare, b.targetShare, "MpAsset share");
+    // }
 
     function setUp() public {
         (owner, ownerPk) = makeAddrAndKey("Multipool owner");
         initMultipool();
+
+        vm.deal(owner, 10000e18);
 
         mp.transferOwnership(owner);
         oracle.transferOwnership(owner);
@@ -176,20 +168,18 @@ contract MultipoolUtils is Test {
         public
     {
         vm.startPrank(owner);
-        mp.setFeeParams(0, toX16RatioTick(1e5), 0, 0, address(0), 0);
+        mp.setFeeParams(0, toX16RatioTick(1e5), 0, 0, 0, 0, address(0), address(0), address(0));
         updatePrice(
             address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
         );
-        mp.updateStrategyManager(owner);
+        // mp.updateStrategyManager(owner);
 
-        mp.updateTargetShares(assets, shares);
-        vm.deal(owner, 1e18);
+        address[] memory p = new address[](0);
+        bytes32[] memory pd = new bytes32[](0);
+
+        mp.updateAssets(p, pd, assets, shares);
 
         OraclePrice memory oraclePrice;
-        ReceiverData memory rd;
-        rd.receiverAddress = owner;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
 
         for (uint i = 0; i < assets.length; i++) {
             uint val = (quoteValues[i] << 96) / prices[i];
@@ -200,7 +190,9 @@ contract MultipoolUtils is Test {
             );
             tokens[i].mint(address(mp), val);
             tokens[i].mint(address(owner), 4000e18);
-            mp.swap{value: 1e18}(oraclePrice, address(tokens[i]), address(mp), val, true, rd);
+            mp.swap{value: 1e14}(
+                oraclePrice, address(tokens[i]), address(mp), val, true, owner, owner, true
+            );
         }
 
         // insert adapter for token0 here
@@ -213,11 +205,14 @@ contract MultipoolUtils is Test {
 
         mp.setFeeParams(
             toX16RatioTick(0.0003e5),
-            toX16RatioTick(0.15e5),
-            toX16RatioTick(0.6e5),
+            toX16RatioTick(0.5e5),
+            toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
             toX16RatioTick(0.01e5),
             owner,
-            toX16RatioTick(0.1e5)
+            owner,
+            owner
         );
         vm.stopPrank();
     }
@@ -251,13 +246,10 @@ contract MultipoolUtils is Test {
         public
     {
         OraclePrice memory oraclePrice;
-        ReceiverData memory rd;
-        rd.receiverAddress = sender;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
-
         vm.prank(sender);
-        mp.swap{value: 1e13}(oraclePrice, assetIn, assetOut, amount, isExactInput, rd);
+        mp.swap{value: 1e13}(
+            oraclePrice, assetIn, assetOut, amount, isExactInput, sender, address(0), true
+        );
     }
 
     function changePrice(address asset, uint price) public {
@@ -267,21 +259,15 @@ contract MultipoolUtils is Test {
     }
 
     function changeShare(address asset, uint16 share) public {
+        address[] memory priceAddresses = new address[](0);
+        bytes32[] memory prices = new bytes32[](0);
+
         vm.startPrank(owner);
         address[] memory addresses = new address[](1);
         addresses[0] = asset;
         uint16[] memory shares = new uint16[](1);
         shares[0] = share;
-        mp.updateTargetShares(addresses, shares);
-        vm.stopPrank();
-    }
-
-    function setCurveParams(uint16 dl, uint16 hf, uint16 bf, uint16 dbf) public {
-        vm.startPrank(owner);
-        OraclePrice memory s;
-        address managementFeeRecepient = mp.getContext(s).managementFeeRecepient;
-        uint16 managementFee = uint16(mp.getContext(s).managementBaseFee * 1e5 / (5 << 32));
-        mp.setFeeParams(dl, hf, dbf, bf, managementFeeRecepient, managementFee);
+        mp.updateAssets(priceAddresses, prices, addresses, shares);
         vm.stopPrank();
     }
 
@@ -327,31 +313,37 @@ contract MultipoolUtils is Test {
         }
 
         for (uint i; i < tokens.length; ++i) {
-            MpAsset memory a = mp.getAsset(address(tokens[i]));
-            vm.serializeString("tk", "collectedCashbacks", jsonString(a.collectedCashbacks));
-            vm.serializeString("tk", "targetShare", jsonString(a.targetShare));
-            string memory token = vm.serializeString("tk", "quantity", jsonString(a.quantity));
-            tokenJson = vm.serializeString("token", string.concat("token", vm.toString(i)), token);
+            // MpAsset memory a = mp.getAsset(address(tokens[i]));
+            // vm.serializeString("tk", "collectedCashbacks", jsonString(a.collectedCashbacks));
+            // vm.serializeString("tk", "targetShare", jsonString(a.targetShare));
+            // string memory token = vm.serializeString("tk", "quantity", jsonString(a.quantity));
+            // tokenJson = vm.serializeString("token", string.concat("token", vm.toString(i)),
+            // token);
         }
 
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
 
         OraclePrice memory fp;
-        MpContext memory ctx = mp.getContext(fp);
-        mpJson = vm.serializeString(
-            "multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee)
-        );
-        mpJson = vm.serializeString("multipool", "deviationLimit", jsonString(ctx.deviationLimit));
-        mpJson =
-            vm.serializeString("multipool", "cashbackFeeShare", jsonString(ctx.feeToCashbackRatio));
-        mpJson = vm.serializeString("multipool", "baseFee", jsonString(ctx.baseFee));
-        mpJson = vm.serializeString(
-            "multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient)
-        );
-        mpJson = vm.serializeString("multipool", "managementFee", jsonString(ctx.managementBaseFee));
-        mpJson = vm.serializeString("multipool", "oracleAddress", vm.toString(ctx.oracleAddress));
-        mpJson =
-            vm.serializeString("multipool", "totalTargetShares", jsonString(ctx.totalTargetShares));
+        // MpContext memory ctx = mp.getContext(fp);
+        // mpJson = vm.serializeString(
+        //     "multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee)
+        // );
+        // mpJson = vm.serializeString("multipool", "deviationLimit",
+        // jsonString(ctx.deviationLimit));
+        // mpJson =
+        //     vm.serializeString("multipool", "cashbackFeeShare",
+        // jsonString(ctx.feeToCashbackRatio));
+        // mpJson = vm.serializeString("multipool", "baseFee", jsonString(ctx.baseFee));
+        // mpJson = vm.serializeString(
+        //     "multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient)
+        // );
+        // mpJson = vm.serializeString("multipool", "managementFee",
+        // jsonString(ctx.managementBaseFee));
+        // mpJson = vm.serializeString("multipool", "oracleAddress",
+        // vm.toString(ctx.oracleAddress));
+        // mpJson =
+        //     vm.serializeString("multipool", "totalTargetShares",
+        // jsonString(ctx.totalTargetShares));
 
         string memory snapJson;
         vm.serializeString("snap", "users", usersJson);
@@ -376,7 +368,51 @@ contract MultipoolUtils is Test {
     }
 }
 
+contract SigUtils {
+    bytes32 internal DOMAIN_SEPARATOR;
+
+    constructor(bytes32 _DOMAIN_SEPARATOR) {
+        DOMAIN_SEPARATOR = _DOMAIN_SEPARATOR;
+    }
+
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256
+    // deadline)");
+    bytes32 public constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+
+    struct Permit {
+        address owner;
+        address spender;
+        uint256 value;
+        uint256 nonce;
+        uint256 deadline;
+    }
+
+    // computes the hash of a permit
+    function getStructHash(Permit memory _permit) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                _permit.owner,
+                _permit.spender,
+                _permit.value,
+                _permit.nonce,
+                _permit.deadline
+            )
+        );
+    }
+
+    // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to
+    // recover the signer
+    function getTypedDataHash(Permit memory _permit) public view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, getStructHash(_permit)));
+    }
+}
+
 function updatePrice(address multipoolAddress, address asset, bytes memory data) {
+    address[] memory shareAddresses = new address[](0);
+    uint16[] memory shares = new uint16[](0);
+
     address[] memory priceAddresses = new address[](1);
     priceAddresses[0] = asset;
 
@@ -388,7 +424,7 @@ function updatePrice(address multipoolAddress, address asset, bytes memory data)
     bytes32[] memory priceData = new bytes32[](1);
     priceData[0] = val;
 
-    Multipool(multipoolAddress).updatePrices(priceAddresses, priceData);
+    Multipool(multipoolAddress).updateAssets(priceAddresses, priceData, shareAddresses, shares);
 }
 
 function vec(address[5] memory _s) pure returns (address[] memory s) {

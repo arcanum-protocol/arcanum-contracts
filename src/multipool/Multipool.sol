@@ -6,8 +6,17 @@ pragma solidity ^0.8.0;
 
 import {ERC20, IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "forge-std/Script.sol";
 
-import {MpAsset, unpackMpAsset, packMpAsset, MpContext, Fees} from "../lib/MpContext.sol";
+import {
+    MpMath,
+    packMpFees1,
+    packMpFees2,
+    unpackMpFees1,
+    unpackMpFees2,
+    unpackMpAsset,
+    packMpAsset
+} from "../lib/MpContext.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
 import {FixedPoint96} from "../lib/FixedPoint.sol";
 
@@ -18,25 +27,17 @@ import {IMultipool} from "../interfaces/IMultipool.sol";
 
 import {IArcanumOracle} from "../interfaces/IArcanumOracle.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
-import {ReceiverData} from "../types/ReceiverData.sol";
 
 import {ERC20Upgradeable} from "oz-proxy/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20PermitUpgradeable} from "oz-proxy/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
 import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
-
-struct Prices {
-    uint priceIn;
-    uint priceOut;
-}
 
 /// @custom:security-contact badconfig@arcanum.to
 contract Multipool is
     IMultipool,
     Initializable,
     ERC20Upgradeable,
-    ERC20PermitUpgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable
 {
@@ -44,45 +45,24 @@ contract Multipool is
     using {PriceMath.getPrice} for bytes32;
 
     // Slot 354
-    uint16 internal deviationIncreaseFee;
-    uint16 internal deviationLimit;
-    uint16 internal feeToCashbackRatio;
-    uint16 internal baseFee;
-    address internal managementFeeRecepient;
-    uint16 internal managementFee;
-    uint16 internal totalTargetShares;
-
+    bytes32 internal mpFees1;
     // Slot 355
-    address internal oracleAddress;
-    uint96 internal initialSharePrice;
+    bytes32 internal mpFees2;
 
-    // Slot 356
-    address public strategyManager;
+    address internal managerFeeReceiver;
+    address internal lpFeeReceiver;
 
     mapping(address => bytes32) internal assets;
     mapping(address => bytes32) internal prices;
-    address[] public usedAssets;
+    address[] internal usedAssets;
 
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        string memory name,
-        string memory symbol,
-        address _oracleAddress,
-        uint96 _sharePrice
-    )
-        public
-        initializer
-    {
+    function initialize(string memory name, string memory symbol) public initializer {
         __ERC20_init(name, symbol);
-        __ERC20Permit_init(name);
         __Ownable_init();
-        oracleAddress = _oracleAddress;
-        initialSharePrice = _sharePrice;
-        emit PriceOracleChange(address(0), _oracleAddress);
-        emit PoolCreated(_sharePrice);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -92,20 +72,52 @@ contract Multipool is
         emit ShareTransfer(from, to, amount);
     }
 
+    function transferOwnership(address newOwner) public override onlyOwner {
+        _transferOwnership(newOwner);
+        emit MultipoolOwnerChange(newOwner);
+    }
+
     /// @inheritdoc IMultipoolMethods
-    function usedAssetsAndLength(
+    function getUsedAssets(
         uint limit,
         uint offset
     )
         external
         view
         override
-        returns (address[] memory assetsRes, uint length)
+        returns (address[] memory, uint)
     {
-        for (uint i = offset; i < limit + offset; i++) {
-            assetsRes[i] = usedAssets[i];
+        uint size = (limit > usedAssets.length ? usedAssets.length : limit);
+        address[] memory assetsRes = new address[](size);
+        for (uint i = 0; i < size; i++) {
+            assetsRes[i] = usedAssets[i + offset];
         }
-        length = usedAssets.length;
+        uint length = usedAssets.length;
+        return (assetsRes, length);
+    }
+
+    /// @inheritdoc IMultipoolMethods
+    function getSharePricePart(
+        uint limit,
+        uint offset
+    )
+        public
+        view
+        override
+        returns (uint pricePart)
+    {
+        unchecked {
+            for (
+                uint i = offset;
+                i < (limit == type(uint).max ? usedAssets.length : limit + offset);
+                i++
+            ) {
+                address assetAddress = usedAssets[i];
+                (, uint quantity,,) = unpackMpAsset(assets[assetAddress]);
+                if (quantity != 0) pricePart += quantity * prices[assetAddress].getPrice();
+            }
+            pricePart /= totalSupply();
+        }
     }
 
     /// @inheritdoc IMultipoolMethods
@@ -119,58 +131,51 @@ contract Multipool is
     }
 
     /// @inheritdoc IMultipoolMethods
-    function getAsset(address assetAddress) public view override returns (MpAsset memory asset) {
-        asset = unpackMpAsset(assets[assetAddress]);
-    }
-
-    function expandToX64(uint16 val) internal pure returns (uint res) {
-        res = uint(val) * (5 << 32) / 1e5;
-    }
-
-    /// @notice Assembles context for swappping
-    /// @param oraclePrice signed multipool price related data
-    /// @return ctx state memory context used across swapping
-    /// @dev tries to apply signed share price if provided address matches otherwhise ignores
-    /// struct
-    function getContext(OraclePrice calldata oraclePrice)
+    function getAsset(address assetAddress)
         public
         view
-        returns (MpContext memory ctx)
+        override
+        returns (bool isUsed, uint quantity, uint cashback, uint targetShare)
     {
-        uint _totalSupply = totalSupply();
+        (isUsed, quantity, cashback, targetShare) = unpackMpAsset(assets[assetAddress]);
+    }
 
-        uint16 _deviationIncreaseFee = deviationIncreaseFee;
-        uint16 _deviationLimit = deviationLimit;
-        uint16 _feeToCashbackRatio = feeToCashbackRatio;
-        uint16 _baseFee = baseFee;
-        address _managementFeeRecepient = managementFeeRecepient;
-        uint16 _managementFee = managementFee;
-        uint16 _totalTargetShares = totalTargetShares;
+    function getConfig()
+        public
+        view
+        returns (
+            bytes32 _mpFees1,
+            bytes32 _mpFees2,
+            address _manageFeeReceiver,
+            address _lpFeeReceiver,
+            uint _totalSupply
+        )
+    {
+        return (mpFees1, mpFees2, managerFeeReceiver, lpFeeReceiver, totalSupply());
+    }
 
-        address _oracleAddress = oracleAddress;
-        uint96 _initialSharePrice = initialSharePrice;
-
-        uint price;
+    function getSharePrice(
+        OraclePrice calldata oraclePrice,
+        uint _totalSupply
+    )
+        public
+        view
+        returns (uint price)
+    {
         if (oraclePrice.contractAddress == address(this)) {
             price = oraclePrice.sharePrice;
         } else {
-            // We move initial share price by 64 as it's x32 and prices should be x96
-            price = _totalSupply == 0
-                ? uint(_initialSharePrice) << 64
-                : prices[address(this)].getPrice();
+            if (_totalSupply == 0) {
+                // initial share price is 1 native token
+                price = uint(1 << 96);
+            } else {
+                // TODO: check if this method's unchecked actually is legit
+                bytes32 sharePriceSlot = prices[address(this)];
+                price = sharePriceSlot == 0
+                    ? getSharePricePart(type(uint).max, 0)
+                    : sharePriceSlot.getPrice();
+            }
         }
-
-        ctx.totalTargetShares = _totalTargetShares;
-        ctx.sharePrice = price;
-        ctx.oldTotalSupply = _totalSupply;
-        ctx.deviationIncreaseFee = expandToX64(_deviationIncreaseFee);
-        ctx.deviationLimit = expandToX64(_deviationLimit);
-        ctx.feeToCashbackRatio = expandToX64(_feeToCashbackRatio);
-        ctx.baseFee = expandToX64(_baseFee);
-        ctx.managementBaseFee = expandToX64(_managementFee);
-
-        ctx.managementFeeRecepient = _managementFeeRecepient;
-        ctx.oracleAddress = _oracleAddress;
     }
 
     /// @notice Proceeses asset transfer
@@ -187,13 +192,11 @@ contract Multipool is
     }
 
     /// @notice Asserts there is enough token balance and makes left value refund
-    /// @param asset Asset data structure storing asset relative data
     /// @param assetAddress Address of asset to check and refund
     /// @param requiredAmount Value that is checked to present unused on contract
     /// @param refundAddress Address to receive asset refund
     /// @dev Handles multipool share with no contract calls
     function receiveAsset(
-        MpAsset memory asset,
         address assetAddress,
         uint requiredAmount,
         address refundAddress
@@ -201,9 +204,10 @@ contract Multipool is
         internal
     {
         if (assetAddress != address(this)) {
-            uint unusedAmount = IERC20(assetAddress).balanceOf(address(this)) - asset.quantity;
-            if (unusedAmount < requiredAmount) revert InsufficientBalance(assetAddress);
-            uint left = unusedAmount - requiredAmount;
+            uint balance = IERC20(assetAddress).balanceOf(address(this));
+            console2.log(requiredAmount);
+            if (balance < requiredAmount) revert InsufficientBalance(assetAddress);
+            uint left = balance - requiredAmount;
             if (refundAddress != address(0) && left > 0) {
                 IERC20(assetAddress).safeTransfer(refundAddress, left);
             }
@@ -217,6 +221,53 @@ contract Multipool is
         }
     }
 
+    function checkSwap(
+        OraclePrice calldata oraclePrice,
+        address assetInAddress,
+        address assetOutAddress,
+        uint swapAmount,
+        bool isExactInput
+    )
+        external
+        view
+        returns (
+            uint amountIn,
+            uint amountOut,
+            uint managerEarnedFee,
+            uint oracleEarnedFee,
+            uint lpEarnedFee,
+            uint cashbacksRefund
+        )
+    {
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint _managerEarnedFee,
+            uint _oracleEarnedFee,
+            uint _lpEarnedFee,
+            uint _cashbacksRefund,
+            uint _amountIn,
+            uint _amountOut,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+        ) = estimateSwap(oraclePrice, assetInAddress, assetOutAddress, swapAmount, isExactInput);
+        managerEarnedFee = _managerEarnedFee;
+        oracleEarnedFee = _oracleEarnedFee;
+        lpEarnedFee = _lpEarnedFee;
+        cashbacksRefund = _cashbacksRefund;
+        amountIn = _amountIn;
+        amountOut = _amountOut;
+    }
+
     /// @inheritdoc IMultipoolMethods
     function swap(
         OraclePrice calldata oraclePrice,
@@ -224,213 +275,349 @@ contract Multipool is
         address assetOutAddress,
         uint swapAmount,
         bool isExactInput,
-        ReceiverData calldata data
+        address receiverAddress,
+        address refundAddress,
+        bool refundEthToReceiver
     )
         external
         payable
         override
         returns (uint amountIn, uint amountOut)
     {
-        if (swapAmount == 0) revert ZeroAmountSupplied();
-        if (assetOutAddress == assetInAddress) revert AssetsAreSame();
+        (
+            uint _totalSupply,
+            uint totalTargetShares,
+            uint deviationLimit,
+            uint collectedManagerFee,
+            uint collectedLpFee,
+            address oracleAddress,
+            uint managerEarnedFee,
+            uint oracleEarnedFee,
+            uint lpEarnedFee,
+            uint cashbacksRefund,
+            uint _amountIn,
+            uint _amountOut,
+            uint quantityIn,
+            uint targetShareIn,
+            uint collectedCashbacksIn,
+            uint priceIn,
+            uint quantityOut,
+            uint targetShareOut,
+            uint collectedCashbacksOut,
+            uint priceOut
+        ) = estimateSwap(oraclePrice, assetInAddress, assetOutAddress, swapAmount, isExactInput);
 
-        MpContext memory ctx = getContext(oraclePrice);
-        MpAsset memory assetIn;
-        MpAsset memory assetOut;
-        Prices memory price;
+        amountIn = _amountIn;
+        amountOut = _amountOut;
 
-        price.priceIn =
-            assetInAddress == address(this) ? ctx.sharePrice : prices[assetInAddress].getPrice();
-        price.priceOut =
-            assetOutAddress == address(this) ? ctx.sharePrice : prices[assetOutAddress].getPrice();
-
-        Fees memory fees;
-
-        {
-            {
-                if (assetInAddress == address(this)) {
-                    assetOut = unpackMpAsset(assets[assetOutAddress]);
-                } else if (assetOutAddress == address(this)) {
-                    assetIn = unpackMpAsset(assets[assetInAddress]);
-                } else {
-                    assetIn = unpackMpAsset(assets[assetInAddress]);
-                    assetOut = unpackMpAsset(assets[assetOutAddress]);
-                }
-
-                (amountIn, amountOut) = isExactInput
-                    ? (swapAmount, swapAmount * price.priceIn / price.priceOut)
-                    : (swapAmount * price.priceOut / price.priceIn, swapAmount);
-
-                if (assetInAddress == address(this)) {
-                    ctx.totalSupplyDelta = -int(amountIn);
-                } else if (assetOutAddress == address(this)) {
-                    ctx.totalSupplyDelta = int(amountOut);
-                }
-
-                receiveAsset(assetIn, assetInAddress, amountIn, data.refundAddress);
-                transferAsset(assetOutAddress, amountOut, data.receiverAddress);
-
-                if (assetInAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetIn, int(amountIn), price.priceIn);
-                }
-                if (assetOutAddress != address(this)) {
-                    ctx.calculateDeviationFee(assetOut, -int(amountOut), price.priceOut);
-                }
-
-                if (assetInAddress == address(this)) {
-                    assets[assetOutAddress] = packMpAsset(assetOut);
-                    emit AssetChange(assetInAddress, uint128(totalSupply()), 0);
-                    emit AssetChange(
-                        assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
-                    );
-                } else if (assetOutAddress == address(this)) {
-                    assets[assetInAddress] = packMpAsset(assetIn);
-                    emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-                    emit AssetChange(assetOutAddress, uint128(totalSupply()), 0);
-                } else {
-                    assets[assetInAddress] = packMpAsset(assetIn);
-                    assets[assetOutAddress] = packMpAsset(assetOut);
-                    emit AssetChange(assetInAddress, assetIn.quantity, assetIn.collectedCashbacks);
-                    emit AssetChange(
-                        assetOutAddress, assetOut.quantity, assetOut.collectedCashbacks
-                    );
-                }
-                fees = ctx.applyCollected(
-                    swapAmount * (isExactInput ? price.priceIn : price.priceOut)
-                        >> FixedPoint96.RESOLUTION,
-                    msg.value
-                );
-            }
-        }
-
-        if (fees.refund > 0) {
-            payable(data.refundEthToReceiver ? data.receiverAddress : msg.sender).transfer(
-                fees.refund
-            );
-        }
-        if (oraclePrice.contractAddress == address(this)) {
-            payable(ctx.managementFeeRecepient).transfer(fees.managerEarnedFee);
-            IArcanumOracle(ctx.oracleAddress).commitPrice{value: fees.oracleEarnedFee}(oraclePrice);
+        if (assetInAddress == address(this)) {
+            assets[assetOutAddress] =
+                packMpAsset(true, quantityOut, targetShareOut, collectedCashbacksOut);
+            emit AssetChange(assetOutAddress, uint128(quantityOut), uint112(collectedCashbacksOut));
+            emit AssetChange(assetInAddress, uint128(_totalSupply - amountOut), 0);
+        } else if (assetOutAddress == address(this)) {
+            assets[assetInAddress] =
+                packMpAsset(true, quantityIn, targetShareIn, collectedCashbacksIn);
+            emit AssetChange(assetInAddress, uint128(quantityIn), uint112(collectedCashbacksIn));
+            emit AssetChange(assetOutAddress, uint128(_totalSupply + amountOut), 0);
         } else {
-            payable(ctx.managementFeeRecepient).transfer(
-                fees.managerEarnedFee + fees.oracleEarnedFee
-            );
+            assets[assetOutAddress] =
+                packMpAsset(true, quantityOut, targetShareOut, collectedCashbacksOut);
+            assets[assetInAddress] =
+                packMpAsset(true, quantityIn, targetShareIn, collectedCashbacksIn);
+            emit AssetChange(assetInAddress, uint128(quantityIn), uint112(collectedCashbacksIn));
+            emit AssetChange(assetOutAddress, uint128(quantityOut), uint112(collectedCashbacksOut));
         }
+
+        receiveAsset(assetInAddress, quantityIn, refundAddress);
+        transferAsset(assetOutAddress, amountOut, receiverAddress);
+
+        if (msg.value + cashbacksRefund < (lpEarnedFee + collectedLpFee + oracleEarnedFee)) {
+            revert FeeExceeded();
+        }
+
+        //if (msg.value > (r.lpEarnedFee + ctx.collectedLpFee + r.oracleEarnedFee))
+        //TODO: переписать нахуй чтоб лишний раз не отправлялось а уменьшало необходимое велью
+        // точно есть несостыковки как минимум с рефандом эфира в целом
+        if (cashbacksRefund > 0) {
+            payable(refundEthToReceiver ? receiverAddress : msg.sender).transfer(cashbacksRefund);
+        }
+
+        if (oraclePrice.contractAddress == address(this)) {
+            collectedLpFee += lpEarnedFee;
+            IArcanumOracle(oracleAddress).commitPrice{value: oracleEarnedFee}(oraclePrice);
+        } else if (oracleAddress != address(0)) {
+            collectedLpFee += lpEarnedFee;
+            payable(oracleAddress).transfer(oracleEarnedFee);
+        } else {
+            collectedLpFee += lpEarnedFee + oracleEarnedFee;
+        }
+        collectedManagerFee += managerEarnedFee;
+
+        mpFees2 =
+            packMpFees2(collectedLpFee, collectedManagerFee, totalTargetShares, deviationLimit);
+
         emit Swap(
             msg.sender,
             assetInAddress,
             assetOutAddress,
-            amountIn,
-            amountOut,
-            price.priceIn,
-            price.priceOut,
-            fees.managerEarnedFee,
-            fees.oracleEarnedFee
+            uint112(amountIn),
+            uint112(amountOut),
+            priceIn,
+            priceOut,
+            uint112(managerEarnedFee),
+            uint112(lpEarnedFee),
+            uint112(oracleEarnedFee)
         );
     }
 
     /// @inheritdoc IMultipoolMethods
     function increaseCashback(address assetAddress) external payable override {
         uint128 amount = uint128(msg.value);
-        MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
-        asset.collectedCashbacks += uint112(amount);
-        emit AssetChange(assetAddress, asset.quantity, amount);
-        assets[assetAddress] = packMpAsset(asset);
+        (bool isUsed, uint quantity, uint collectedCashback, uint s) =
+            unpackMpAsset(assets[assetAddress]);
+        collectedCashback += amount;
+        emit AssetChange(assetAddress, uint128(quantity), uint112(collectedCashback));
+        assets[assetAddress] = packMpAsset(isUsed, quantity, collectedCashback, s);
     }
 
-    /// @inheritdoc IMultipoolManagerMethods
-    function updatePrices(
-        address[] calldata assetAddresses,
-        bytes32[] calldata priceData
-    )
-        external
-        override
-        onlyOwner
-    {
-        uint len = assetAddresses.length;
-        for (uint i; i < len;) {
-            address assetAddress = assetAddresses[i];
-            bytes32 _priceData = priceData[i];
-            prices[assetAddress] = _priceData;
-            emit PriceFeedChange(assetAddress, _priceData);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @inheritdoc IMultipoolManagerMethods
-    function updateTargetShares(
-        address[] calldata assetAddresses,
+    function updateAssets(
+        address[] calldata priceAssetAddresses,
+        bytes32[] calldata priceData,
+        address[] calldata targetShareAssetAddresses,
         uint16[] calldata targetShares
     )
         external
-        override
-    {
-        if (strategyManager != msg.sender && owner() != msg.sender) {
-            revert InvalidTargetShareAuthority();
-        }
-
-        uint len = assetAddresses.length;
-        uint16 totalTargetSharesCached = totalTargetShares;
-        for (uint a; a < len;) {
-            address assetAddress = assetAddresses[a];
-            uint16 targetShare = targetShares[a];
-            MpAsset memory asset = unpackMpAsset(assets[assetAddress]);
-            totalTargetSharesCached = totalTargetSharesCached - uint16(asset.targetShare) + targetShare;
-            asset.targetShare = uint16(targetShare);
-            if (!asset.isUsed) {
-                usedAssets.push(assetAddress);
-                asset.isUsed = true;
-            }
-            assets[assetAddress] = packMpAsset(asset);
-            emit TargetShareChange(assetAddress, targetShare, totalTargetSharesCached);
-            unchecked {
-                ++a;
-            }
-        }
-        totalTargetShares = totalTargetSharesCached;
-    }
-
-    /// @inheritdoc IMultipoolManagerMethods
-    function setFeeParams(
-        uint16 newDeviationIncreaseFee,
-        uint16 newDeviationLimit,
-        uint16 newFeeToCashbackRatio,
-        uint16 newBaseFee,
-        address newManagementFeeRecepient,
-        uint16 newManagementFee
-    )
-        external
-        override
         onlyOwner
     {
-        deviationIncreaseFee = newDeviationIncreaseFee;
-        deviationLimit = newDeviationLimit;
-        feeToCashbackRatio = newFeeToCashbackRatio;
-        baseFee = newBaseFee;
-        managementFeeRecepient = newManagementFeeRecepient;
-        managementFee = newManagementFee;
+        uint len = priceAssetAddresses.length;
+        if (len != 0) {
+            for (uint i; i < len;) {
+                address assetAddress = priceAssetAddresses[i];
+                bytes32 _priceData = priceData[i];
+                prices[assetAddress] = _priceData;
+                emit PriceFeedChange(assetAddress, _priceData);
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        len = targetShareAssetAddresses.length;
+        if (len != 0) {
+            bytes32 fees = mpFees2;
+            (uint c1, uint c2, uint s, uint d) = unpackMpFees2(fees);
+            uint16 totalTargetShares = uint16(s);
+            for (uint a; a < len;) {
+                address assetAddress = targetShareAssetAddresses[a];
+                uint targetShare = targetShares[a];
+                bytes32 asset = assets[assetAddress];
+                (bool isUsed, uint q, uint c, uint assetTargetShare) = unpackMpAsset(asset);
+                totalTargetShares =
+                    totalTargetShares - uint16(assetTargetShare) + uint16(targetShare);
+                assetTargetShare = uint16(targetShare);
+                if (!isUsed) {
+                    usedAssets.push(assetAddress);
+                    isUsed = true;
+                }
+                assets[assetAddress] = packMpAsset(isUsed, q, assetTargetShare, c);
+                emit TargetShareChange(assetAddress, uint16(targetShare), totalTargetShares);
+                unchecked {
+                    ++a;
+                }
+            }
+            mpFees2 = packMpFees2(c1, c2, totalTargetShares, d);
+        }
+    }
+
+    function setFeeParams(
+        uint24 deviationIncreaseFee,
+        uint16 deviationLimit,
+        uint24 feeToCashbackRatio,
+        uint24 baseFee,
+        uint24 managerFee,
+        uint24 lpFee,
+        address _managerFeeReceiver,
+        address _lpFeeReceiver,
+        address oracleAddress
+    )
+        external
+        onlyOwner
+    {
+        bytes32 fees2 = mpFees2;
+        (uint c1, uint c2, uint t,) = unpackMpFees2(fees2);
+        mpFees2 = packMpFees2(c1, c2, t, deviationLimit);
+
+        mpFees1 = packMpFees1(
+            oracleAddress, deviationIncreaseFee, feeToCashbackRatio, baseFee, lpFee, managerFee
+        );
+
+        managerFeeReceiver = _managerFeeReceiver;
+        lpFeeReceiver = _lpFeeReceiver;
 
         emit FeesChange(
-            newDeviationIncreaseFee,
-            newDeviationLimit,
-            newFeeToCashbackRatio,
-            newBaseFee,
-            newManagementFee,
-            newManagementFeeRecepient
+            deviationIncreaseFee,
+            deviationLimit,
+            feeToCashbackRatio,
+            baseFee,
+            managerFee,
+            lpFee,
+            managerFeeReceiver,
+            lpFeeReceiver,
+            oracleAddress
         );
     }
 
-    /// @inheritdoc IMultipoolManagerMethods
-    function updateStrategyManager(address newStrategyManager) external override onlyOwner {
-        emit StrategyManagerChange(strategyManager, newStrategyManager);
-        strategyManager = newStrategyManager;
+    function claimLpFees(address to) external returns (uint fee) {
+        bytes32 fees = mpFees2;
+        (uint collectedLpFee, uint collectedManagerFee, uint totalTargetShares, uint deviationLimit)
+        = unpackMpFees2(fees);
+        if (msg.sender != lpFeeReceiver) revert NotLpFeeReceiver();
+        fee = collectedLpFee;
+        fees = packMpFees2(0, collectedManagerFee, totalTargetShares, deviationLimit);
+        payable(to).transfer(fee);
     }
 
-    /// @inheritdoc IMultipoolManagerMethods
-    function updateOracleAddress(address _oracleAddress) external override onlyOwner {
-        emit PriceOracleChange(oracleAddress, _oracleAddress);
+    function claimManagerFees(address to) external returns (uint fee) {
+        bytes32 fees = mpFees2;
+        (uint collectedLpFee, uint collectedManagerFee, uint totalTargetShares, uint deviationLimit)
+        = unpackMpFees2(fees);
+
+        if (msg.sender != managerFeeReceiver) revert NotManagerFeeReceiver();
+        fee = collectedManagerFee;
+        fees = packMpFees2(collectedLpFee, 0, totalTargetShares, deviationLimit);
+        payable(to).transfer(fee);
+    }
+
+    function estimateSwap(
+        OraclePrice calldata oraclePrice,
+        address assetInAddress,
+        address assetOutAddress,
+        uint swapAmount,
+        bool isExactInput
+    )
+        internal
+        view
+        returns (
+            uint _totalSupply,
+            uint totalTargetShares,
+            uint deviationLimit,
+            uint collectedManagerFee,
+            uint collectedLpFee,
+            address oracleAddress,
+            uint managerEarnedFee,
+            uint oracleEarnedFee,
+            uint lpEarnedFee,
+            uint cashbacksRefund,
+            uint amountIn,
+            uint amountOut,
+            uint quantityIn,
+            uint targetShareIn,
+            uint collectedCashbacksIn,
+            uint priceIn,
+            uint quantityOut,
+            uint targetShareOut,
+            uint collectedCashbacksOut,
+            uint priceOut
+        )
+    {
+        if (swapAmount == 0) revert ZeroAmountSupplied();
+        if (assetOutAddress == assetInAddress) revert AssetsAreSame();
+
+        _totalSupply = totalSupply();
+        uint sharePrice = getSharePrice(oraclePrice, _totalSupply);
+
+        if (assetOutAddress != address(this)) {
+            (, quantityOut, collectedCashbacksOut, targetShareOut) =
+                unpackMpAsset(assets[assetOutAddress]);
+            priceOut = prices[assetOutAddress].getPrice();
+            priceIn = sharePrice;
+            quantityIn = _totalSupply;
+        } else if (assetInAddress != address(this)) {
+            (, quantityIn, collectedCashbacksIn, targetShareIn) =
+                unpackMpAsset(assets[assetInAddress]);
+            priceIn = prices[assetInAddress].getPrice();
+            priceOut = sharePrice;
+            quantityOut = _totalSupply;
+        } else {
+            (, quantityOut, collectedCashbacksOut, targetShareOut) =
+                unpackMpAsset(assets[assetOutAddress]);
+            priceOut = prices[assetOutAddress].getPrice();
+            (, quantityIn, collectedCashbacksIn, targetShareIn) =
+                unpackMpAsset(assets[assetInAddress]);
+            priceIn = prices[assetInAddress].getPrice();
+        }
+
+        (
+            address _oracleAddress,
+            uint deviationIncreaseFee,
+            uint feeToCashbackRatio,
+            uint baseFee,
+            uint lpFee,
+            uint managerFee
+        ) = unpackMpFees1(mpFees1);
+
+        (
+            uint _collectedLpFee,
+            uint _collectedManagementFee,
+            uint _totalTargetShares,
+            uint _deviationLimit
+        ) = unpackMpFees2(mpFees2);
+
+        (
+            uint _managerEarnedFee,
+            uint _oracleEarnedFee,
+            uint _lpEarnedFee,
+            uint _cashbacksRefund,
+            uint _amountIn,
+            uint _amountOut,
+            uint newQuantityIn,
+            uint newCollectedCashbacksIn,
+            uint newQuantityOut,
+            uint newCollectedCashbacksOut
+        ) = MpMath.calculateSwap(
+            _totalSupply,
+            _totalTargetShares,
+            deviationIncreaseFee,
+            deviationLimit,
+            feeToCashbackRatio,
+            baseFee,
+            lpFee,
+            managerFee,
+            quantityIn,
+            collectedCashbacksIn,
+            targetShareIn,
+            quantityOut,
+            collectedCashbacksOut,
+            targetShareOut,
+            assetOutAddress == address(this),
+            assetInAddress == address(this),
+            swapAmount,
+            isExactInput,
+            priceIn,
+            priceOut,
+            sharePrice
+        );
+
+        totalTargetShares = _totalTargetShares;
+        deviationLimit = _deviationLimit;
+        collectedManagerFee = _collectedManagementFee;
+        collectedLpFee = _collectedLpFee;
+
         oracleAddress = _oracleAddress;
+
+        managerEarnedFee = _managerEarnedFee;
+        oracleEarnedFee = _oracleEarnedFee;
+        lpEarnedFee = _lpEarnedFee;
+        cashbacksRefund = _cashbacksRefund;
+
+        amountIn = _amountIn;
+        amountOut = _amountOut;
+
+        quantityIn = newQuantityIn;
+        collectedCashbacksIn = newCollectedCashbacksIn;
+
+        quantityOut = newQuantityOut;
+        collectedCashbacksOut = newCollectedCashbacksOut;
     }
 }

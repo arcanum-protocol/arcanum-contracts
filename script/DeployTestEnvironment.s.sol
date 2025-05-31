@@ -47,10 +47,8 @@ contract DeployTestEnv is Script {
         ERC1967Proxy proxy =
             new ERC1967Proxy{salt: keccak256(abi.encode("chapa chapa"))}(address(mpImpl), "");
         Multipool mp = Multipool(address(proxy));
-        mp.initialize("Exchange tradable fund", "ETF", address(0), uint96(toX32(0.1e18)));
+        mp.initialize("Exchange tradable fund", "ETF");
         console.log("mp ", address(mp));
-
-        mp.updateStrategyManager(deployer);
 
         updatePrice(
             address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint64(toX96(0.1e18)))
@@ -66,11 +64,14 @@ contract DeployTestEnv is Script {
                 address(tokens[i]),
                 abi.encodePacked(FeedType.FixedValue, uint64(price))
             );
+            address[] memory ptk = new address[](0);
+            bytes32[] memory pt = new bytes32[](0);
+
             address[] memory tk = new address[](1);
             tk[0] = address(tokens[i]);
             uint16[] memory am = new uint16[](1);
             am[0] = 1000;
-            mp.updateTargetShares(tk, am);
+            mp.updateAssets(ptk, pt, tk, am);
             console.log("token", i, " address: ", address(tokens[i]));
             console.log("token", i, " price: ", price);
         }
@@ -79,8 +80,11 @@ contract DeployTestEnv is Script {
             toX16(0.0003e18),
             toX16(0.6e18),
             toX16(0.0001e18),
+            toX16(0.0001e18),
+            toX16(0.0001e18),
             deployer,
-            toX16(0.15e18)
+            deployer,
+            deployer
         );
 
         vm.stopBroadcast();

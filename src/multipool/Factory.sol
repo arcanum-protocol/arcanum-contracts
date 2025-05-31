@@ -7,24 +7,26 @@ import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
 
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import {Multipool, IERC20, OraclePrice} from "./Multipool.sol";
-import {ReceiverData} from "../types/ReceiverData.sol";
 
 struct MultipoolCreationParams {
     string name;
     string symbol;
-    uint96 initialSharePrice;
-    uint16 deviationIncreaseFee;
-    uint16 deviationLimit;
-    uint16 feeToCashbackRatio;
-    uint16 baseFee;
-    address managementFeeRecepient;
-    uint16 managementFee;
-    address oracleAddress;
-    address strategyManager;
     address[] assetAddresses;
     bytes32[] priceData;
+    uint24 deviationIncreaseFee;
+    uint16 deviationLimit;
+    uint24 feeToCashbackRatio;
+    uint24 baseFee;
+    uint24 managerFee;
+    uint24 lpFee;
+    address _managerFeeReceiver;
+    address _lpFeeReceiver;
+    address oracleAddress;
     uint16[] targetShares;
     address initialLiquidityAsset;
+    address owner;
+    uint nonce;
+    address protocolFeeReceiver;
 }
 
 /// @custom:security-contact badconfig@arcanum.to
@@ -43,7 +45,13 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
 
     address public implementationAddress;
 
-    event MultipoolCreated(address indexed);
+    event MultipoolCreated(
+        address indexed multipoolAddress,
+        address indexed feeReceiver,
+        uint feeAmount,
+        string name,
+        string symbol
+    );
 
     function updateImplementationAddress(address newImplementationAddress) external onlyOwner {
         implementationAddress = newImplementationAddress;
@@ -58,40 +66,32 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
     {
         address _implementationAddress = implementationAddress;
 
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(_implementationAddress),
-            abi.encodeWithSignature(
-                "initialize(string,string,address,uint96)",
-                params.name,
-                params.symbol,
-                params.oracleAddress,
-                params.initialSharePrice
-            )
+        ERC1967Proxy proxy = new ERC1967Proxy{
+            salt: keccak256(abi.encodePacked(block.chainid, params.nonce, msg.sender))
+        }(address(_implementationAddress), "");
+        emit MultipoolCreated(
+            address(proxy), params.protocolFeeReceiver, msg.value, params.name, params.symbol
         );
+
         mp = Multipool(address(proxy));
-
-        mp.updateTargetShares(params.assetAddresses, params.targetShares);
-
-        mp.updatePrices(params.assetAddresses, params.priceData);
-
-        if (params.strategyManager != address(0)) {
-            mp.updateStrategyManager(params.strategyManager);
-        }
+        mp.initialize(params.name, params.symbol);
+        mp.updateAssets(
+            params.assetAddresses, params.priceData, params.assetAddresses, params.targetShares
+        );
 
         if (params.initialLiquidityAsset != address(0)) {
             // Not needed for initial mint, so it's empty
             OraclePrice memory oraclePrice;
-            mp.swap{value: msg.value}(
+
+            mp.swap(
                 oraclePrice,
                 params.initialLiquidityAsset,
                 address(mp),
                 IERC20(params.initialLiquidityAsset).balanceOf(address(mp)),
                 true,
-                ReceiverData({
-                    refundAddress: address(0),
-                    receiverAddress: msg.sender,
-                    refundEthToReceiver: true
-                })
+                address(0),
+                params.owner,
+                true
             );
         }
 
@@ -100,12 +100,13 @@ contract MultipoolFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable 
             params.deviationLimit,
             params.feeToCashbackRatio,
             params.baseFee,
-            params.managementFeeRecepient,
-            params.managementFee
+            params.managerFee,
+            params.lpFee,
+            params._managerFeeReceiver,
+            params._lpFeeReceiver,
+            params.oracleAddress
         );
 
-        mp.transferOwnership(msg.sender);
-
-        emit MultipoolCreated(address(mp));
+        mp.transferOwnership(params.owner);
     }
 }

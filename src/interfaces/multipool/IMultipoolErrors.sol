@@ -6,6 +6,12 @@ interface IMultipoolErrors {
     /// @notice Thrown when target share change initiator is invalid
     error AssetsAreSame();
 
+    /// @notice Thrown when management fee receiver authority is invalid
+    error NotManagerFeeReceiver();
+
+    /// @notice Thrown when lp fee receiver authority is invalid
+    error NotLpFeeReceiver();
+
     /// @notice Thrown when target share change initiator is invalid
     error InvalidTargetShareAuthority();
 

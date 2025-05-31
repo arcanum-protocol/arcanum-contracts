@@ -1,5 +1,6 @@
 [profile.default]
 optimizer = true
+via_ir = true
 optimizer_runs = 500
 gas_reports = ["Multipool", "MultipoolRouter", "Trader", "ContextMath", "CashbackVault"]
 fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
@@ -14,6 +15,7 @@ remappings = [
 bytecode_hash = 'none'
 solc_version = "0.8.19"
 libs = ["/lib"]
+evm_version = "cancun"
 
 [profile.ci]
 verbosity = 4

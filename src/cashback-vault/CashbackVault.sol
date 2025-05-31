@@ -84,8 +84,8 @@ contract CashbackVault is
         values = new uint[](assetsLen);
         for (uint i; i < assetsLen;) {
             address asset = assets[i];
-            MpAsset memory a = IMultipool(multipool).getAsset(asset);
-            if (a.quantity == 0 && a.targetShare == 0) revert InvalidAsset(asset);
+            (, uint quantity, , uint targetShare) = IMultipool(multipool).getAsset(asset);
+            if (quantity == 0 && targetShare == 0) revert InvalidAsset(asset);
             uint lastUpdatedTime = lastUpdated[multipool][asset];
             uint value = distributor.distribute(lastUpdatedTime, currentTime);
             lastUpdated[multipool][asset] = block.timestamp;
@@ -119,7 +119,8 @@ contract CashbackVault is
         }
 
         CashbackDistributor memory distributor = distributors[multipool];
-        distributor.updateDistribution(newCashbackPerSec, newCashbackLimit, cashbackBalanceChange);
+        distributor.updateDistribution(newCashbackPerSec, newCashbackLimit,
+cashbackBalanceChange);
         distributors[multipool] = distributor;
     }
 
