@@ -10,7 +10,6 @@ import {Oracle} from "../../src/multipool/Oracle.sol";
 import {
     toX96, toX32, updatePrice, AbstractFixedValueOracle
 } from "../../test/MultipoolUtils.t.sol";
-import {ReceiverData} from "../../src/types/ReceiverData.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
@@ -80,12 +79,6 @@ contract Mint is Script {
 
         oracle.stake(deployerPublicKey, 1e18, deployerPublicKey);
 
-        ReceiverData memory rd = ReceiverData({
-            receiverAddress: deployerPublicKey,
-            refundAddress: deployerPublicKey,
-            refundEthToReceiver: true
-        });
-
         uint256 ts = block.timestamp;
         bytes memory data = abi.encodePacked(
             address(mp), uint(ts), uint(49432770753888933655371916), uint(block.chainid)
@@ -106,7 +99,9 @@ contract Mint is Script {
 
         MockERC20(tokens[1]).mint(address(mp), 1e5);
 
-        mp.swap{value: 1e16}(op, tokens[1], tokens[0], 1e5, true, rd);
+        mp.swap{value: 1e16}(
+            op, tokens[1], tokens[0], 1e5, true, deployerPublicKey, deployerPublicKey, true
+        );
 
         vm.stopBroadcast();
     }

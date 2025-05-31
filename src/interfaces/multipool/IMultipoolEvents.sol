@@ -26,7 +26,6 @@ interface IMultipoolEvents {
         uint24 baseFee,
         uint24 managerFee,
         uint24 lpFee,
-
         address managerFeeReceiver,
         address lpFeeReceiver,
         address oracleAddress
@@ -36,7 +35,9 @@ interface IMultipoolEvents {
     /// @param asset changed target share address asset
     /// @param newTargetShare absolute value of updated target share
     /// @param newTotalTargetShares absolute value of new sum of all target shares
-    event TargetShareChange(address indexed asset, uint16 newTargetShare, uint16 newTotalTargetShares);
+    event TargetShareChange(
+        address indexed asset, uint16 newTargetShare, uint16 newTotalTargetShares
+    );
 
     /// @notice Thrown when price feed for an asset got updated
     /// @param targetAsset address of asset wich price feed data is changed

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
 import {ISilo, ISiloLens, IBaseSilo} from "../../src/interfaces/ISiloPool.sol";
-import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {Multipool} from "../../src/multipool/Multipool.sol";
 import {SiloPriceAdapter} from "../../src/multipool/SiloAdapter.sol";
 import {FeedType, PriceMath} from "../../src/lib/Price.sol";
 import {MultipoolUtils, toX96, toX32} from "../MultipoolUtils.t.sol";

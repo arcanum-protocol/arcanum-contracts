@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
-import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {Multipool} from "../../src/multipool/Multipool.sol";
 import {Oracle} from "../../src/multipool/Oracle.sol";
 import {FeedType} from "../../src/lib/Price.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";

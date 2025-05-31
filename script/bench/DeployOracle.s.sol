@@ -30,7 +30,7 @@ contract Deploy is Script {
 
         Multipool mp = Multipool(0x90b1AcD4e333A0fE29D6a90fa77D0c6Cc592c913);
 
-        mp.updateOracleAddress(address(oracleProxy));
+        // mp.updateOracleAddress(address(oracleProxy));
 
         Oracle oracle = Oracle(payable(address(oracleProxy)));
         address o = oracle.owner();

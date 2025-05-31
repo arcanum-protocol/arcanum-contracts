@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
+import "../../src/lib/MpContext.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
-import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {Multipool} from "../../src/multipool/Multipool.sol";
 import {FeedType} from "../../src/lib/Price.sol";
 import {
     MultipoolUtils, toX96, toX32, toX16RatioTick, vec, updatePrice
 } from "../MultipoolUtils.t.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
-import {ReceiverData} from "../../src/types/ReceiverData.sol";
 
 contract MultipoolPriceChangeTest is Test, MultipoolUtils {
     receive() external payable {}
@@ -24,12 +24,8 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         tokens[0].mint(address(mp), 1e18);
         OraclePrice memory op;
-        ReceiverData memory rd;
-        rd.receiverAddress = user0;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
         vm.expectRevert(abi.encodeWithSignature("FeeExceeded()"));
-        mp.swap{value: 0}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 0}(op, token0, token1, 1e18, true, user0, address(0), true);
     }
 
     function test_CheckPriceGetters() public {
@@ -43,34 +39,39 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         assertEq(mp.getPrice(token0), toX96(10e18));
         assertEq(mp.getPrice(token3), toX96(12.5e18));
 
+        (bytes32 fees1, bytes32 fees2, address _managerFeeReceiver, address _lpFeeReceiver, uint supply) = mp.getConfig();
+        (,,,uint deviationLimit) = unpackMpFees2(fees2);
+        (address o, uint deviationIncreaseFee, uint feeToCashbackRatio, uint baseFee, uint lpFee, uint managementFee) = unpackMpFees1(fees1);
+
+
         vm.expectRevert(); // not an owner
-        mp.updateOracleAddress(address(0));
+        mp.setFeeParams(uint24(deviationIncreaseFee), uint16(deviationLimit), uint24(feeToCashbackRatio), uint24(baseFee), uint24(managementFee), uint24(lpFee), _managerFeeReceiver, _lpFeeReceiver, address(0));
 
         vm.prank(owner);
-        mp.updateOracleAddress(address(0));
+        mp.setFeeParams(uint24(deviationIncreaseFee), uint16(deviationLimit), uint24(feeToCashbackRatio), uint24(baseFee), uint24(managementFee), uint24(lpFee), _managerFeeReceiver, _lpFeeReceiver, address(0));
     }
 
     function test_NoPrice() public {
+        address[] memory p = new address[](0);
+        bytes32[] memory pd = new bytes32[](0);
+
         vm.expectRevert(abi.encodeWithSignature("InvalidTargetShareAuthority()"));
-        mp.updateTargetShares(
+        mp.updateAssets(
+            p,pd,
             vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000])
         );
 
         vm.prank(owner);
-        mp.updateTargetShares(
+        mp.updateAssets(
+            p,pd,
             vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000])
         );
 
         tokens[0].mint(address(mp), 1e18);
         OraclePrice memory op;
 
-        ReceiverData memory rd;
-        rd.receiverAddress = user0;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
-
         vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
-        mp.swap{value: 0}(op, token0, address(mp), 1e18, true, rd);
+        mp.swap{value: 0}(op, token0, address(mp), 1e18, true, user0, address(0), true);
 
         vm.prank(owner);
         updatePrice(
@@ -78,7 +79,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         );
 
         vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
-        mp.swap{value: 0}(op, token0, address(mp), 1e18, true, rd);
+        mp.swap{value: 0}(op, token0, address(mp), 1e18, true, user0, address(0), true);
 
         vm.prank(owner);
         updatePrice(
@@ -87,12 +88,12 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
         );
 
-        mp.swap{value: 0}(op, token0, address(mp), 1e18, true, rd);
+        mp.swap{value: 0}(op, token0, address(mp), 1e18, true, user0, address(0), true);
 
         tokens[1].mint(address(mp), 1e18);
 
         vm.expectRevert(abi.encodeWithSignature("NoPriceOriginSet()"));
-        mp.swap{value: 0}(op, token1, address(mp), 1e18, true, rd);
+        mp.swap{value: 0}(op, token1, address(mp), 1e18, true, user0, address(0), true);
     }
 
     function test_AssetPriceGrow() public {
@@ -123,13 +124,9 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         // );
 
         OraclePrice memory op;
-        ReceiverData memory rd;
-        rd.receiverAddress = user0;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
 
         vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         uint256 snapshot = vm.snapshot();
 
@@ -145,11 +142,14 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             toX16RatioTick(1e5),
             toX16RatioTick(0.6e5),
             toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
             owner,
-            toX16RatioTick(0.1e5)
+            owner,
+            owner
         );
 
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         snapMultipool("AssetPriceGrow1");
 
@@ -168,7 +168,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         );
 
         console.log("asadsaddsa");
-        mp.swap{value: 100e18}(op, token0, token1, 0.5e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 0.5e18, true, user0, address(0), true);
 
         snapMultipool("AssetPriceGrow2");
 
@@ -187,7 +187,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
         );
 
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         snapMultipool("AssetPriceGrow3");
 
@@ -201,7 +201,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
         );
 
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         snapMultipool("AssetPriceGrow4");
 
@@ -215,7 +215,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         );
 
         vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
     }
 
     function test_SharePriceChange() public {
@@ -238,13 +238,8 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         OraclePrice memory op;
 
-        ReceiverData memory rd;
-        rd.receiverAddress = user0;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
-
         vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         vm.revertTo(snapshot);
 
@@ -256,7 +251,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         );
 
         vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         vm.revertTo(snapshot);
 
@@ -265,7 +260,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.11e18)))
         );
 
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         snapMultipool("SharePriceChange1");
 
@@ -276,7 +271,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
             address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.09e18)))
         );
 
-        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, rd);
+        mp.swap{value: 100e18}(op, token0, token1, 1e18, true, user0, address(0), true);
 
         snapMultipool("SharePriceChange2");
 
@@ -289,7 +284,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
 
         op = genOraclePrice(ownerPk, owner, 1704739268, toX96(5e18));
 
-        mp.swap{value: 1e18}(op, token0, token1, 0.005e10, true, rd);
+        mp.swap{value: 1e18}(op, token0, token1, 0.005e10, true, user0, address(0), true);
 
         snapMultipool("SharePriceChange3");
 
@@ -300,6 +295,6 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         tokens[1].mint(address(mp), 1e18);
 
         vm.prank(owner);
-        mp.swap{value: 1e18}(op, token1, token0, 1e10, true, rd);
+        mp.swap{value: 1e18}(op, token1, token0, 1e10, true, user0, address(0), true);
     }
 }

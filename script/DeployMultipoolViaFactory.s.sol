@@ -157,18 +157,19 @@ contract Deploy is Script {
         });
         {
             f.initialize(deployerPublicKey, address(mpImpl));
+
             MultipoolCreationParams memory params = MultipoolCreationParams({
                 name: "MpSepolia",
                 symbol: "MPS",
-                initialSharePrice: uint96(toX32(0.1e18)),
                 deviationIncreaseFee: toX16(0.15e18),
                 deviationLimit: toX16(0.0003e18),
                 feeToCashbackRatio: toX16(0.6e18),
                 baseFee: toX16(0.0001e18),
-                managementFeeRecepient: deployerPublicKey,
-                managementFee: toX16(0.15e18),
+                lpFee: toX16(0.0001e18),
+                _managerFeeReceiver: deployerPublicKey,
+                _lpFeeReceiver: deployerPublicKey,
+                managerFee: toX16(0.15e18),
                 oracleAddress: address(oracle),
-                strategyManager: address(0),
                 assetAddresses: tokensAddresses,
                 priceData: prices,
                 targetShares: s,

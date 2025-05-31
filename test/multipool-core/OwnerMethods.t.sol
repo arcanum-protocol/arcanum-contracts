@@ -2,12 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
+import "../../src/lib/MpContext.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
-import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {Multipool} from "../../src/multipool/Multipool.sol";
 import {FeedType} from "../../src/lib/Price.sol";
-import {MultipoolUtils, toX96, toX32, updatePrice, vec} from "../MultipoolUtils.t.sol";
+import {MultipoolUtils, toX96, toX32, toX16, updatePrice, vec} from "../MultipoolUtils.t.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
-import {ReceiverData} from "../../src/types/ReceiverData.sol";
 
 contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
     receive() external payable {}
@@ -27,13 +27,8 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         tokens[0].mint(address(mp), val);
         OraclePrice memory oraclePrice;
 
-        ReceiverData memory rd;
-        rd.receiverAddress = user0;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
-
         mp.swap{value: uint128(toX96(0.1e18))}(
-            oraclePrice, address(tokens[0]), address(mp), val, true, rd
+            oraclePrice, address(tokens[0]), address(mp), val, true, user0, address(0), true
         );
         // swapExt(
         //     sort(
@@ -73,9 +68,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         vm.prank(users[0]);
         mp.transfer(address(mp), (quoteSum << 96) / toX96(0.1e18) / 2);
 
-        rd.receiverAddress = user2;
-        rd.refundEthToReceiver = false;
-        mp.swap{value: 1e13}(oraclePrice, address(mp), address(tokens[0]), 10000, true, rd);
+        mp.swap{value: 1e13}(oraclePrice, address(mp), address(tokens[0]), 10000, true, user2, address(0), false);
         // swapExt(
         //     sort(
         //         dynamic(
@@ -108,6 +101,9 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             vec([1000, 1000, 1000, 1000, 1000])
         );
 
+        address[] memory priceAssets = new address[](0);
+        bytes32[] memory priceData = new bytes32[](0);
+
         address[] memory assets = new address[](10);
         uint16[] memory shares = new uint16[](10);
 
@@ -117,9 +113,47 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         }
 
         vm.prank(owner);
-        mp.updateTargetShares(assets, shares);
+        mp.updateAssets(priceAssets, priceData, assets, shares);
 
         vm.prank(owner);
-        mp.updateTargetShares(assets, shares);
+        mp.updateAssets(priceAssets, priceData, assets, shares);
+    }
+
+    function test_SetFees() public {
+        vm.prank(owner);
+        mp.setFeeParams(
+            1e4, 
+            toX16(1e5), 
+            1e6, 
+            1e3, 
+            1e5, 
+            0, 
+            owner, 
+            owner, 
+            address(oracle)
+            );
+
+        (bytes32 mpFees1, bytes32 mpFees2, address managerFeeReceiver, address lpFeeReceiver, uint total) = mp.getConfig();
+        console2.logBytes32(mpFees1);
+        (        
+            address oracleAddress,
+            uint deviationIncreaseFee,
+            uint feeToCashbackRatio,
+            uint baseFee,
+            uint lpFee,
+            uint managementFee
+        ) = unpackMpFees1(mpFees1);
+        (        
+            uint collectedLp,
+            uint collectedManagement,
+            uint totalTargetShares,
+            uint deviationLimit
+        ) = unpackMpFees2(mpFees2);
+        assertEq(oracleAddress, address(oracle));
+        // assertEq(deviationIncreaseFee, 1e4);
+        // assertEq(feeToCashbackRatio, 1e5);
+        console2.log(baseFee >> 32);
+        assertEq(lpFee, 0);
+        assertEq(baseFee, 1e3);
     }
 }

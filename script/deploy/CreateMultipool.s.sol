@@ -33,27 +33,37 @@ contract Deploy is Script {
 
         {
             bytes32 val;
-            bytes memory data = abi.encodePacked(FeedType.UniV3, 0x0E5b205A058101584d0b94736212A517730F5FC0, true, uint64(0));
+            bytes memory data = abi.encodePacked(
+                FeedType.UniV3, 0x0E5b205A058101584d0b94736212A517730F5FC0, true, uint64(0)
+            );
             assembly {
                 val := mload(add(data, 32))
             }
             prices[0] = val;
-            data = abi.encodePacked(FeedType.UniV3, 0x00F26C926345D6F8e1BfCa684873C35070DC49Fd, false, uint64(0));
+            data = abi.encodePacked(
+                FeedType.UniV3, 0x00F26C926345D6F8e1BfCa684873C35070DC49Fd, false, uint64(0)
+            );
             assembly {
                 val := mload(add(data, 32))
             }
             prices[1] = val;
-            data = abi.encodePacked(FeedType.UniV3, 0x96c8dfe099cEb7fe7cB9e5e070858f66363BD75C, true, uint64(0));
+            data = abi.encodePacked(
+                FeedType.UniV3, 0x96c8dfe099cEb7fe7cB9e5e070858f66363BD75C, true, uint64(0)
+            );
             assembly {
                 val := mload(add(data, 32))
             }
             prices[2] = val;
-            data = abi.encodePacked(FeedType.UniV3, 0xf5E71C63967570Ff6fa4Db961F95e612b54CBe47, true, uint64(0));
+            data = abi.encodePacked(
+                FeedType.UniV3, 0xf5E71C63967570Ff6fa4Db961F95e612b54CBe47, true, uint64(0)
+            );
             assembly {
                 val := mload(add(data, 32))
             }
             prices[3] = val;
-            data = abi.encodePacked(FeedType.UniV3, 0xD1F87e48269F972110F77E989d519Cf151EDb485, true, uint64(0));
+            data = abi.encodePacked(
+                FeedType.UniV3, 0xD1F87e48269F972110F77E989d519Cf151EDb485, true, uint64(0)
+            );
             assembly {
                 val := mload(add(data, 32))
             }
@@ -124,7 +134,7 @@ contract Deploy is Script {
         IUniswapV3Router uniRouter = IUniswapV3Router(0x4c4eABd5Fb1D1A7234A48692551eAECFF8194CA7);
         // NOTACTIVATED  0x22a2485421280363e9567b901F7CA63658f63db8
         // NOT ACTIVATED TFTF 0x4c4eABd5Fb1D1A7234A48692551eAECFF8194CA7
-        address mp = 0x057A931a8Ab1111fF163745De18040dc0b35F153;
+        address mp = 0x4cC4BcDAD979F9626d11E638479FD07a28E9E038;
         // address mp = computeContractAddress(address(f),
         // 0x14090b42338e02C786cDd6F29Bb83553FDe8f084, 1);
         // address mp = 0x46489e10E6E78EAFE087fde1Bc74e745182a2Eab;
@@ -133,10 +143,10 @@ contract Deploy is Script {
         IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
             .ExactInputSingleParams({
             tokenIn: address(weth),
-            tokenOut: tokensAddresses[3],
+            tokenOut: 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea,
             fee: 100,
-            recipient: mp,
-            amountIn: 8e18,
+            recipient: 0xAd19c4Ac757CA1da80999E21Cf8955C6Ea5C6D80,
+            amountIn: 1e18,
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0
         });
@@ -161,9 +171,9 @@ contract Deploy is Script {
             //     owner: deployerPublicKey,
             //     protocolFeeReceiver: deployerPublicKey
             // });
-            // weth.deposit{value: 8e18}();
+            // weth.deposit{value: 1e18}();
             // weth.approve(
-                // address(uniRouter), 8e18
+            //     address(uniRouter), 1e18
             // ); // approve to router
             // weth.transfer(address(mp), 1e14);
             // uniRouter.exactInputSingle{
@@ -187,11 +197,6 @@ contract Deploy is Script {
         // });
         // uint amountOut = uniRouter.exactInputSingle{value: 1e12}(swapParams);
         OraclePrice memory op;
-        ReceiverData memory rd = ReceiverData({
-            receiverAddress: deployerPublicKey,
-            refundAddress: deployerPublicKey,
-            refundEthToReceiver: true
-        });
         // console2.log(amountOut);
         //  Multipool(mp).setFeeParams(
         //     toX16RatioTick(0.0003e5),
@@ -201,9 +206,10 @@ contract Deploy is Script {
         //     deployerPublicKey,
         //     toX16RatioTick(0.1e5)
         // );
-        (uint input, uint output, ,) = Multipool(mp).estimate_swap(op, mp, tokensAddresses[1], 10e18, false);
-        Multipool(mp).transfer(mp, input);
-        Multipool(mp).swap{value: 0}(op, mp, tokensAddresses[1], 10e18, false, rd);
+        // (uint input, uint output, ,,,,,,,,,,,,,,,,,) = Multipool(mp).estimateSwap(op, mp,
+        // tokensAddresses[1], 10e18, false);
+        IERC20(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A).transfer(mp, 1e16);
+        Multipool(mp).swap{value: 1e16}(op, 0xb2f82D0f38dc453D596Ad40A37799446Cc89274A, address(mp), 1e16, true, deployerPublicKey, deployerPublicKey, true);
 
         // //
         // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,

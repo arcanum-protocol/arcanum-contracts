@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import {Multipool} from "./Multipool.sol";
 import {MultipoolCreationParams, MultipoolFactory} from "./Factory.sol";
 import {OraclePrice} from "../types/OraclePrice.sol";
-import {ReceiverData} from "../types/ReceiverData.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
 
@@ -49,7 +48,9 @@ struct SwapArgs {
     address assetOut;
     uint swapAmount;
     bool isExactInput;
-    ReceiverData receiverData;
+    address receiverAddress;
+    address refundAddress;
+    bool refundEthToReceiver;
     uint ethValue;
     uint minimumReceive;
 }
@@ -130,7 +131,9 @@ contract MultipoolRouter is Ownable {
             swapArgs.assetOut,
             swapArgs.swapAmount,
             swapArgs.isExactInput,
-            swapArgs.receiverData
+            swapArgs.receiverAddress,
+            swapArgs.refundAddress,
+            swapArgs.refundEthToReceiver
         );
         if (amountOut < swapArgs.minimumReceive) revert SleepageExceeded();
 

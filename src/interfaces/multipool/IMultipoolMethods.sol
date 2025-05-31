@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {MpAsset} from "../../lib/MpContext.sol";
 import {OraclePrice} from "../../types/OraclePrice.sol";
-import {ReceiverData} from "../../types/ReceiverData.sol";
 
 /// @title Interface that contains all multipool public methods
 interface IMultipoolMethods {
@@ -20,7 +19,10 @@ interface IMultipoolMethods {
     /// @notice Gets asset related info
     /// @param assetAddress address of asset wich data to provide
     /// @dev Reads exacly two storage slots
-    function getAsset(address assetAddress) external view returns (bool isUsed, uint quantity, uint collectedCashback, uint targetShare);
+    function getAsset(address assetAddress)
+        external
+        view
+        returns (bool isUsed, uint quantity, uint collectedCashback, uint targetShare);
 
     /// @notice Method that executes every trading in multipool, minting and burning is
     /// reached by setting in or out address as multipool's address

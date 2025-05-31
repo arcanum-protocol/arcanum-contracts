@@ -146,8 +146,11 @@ contract DeployYield is Script {
         targetShares[2] = 100;
         targetShares[3] = 100;
 
+        address[] memory tokenAddressesPrice = new address[](0);
+        bytes32[] memory tokenPrice = new bytes32[](0);
+
         // mp.updatePrices(tokenAddresses, feedData);
-        mp.updateTargetShares(tokenAddresses, targetShares);
+        mp.updateAssets(tokenAddressesPrice, tokenPrice, tokenAddresses, targetShares);
 
         // mp.setFeeParams(
         //     toX32(0.15e18),

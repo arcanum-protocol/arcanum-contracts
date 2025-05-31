@@ -6,7 +6,6 @@ import "forge-std/Script.sol";
 import {Multipool} from "../src/multipool/Multipool.sol";
 import {WETH} from "../src/multipool/MultipoolRouter.sol";
 import {OraclePrice} from "../src/types/OraclePrice.sol";
-import {ReceiverData} from "../src/types/ReceiverData.sol";
 
 contract Deploy is Script {
     function run() external {
@@ -19,11 +18,6 @@ contract Deploy is Script {
         address tokenOut = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
         address mp = 0xC6f70B36C5B54BFf3C508FBb2F16331Dfae84Cea;
         OraclePrice memory op;
-        ReceiverData memory rd = ReceiverData({
-            receiverAddress: deployerPublicKey,
-            refundAddress: deployerPublicKey,
-            refundEthToReceiver: true
-        });
         WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, 1e7
         );
@@ -39,7 +33,9 @@ contract Deploy is Script {
         });
         uint amountOut = IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45)
             .exactInputSingle{value: 1e7}(swapParams);
-        Multipool(mp).swap{value: 1e17}(op, tokenIn, tokenOut, amountOut, true, rd);
+        Multipool(mp).swap{value: 1e17}(
+            op, tokenIn, tokenOut, amountOut, true, deployerPublicKey, deployerPublicKey, true
+        );
         vm.stopBroadcast();
     }
 }

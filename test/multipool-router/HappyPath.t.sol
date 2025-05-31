@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "openzeppelin/token/ERC20/ERC20.sol";
 import "openzeppelin/access/Ownable.sol";
 import {MockERC20} from "../../src/mocks/erc20.sol";
-import {Multipool, MpContext, MpAsset} from "../../src/multipool/Multipool.sol";
+import {Multipool} from "../../src/multipool/Multipool.sol";
 import {MultipoolFactory, MultipoolCreationParams} from "../../src/multipool/Factory.sol";
 import {
     MultipoolRouter,
@@ -25,7 +25,6 @@ import {
 } from "../MultipoolUtils.t.sol";
 import {OraclePrice} from "../../src/types/OraclePrice.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import {ReceiverData} from "../../src/types/ReceiverData.sol";
 
 contract MultipoolRouterTests is Test, MultipoolUtils {
     receive() external payable {}
@@ -65,15 +64,15 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
         MultipoolCreationParams memory p = MultipoolCreationParams({
             name: "Test multipool",
             symbol: "TMP",
-            initialSharePrice: 123456,
             deviationIncreaseFee: 1,
             deviationLimit: 2,
             feeToCashbackRatio: 1e4,
             baseFee: 4,
-            managementFeeRecepient: address(0),
-            managementFee: 1,
+            lpFee: 4,
+            _managerFeeReceiver: address(0),
+            _lpFeeReceiver: address(0),
+            managerFee: 1,
             oracleAddress: address(0),
-            strategyManager: address(0),
             assetAddresses: assetAddresses,
             priceData: prices,
             targetShares: targetShares,
@@ -141,17 +140,17 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
                 MultipoolCreationParams memory p = MultipoolCreationParams({
                     name: "Test multipool",
                     symbol: "TMP",
-                    initialSharePrice: 123456,
+                    assetAddresses: assetAddresses,
+                    priceData: prices,
                     deviationIncreaseFee: 1,
                     deviationLimit: 2,
                     feeToCashbackRatio: 1e4,
                     baseFee: 4,
-                    managementFeeRecepient: address(0),
-                    managementFee: 1,
+                    managerFee: 1,
+                    lpFee: 1,
+                    _managerFeeReceiver: address(0),
+                    _lpFeeReceiver: address(0),
                     oracleAddress: address(0),
-                    strategyManager: address(0),
-                    assetAddresses: assetAddresses,
-                    priceData: prices,
                     targetShares: targetShares,
                     initialLiquidityAsset: address(0),
                     nonce: 1,
@@ -172,10 +171,6 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
 
         vm.prank(user0);
         MockERC20(token0).approve(address(r), 10e18);
-        ReceiverData memory rd;
-        rd.receiverAddress = user0;
-        rd.refundAddress = address(0);
-        rd.refundEthToReceiver = true;
 
         OraclePrice memory op;
         SwapArgs memory sa = SwapArgs({
@@ -184,7 +179,9 @@ contract MultipoolRouterTests is Test, MultipoolUtils {
             assetOut: address(newPool),
             swapAmount: 1e10,
             isExactInput: true,
-            receiverData: rd,
+            receiverAddress: user0,
+            refundAddress: address(0),
+            refundEthToReceiver: true,
             ethValue: 1e9,
             minimumReceive: 0
         });

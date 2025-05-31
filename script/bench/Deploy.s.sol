@@ -30,8 +30,7 @@ contract Deploy is Script {
         console2.log("mp ", address(proxy));
 
         Multipool mp = Multipool(address(proxy));
-        mp.initialize("Name", "SYMBOL", address(oracleProxy), uint96(toX32(0.1e18)));
-        mp.updateStrategyManager(deployerPublicKey);
+        mp.initialize("Name", "SYMBOL");
 
         // console2.log("Proxy address: ", address(mp));
         // console.log("Etf address: ", address(mpImpl));
@@ -78,7 +77,10 @@ contract Deploy is Script {
             s[3] = 10;
             s[4] = 10;
 
-            mp.updateTargetShares(tokensAddresses, s);
+            address[] memory tokensAddressesPrice = new address[](0);
+            bytes32[] memory tokensPrice = new bytes32[](0);
+
+            mp.updateAssets(tokensAddressesPrice, tokensPrice, tokensAddresses, s);
         }
 
         updatePrice(
@@ -89,8 +91,11 @@ contract Deploy is Script {
             toX16RatioTick(0.15e5),
             toX16RatioTick(0.6e5),
             toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
+            toX16RatioTick(0.01e5),
             deployerPublicKey,
-            toX16RatioTick(0.1e5)
+            deployerPublicKey,
+            deployerPublicKey
         );
 
         vm.stopBroadcast();

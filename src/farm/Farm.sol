@@ -1,214 +1,222 @@
-// SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.0;
+// // SPDX-License-Identifier: GPL-3.0
+// pragma solidity ^0.8.0;
 
-import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
+// import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+// import {SafeERC20} from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-import {FarmingMath, PoolInfo, UserInfo} from "../lib/Farm.sol";
-import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
-import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
+// import {FarmingMath, PoolInfo, UserInfo} from "../lib/Farm.sol";
+// import {OwnableUpgradeable} from "oz-proxy/access/OwnableUpgradeable.sol";
+// import {Initializable} from "oz-proxy/proxy/utils/Initializable.sol";
+// import {UUPSUpgradeable} from "oz-proxy/proxy/utils/UUPSUpgradeable.sol";
+// import {ReentrancyGuardUpgradeable} from "oz-proxy/security/ReentrancyGuardUpgradeable.sol";
 
-/// @custom:security-contact badconfig@arcanum.to
-contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
-    using SafeERC20 for IERC20;
-    using FarmingMath for PoolInfo;
+// /// @custom:security-contact badconfig@arcanum.to
+// contract Farm is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
+//     using SafeERC20 for IERC20;
+//     using FarmingMath for PoolInfo;
 
-    constructor() {
-        _disableInitializers();
-    }
+//     constructor() {
+//         _disableInitializers();
+//     }
 
-    function initialize(address owner) public initializer {
-        __ReentrancyGuard_init();
-        __Ownable_init();
-        transferOwnership(owner);
-    }
-//     - Ферма в идеале одна на чейн
-// - Ферма в идеале умеет максимально дешево на ресив принимать токены от юзеров, либо же придется делать разными адресами, чтоб работать с address(this).balance и знать что все деньги на ее адресе - ее, но я думаю вариант 1 норм
-// - У фермы как и сейчас есть маппинг в котором есть адрес мультипула -> адрес юзера -> депозит и реворд дебт (или че там еще нам нужно сохранить) 
-// - Овнер решает сколько денег пойдет в реварды а сколько пойдет ему в корман, овнер определяется делая запрос к тому, кто овнер мультипула
-// - Есть второй токен который тоже дается как реворд опционально - это наш протокольный токен. 
-// Можно теоретически сделать чтоб в ферму можно было как в массив добавлять разные эти токены, 
-// или просто дать овнеру возможность включать 3й кастомынй токен (чисто юзлес фича пришла в голову). 
-// Но самое важное что второй токен точно должен быть, его  должны настраивать как-то мы, полагаю лучше всего это делать так, 
-// чтоб мы настраивали сколько токенов в секунду (как овнеры контракта) 
-// а депать сами токены мог любой адрес пермишнлесс (но это явно будем мы)
+//     function initialize(address owner) public initializer {
+//         __ReentrancyGuard_init();
+//         __Ownable_init();
+//         transferOwnership(owner);
+//     }
+// //     - Ферма в идеале одна на чейн
+// // - Ферма в идеале умеет максимально дешево на ресив
+// принимать токены от юзеров, либо же придется делать
+// разными адресами, чтоб работать с address(this).balance и знать
+// что все деньги на ее адресе - ее, но я думаю вариант 1 норм
+// // - У фермы как и сейчас есть маппинг в котором есть
+// адрес мультипула -> адрес юзера -> депозит и реворд дебт (или че там еще нам нужно сохранить)
+// // - Овнер решает сколько денег пойдет в реварды а сколько
+// пойдет ему в корман, овнер определяется делая запрос к тому, кто овнер мультипула
+// // - Есть второй токен который тоже дается как реворд опционально - это наш протокольный токен.
+// // Можно теоретически сделать чтоб в ферму можно было как в массив добавлять разные эти токены,
+// // или просто дать овнеру возможность включать 3й
+// кастомынй токен (чисто юзлес фича пришла в голову).
+// // Но самое важное что второй токен точно должен быть,
+// его  должны настраивать как-то мы, полагаю лучше всего это делать так,
+// // чтоб мы настраивали сколько токенов в секунду (как овнеры контракта)
+// // а депать сами токены мог любой адрес пермишнлесс (но это явно будем мы)
 
-    // multipool => info
-    mapping(address => PoolInfo) private poolInfo;
-    // multipool => userAddress => info
-    mapping(address => mapping(address => UserInfo)) private userInfo;
-    uint public poolNumber;
-    bool public isPaused;
+//     // multipool => info
+//     mapping(address => PoolInfo) private poolInfo;
+//     // multipool => userAddress => info
+//     mapping(address => mapping(address => UserInfo)) private userInfo;
+//     uint public poolNumber;
+//     bool public isPaused;
 
-    error IsPaused();
-    error CantCompound();
+//     error IsPaused();
+//     error CantCompound();
 
-    event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event PauseChange(bool isPaused);
+//     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
+//     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+//     event PauseChange(bool isPaused);
 
-    modifier notPaused() {
-        if (isPaused) revert IsPaused();
-        _;
-    }
+//     modifier notPaused() {
+//         if (isPaused) revert IsPaused();
+//         _;
+//     }
 
-    function getUser(
-        uint poolId,
-        address userAddress
-    )
-        external
-        view
-        returns (UserInfo memory user)
-    {
-        user = userInfo[poolId][userAddress];
-    }
+//     function getUser(
+//         uint poolId,
+//         address userAddress
+//     )
+//         external
+//         view
+//         returns (UserInfo memory user)
+//     {
+//         user = userInfo[poolId][userAddress];
+//     }
 
-    function getPool(uint poolId) external view returns (PoolInfo memory pool) {
-        pool = poolInfo[poolId];
-    }
+//     function getPool(uint poolId) external view returns (PoolInfo memory pool) {
+//         pool = poolInfo[poolId];
+//     }
 
-    function availableRewards(
-        uint poolId,
-        address userAddress
-    )
-        external
-        view
-        returns (uint reward, uint reward2)
-    {
-        PoolInfo memory pool = poolInfo[poolId];
-        UserInfo memory user = userInfo[poolId][userAddress];
-        (reward, reward2) = pool.updateRewards(user, block.timestamp);
-    }
+//     function availableRewards(
+//         uint poolId,
+//         address userAddress
+//     )
+//         external
+//         view
+//         returns (uint reward, uint reward2)
+//     {
+//         PoolInfo memory pool = poolInfo[poolId];
+//         UserInfo memory user = userInfo[poolId][userAddress];
+//         (reward, reward2) = pool.updateRewards(user, block.timestamp);
+//     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+//     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function deposit(
-        uint256 poolId,
-        uint256 depositAmount,
-        bool compoundRewards
-    )
-        external
-        notPaused
-        nonReentrant
-    {
-        PoolInfo memory pool = poolInfo[poolId];
-        UserInfo memory user = userInfo[poolId][msg.sender];
+//     function deposit(
+//         uint256 poolId,
+//         uint256 depositAmount,
+//         bool compoundRewards
+//     )
+//         external
+//         notPaused
+//         nonReentrant
+//     {
+//         PoolInfo memory pool = poolInfo[poolId];
+//         UserInfo memory user = userInfo[poolId][msg.sender];
 
-        if (depositAmount > 0) {
-            IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
-        }
+//         if (depositAmount > 0) {
+//             IERC20(pool.lockAsset).safeTransferFrom(msg.sender, address(this), depositAmount);
+//         }
 
-        (uint rewards, uint rewards2) = pool.deposit(user, block.timestamp, depositAmount);
+//         (uint rewards, uint rewards2) = pool.deposit(user, block.timestamp, depositAmount);
 
-        if (rewards > 0) {
-            if (!compoundRewards) {
-                IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
-            } else if (pool.lockAsset == pool.rewardAsset) {
-                pool.deposit(user, block.timestamp, rewards);
-            } else {
-                revert CantCompound();
-            }
-        }
+//         if (rewards > 0) {
+//             if (!compoundRewards) {
+//                 IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+//             } else if (pool.lockAsset == pool.rewardAsset) {
+//                 pool.deposit(user, block.timestamp, rewards);
+//             } else {
+//                 revert CantCompound();
+//             }
+//         }
 
-        if (rewards2 > 0) {
-            IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
-        }
+//         if (rewards2 > 0) {
+//             IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
+//         }
 
-        poolInfo[poolId] = pool;
-        userInfo[poolId][msg.sender] = user;
+//         poolInfo[poolId] = pool;
+//         userInfo[poolId][msg.sender] = user;
 
-        emit Deposit(msg.sender, poolId, depositAmount);
-    }
+//         emit Deposit(msg.sender, poolId, depositAmount);
+//     }
 
-    function withdraw(
-        uint256 poolId,
-        uint256 withdrawAmount,
-        bool compoundRewards
-    )
-        external
-        payable
-        notPaused
-        nonReentrant
-    {
-        PoolInfo memory pool = poolInfo[poolId];
-        UserInfo memory user = userInfo[poolId][msg.sender];
+//     function withdraw(
+//         uint256 poolId,
+//         uint256 withdrawAmount,
+//         bool compoundRewards
+//     )
+//         external
+//         payable
+//         notPaused
+//         nonReentrant
+//     {
+//         PoolInfo memory pool = poolInfo[poolId];
+//         UserInfo memory user = userInfo[poolId][msg.sender];
 
-        (uint rewards, uint rewards2) = pool.withdraw(user, block.timestamp, withdrawAmount);
+//         (uint rewards, uint rewards2) = pool.withdraw(user, block.timestamp, withdrawAmount);
 
-        if (rewards > 0) {
-            if (!compoundRewards) {
-                IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
-            } else if (pool.lockAsset == pool.rewardAsset) {
-                pool.deposit(user, block.timestamp, rewards);
-            } else {
-                revert CantCompound();
-            }
-        }
+//         if (rewards > 0) {
+//             if (!compoundRewards) {
+//                 IERC20(pool.rewardAsset).safeTransfer(msg.sender, rewards);
+//             } else if (pool.lockAsset == pool.rewardAsset) {
+//                 pool.deposit(user, block.timestamp, rewards);
+//             } else {
+//                 revert CantCompound();
+//             }
+//         }
 
-        if (rewards2 > 0) {
-            IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
-        }
+//         if (rewards2 > 0) {
+//             IERC20(pool.rewardAsset2).safeTransfer(msg.sender, rewards2);
+//         }
 
-        if (withdrawAmount > 0) {
-            IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
-        }
+//         if (withdrawAmount > 0) {
+//             IERC20(pool.lockAsset).safeTransfer(msg.sender, withdrawAmount);
+//         }
 
-        poolInfo[poolId] = pool;
-        userInfo[poolId][msg.sender] = user;
+//         poolInfo[poolId] = pool;
+//         userInfo[poolId][msg.sender] = user;
 
-        emit Withdraw(msg.sender, poolId, withdrawAmount);
-    }
+//         emit Withdraw(msg.sender, poolId, withdrawAmount);
+//     }
 
-    function updateDistribution(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
-        PoolInfo memory pool = poolInfo[poolId];
+//     function updateDistribution(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
+//         PoolInfo memory pool = poolInfo[poolId];
 
-        pool.updateDistribution(block.timestamp, rewardsDelta, newRpb);
+//         pool.updateDistribution(block.timestamp, rewardsDelta, newRpb);
 
-        if (rewardsDelta >= 0) {
-            IERC20(pool.rewardAsset).safeTransferFrom(msg.sender, address(this), uint(rewardsDelta));
-        } else {
-            IERC20(pool.rewardAsset).safeTransfer(msg.sender, uint(-rewardsDelta));
-        }
+//         if (rewardsDelta >= 0) {
+//             IERC20(pool.rewardAsset).safeTransferFrom(msg.sender, address(this),
+// uint(rewardsDelta));
+//         } else {
+//             IERC20(pool.rewardAsset).safeTransfer(msg.sender, uint(-rewardsDelta));
+//         }
 
-        poolInfo[poolId] = pool;
-    }
+//         poolInfo[poolId] = pool;
+//     }
 
-    function updateDistribution2(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
-        PoolInfo memory pool = poolInfo[poolId];
+//     function updateDistribution2(uint poolId, int rewardsDelta, uint newRpb) external onlyOwner {
+//         PoolInfo memory pool = poolInfo[poolId];
 
-        pool.updateDistribution2(block.timestamp, rewardsDelta, newRpb);
+//         pool.updateDistribution2(block.timestamp, rewardsDelta, newRpb);
 
-        if (rewardsDelta >= 0) {
-            IERC20(pool.rewardAsset2).safeTransferFrom(
-                msg.sender, address(this), uint(rewardsDelta)
-            );
-        } else {
-            IERC20(pool.rewardAsset2).safeTransfer(msg.sender, uint(-rewardsDelta));
-        }
+//         if (rewardsDelta >= 0) {
+//             IERC20(pool.rewardAsset2).safeTransferFrom(
+//                 msg.sender, address(this), uint(rewardsDelta)
+//             );
+//         } else {
+//             IERC20(pool.rewardAsset2).safeTransfer(msg.sender, uint(-rewardsDelta));
+//         }
 
-        poolInfo[poolId] = pool;
-    }
+//         poolInfo[poolId] = pool;
+//     }
 
-    function addPool(
-        address lockAsset,
-        address rewardAsset,
-        address rewardAsset2
-    )
-        external
-        onlyOwner
-    {
-        PoolInfo memory pool;
-        pool.lockAsset = lockAsset;
-        pool.rewardAsset = rewardAsset;
-        pool.rewardAsset2 = rewardAsset2;
-        poolInfo[poolNumber] = pool;
-        poolNumber += 1;
-    }
+//     function addPool(
+//         address lockAsset,
+//         address rewardAsset,
+//         address rewardAsset2
+//     )
+//         external
+//         onlyOwner
+//     {
+//         PoolInfo memory pool;
+//         pool.lockAsset = lockAsset;
+//         pool.rewardAsset = rewardAsset;
+//         pool.rewardAsset2 = rewardAsset2;
+//         poolInfo[poolNumber] = pool;
+//         poolNumber += 1;
+//     }
 
-    function togglePause() external onlyOwner {
-        isPaused = !isPaused;
-        emit PauseChange(isPaused);
-    }
-}
+//     function togglePause() external onlyOwner {
+//         isPaused = !isPaused;
+//         emit PauseChange(isPaused);
+//     }
+// }

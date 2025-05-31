@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {FixedPoint96, FixedPoint32} from "./FixedPoint.sol";
 import {getBits, setBits} from "./Binary.sol";
 import {IMultipoolErrors} from "../interfaces/multipool/IMultipoolErrors.sol";
+import "forge-std/Script.sol";
 
 struct MpAsset {
     // 1 bit
@@ -16,14 +17,25 @@ struct MpAsset {
     uint collectedCashbacks;
 }
 
-function unpackMpAsset(bytes32 b) pure returns (bool isUsed, uint quantity, uint collectedCashbacks, uint targetShare) {
+function unpackMpAsset(bytes32 b)
+    pure
+    returns (bool isUsed, uint quantity, uint collectedCashbacks, uint targetShare)
+{
     isUsed = getBits(b, 0, 1) != 0;
     quantity = getBits(b, 1, 127);
     targetShare = getBits(b, 128, 16);
     collectedCashbacks = getBits(b, 144, 112);
 }
 
-function packMpAsset(bool isUsed, uint quantity, uint targetShare, uint collectedCashbacks) pure returns (bytes32 b) {
+function packMpAsset(
+    bool isUsed,
+    uint quantity,
+    uint targetShare,
+    uint collectedCashbacks
+)
+    pure
+    returns (bytes32 b)
+{
     b = setBits(b, bytes32(uint(isUsed ? 1 : 0)), 0, 1);
     b = setBits(b, bytes32(uint(quantity)), 1, 127);
     b = setBits(b, bytes32(uint(targetShare)), 128, 16);
@@ -48,14 +60,17 @@ function expandFrom16(uint val) pure returns (uint res) {
     }
 }
 
-function unpackMpFees1(bytes32 b) pure returns (
-    address oracleAddress,
-    uint deviationIncreaseFee,
-    uint feeToCashbackRatio,
-    uint baseFee,
-    uint lpFee,
-    uint managementFee
-) {
+function unpackMpFees1(bytes32 b)
+    pure
+    returns (
+        address oracleAddress,
+        uint deviationIncreaseFee,
+        uint feeToCashbackRatio,
+        uint baseFee,
+        uint lpFee,
+        uint managementFee
+    )
+{
     //address internal oracleAddress;
     //uint19 internal deviationIncreaseFee;
     //uint19 internal feeToCashbackRatio;
@@ -63,9 +78,9 @@ function unpackMpFees1(bytes32 b) pure returns (
     //uint19 internal lpFee;
     //uint19 internal managementFee;
     oracleAddress = address(uint160(getBits(b, 0, 160)));
-    deviationIncreaseFee = expandFrom19(getBits(b, 160, 19));
+    deviationIncreaseFee = getBits(b, 160, 19);
     feeToCashbackRatio = expandFrom19(getBits(b, 179, 19));
-    baseFee = expandFrom20(getBits(b, 198, 20));
+    baseFee = getBits(b, 198, 20);
     lpFee = expandFrom19(getBits(b, 218, 19));
     managementFee = expandFrom19(getBits(b, 237, 19));
 }
@@ -77,9 +92,10 @@ function packMpFees1(
     uint baseFee,
     uint lpFee,
     uint managerFee
-) pure returns (
-    bytes32 slot
-) {
+)
+    pure
+    returns (bytes32 slot)
+{
     slot = setBits(slot, bytes32(uint(uint160(oracleAddress))), 0, 160);
     slot = setBits(slot, bytes32(uint(deviationIncreaseFee)), 160, 19);
     slot = setBits(slot, bytes32(uint(feeToCashbackRatio)), 179, 19);
@@ -88,12 +104,15 @@ function packMpFees1(
     slot = setBits(slot, bytes32(uint(managerFee)), 237, 19);
 }
 
-function unpackMpFees2(bytes32 b) pure returns (
-    uint _collectedLpFee,
-    uint _collectedManagementFee,
-    uint _totalTargetShares,
-    uint _deviationLimit
-) {
+function unpackMpFees2(bytes32 b)
+    pure
+    returns (
+        uint _collectedLpFee,
+        uint _collectedManagementFee,
+        uint _totalTargetShares,
+        uint _deviationLimit
+    )
+{
     _collectedLpFee = getBits(b, 0, 112);
     _collectedManagementFee = getBits(b, 112, 112);
     _totalTargetShares = getBits(b, 224, 16);
@@ -105,10 +124,10 @@ function packMpFees2(
     uint collectedManagerFee,
     uint totalTargetShares,
     uint deviationLimit
-) pure returns (
-    bytes32 slot
-
-) {
+)
+    pure
+    returns (bytes32 slot)
+{
     slot = setBits(slot, bytes32(collectedLpFee), 0, 112);
     slot = setBits(slot, bytes32(collectedManagerFee), 112, 112);
     slot = setBits(slot, bytes32(totalTargetShares), 224, 16);
@@ -116,62 +135,39 @@ function packMpFees2(
 }
 
 library MpMath {
+    
     function subAbs(uint a, uint b) internal pure returns (uint c) {
         unchecked {
             c = a > b ? a - b : b - a;
         }
     }
 
-    function cashback(
-        uint dOld,
-        uint dNew,
-        uint collectedCb
-    )
-        internal
-        pure
-        returns (uint c)
-    {
+    function cashback(uint dOld, uint dNew, uint collectedCb) internal pure returns (uint c) {
         unchecked {
             if (dOld == 0) return collectedCb;
             c = (dOld - dNew) * collectedCb / dOld;
         }
     }
 
-    function mul32(uint a, uint b)
-        internal
-        pure
-        returns (uint c)
-    {
+    function mul32(uint a, uint b) internal pure returns (uint c) {
         unchecked {
             c = (a * b) >> 32;
         }
     }
 
-    function div32(uint a, uint b)
-        internal
-        pure
-        returns (uint c)
-    {
+    function div32(uint a, uint b) internal pure returns (uint c) {
         unchecked {
             c = (a << 32) / b;
         }
     }
 
-    function mul96(uint a, uint b)
-        internal
-        pure
-        returns (uint c)
-    {
+    function mul96(uint a, uint b) internal pure returns (uint c) {
         unchecked {
             c = (a * b) >> 96;
         }
     }
 
-    function div96(uint a, uint b)
-        internal
-        pure
-        returns (uint c)
-    {
+    function div96(uint a, uint b) internal pure returns (uint c) {
         unchecked {
             c = (a << 96) / b;
         }
@@ -196,27 +192,22 @@ library MpMath {
     function calculateSwap(
         uint totalSupply,
         uint totalTargetShares,
-
         uint deviationIncreaseFee,
         uint deviationLimit,
         uint feeToCashbackRatio,
         uint baseFee,
         uint lpBaseFee,
         uint managementBaseFee,
-
         //Asset in
         uint quantityIn,
         uint collectedCashbacksIn,
         uint targetShareIn,
-
         //Asset out
         uint quantityOut,
         uint collectedCashbacksOut,
         uint targetShareOut,
-
         bool isMint,
         bool isBurn,
-
         uint swapAmount,
         bool isExactInput,
         uint priceIn,
@@ -230,35 +221,40 @@ library MpMath {
             uint oracleEarnedFee,
             uint lpEarnedFee,
             uint cashbacksRefund,
-
             uint amountIn,
             uint amountOut,
-
             uint newQuantityIn,
             uint newCollectedCashbacksIn,
             uint newQuantityOut,
             uint newCollectedCashbacksOut
         )
     {
-        if (!isBurn && targetShareIn == 0) revert IMultipoolErrors.TargetShareIsZero();
+        if (isMint && targetShareIn == 0) revert IMultipoolErrors.TargetShareIsZero();
 
         uint quoteDelta;
 
         if (isExactInput) {
             quoteDelta = mul96(swapAmount, priceIn);
+            // quoteDelta = swapAmount.mul96(priceIn);
             amountIn = swapAmount;
             amountOut = div96(quoteDelta, priceOut);
-
+            // amountOut = quoteDelta.div96(priceOut);
         } else {
             quoteDelta = mul96(swapAmount, priceOut);
             amountIn = div96(quoteDelta, priceIn);
             amountOut = swapAmount;
         }
-
+        
         newQuantityIn = quantityIn + amountIn;
-        newQuantityOut = quantityOut - amountOut;
-
+        if (!isMint) {
+            newQuantityOut = quantityOut - amountOut;
+        }
+        // uint totalEarnedFees = mul32(quoteDelta, baseFee);
         uint totalEarnedFees = mul32(quoteDelta, baseFee);
+        // uint totalEarnedFees = quoteDelta * baseFee;
+        console2.log(totalEarnedFees);
+        console2.log(quoteDelta);
+        console2.log(baseFee);
 
         uint tvl = totalSupply * sharePrice;
         if (tvl == 0 || (deviationIncreaseFee == 0 && deviationLimit == 0)) {
@@ -269,27 +265,31 @@ library MpMath {
 
         uint dOldIn;
         uint dNewIn;
-        if (!isBurn) {
+        if (isMint) {
             targetShareIn = div32(uint(targetShareIn), totalTargetShares);
             dOldIn = deviation(quantityIn, priceIn, tvl, targetShareIn);
             dNewIn = deviation(newQuantityIn, priceIn, tvl, targetShareIn);
         }
 
         uint dOldOut;
-        uint dNewOut ;
-        if (!isMint) {
-        targetShareOut = div32(uint(targetShareOut), totalTargetShares);
-        dOldOut = deviation(quantityOut, priceOut, tvl, targetShareOut);
-        dNewOut = deviation(newQuantityOut, priceOut, tvl, targetShareOut);
+        uint dNewOut;
+        if (isBurn) {
+            targetShareOut = div32(uint(targetShareOut), totalTargetShares);
+            dOldOut = deviation(quantityOut, priceOut, tvl, targetShareOut);
+            dNewOut = deviation(newQuantityOut, priceOut, tvl, targetShareOut);
         }
 
         if (!isMint && !isBurn && dNewIn > dOldIn && dNewOut > dOldOut) {
-            if (deviationLimit < dNewIn || deviationLimit < dNewOut) revert IMultipoolErrors.DeviationExceedsLimit();
+            if (deviationLimit < dNewIn || deviationLimit < dNewOut) {
+                revert IMultipoolErrors.DeviationExceedsLimit();
+            }
 
             uint fullDeviationFee = mul32(deviationIncreaseFee, quoteDelta);
             uint collectedCashback = mul32(fullDeviationFee, feeToCashbackRatio);
 
-            unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback) * 2; }
+            unchecked {
+                totalEarnedFees += (fullDeviationFee - collectedCashback) * 2;
+            }
             newCollectedCashbacksIn = collectedCashbacksIn + collectedCashback;
             newCollectedCashbacksOut = collectedCashbacksOut + collectedCashback;
         } else {
@@ -300,7 +300,9 @@ library MpMath {
                     uint fullDeviationFee = mul32(deviationIncreaseFee, quoteDelta);
                     uint collectedCashback = mul32(fullDeviationFee, feeToCashbackRatio);
 
-                    unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback); }
+                    unchecked {
+                        totalEarnedFees += (fullDeviationFee - collectedCashback);
+                    }
                     newCollectedCashbacksIn = collectedCashbacksIn + collectedCashback;
                 } else {
                     uint cb = cashback(dOldIn, dNewIn, collectedCashbacksIn);
@@ -315,7 +317,9 @@ library MpMath {
                     uint fullDeviationFee = mul32(deviationIncreaseFee, quoteDelta);
                     uint collectedCashback = mul32(fullDeviationFee, feeToCashbackRatio);
 
-                    unchecked { totalEarnedFees += (fullDeviationFee - collectedCashback); }
+                    unchecked {
+                        totalEarnedFees += (fullDeviationFee - collectedCashback);
+                    }
                     newCollectedCashbacksOut = collectedCashbacksOut + collectedCashback;
                 } else {
                     uint cb = cashback(dOldOut, dNewOut, collectedCashbacksOut);
@@ -325,8 +329,8 @@ library MpMath {
             }
         }
 
-       managerEarnedFee = mul32(totalEarnedFees, managementBaseFee);
-       lpEarnedFee = mul32(totalEarnedFees, lpBaseFee);
-       oracleEarnedFee = totalEarnedFees - managerEarnedFee - lpEarnedFee;
+        managerEarnedFee = mul32(totalEarnedFees, managementBaseFee);
+        lpEarnedFee = mul32(totalEarnedFees, lpBaseFee);
+        oracleEarnedFee = totalEarnedFees - managerEarnedFee - lpEarnedFee;
     }
 }
