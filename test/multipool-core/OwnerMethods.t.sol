@@ -134,7 +134,6 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
             );
 
         (bytes32 mpFees1, bytes32 mpFees2, address managerFeeReceiver, address lpFeeReceiver, uint total) = mp.getConfig();
-        console2.logBytes32(mpFees1);
         (        
             address oracleAddress,
             uint deviationIncreaseFee,
@@ -152,8 +151,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         assertEq(oracleAddress, address(oracle));
         // assertEq(deviationIncreaseFee, 1e4);
         // assertEq(feeToCashbackRatio, 1e5);
-        console2.log(baseFee >> 32);
         assertEq(lpFee, 0);
-        assertEq(baseFee, 1e3);
+        assertEq(baseFee, 4294967);
     }
 }

@@ -140,15 +140,31 @@ contract Deploy is Script {
         // address mp = 0x46489e10E6E78EAFE087fde1Bc74e745182a2Eab;
         // console.log("mp ", mp);
 
-        IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
-            .ExactInputSingleParams({
-            tokenIn: address(weth),
-            tokenOut: 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea,
-            fee: 100,
-            recipient: 0xAd19c4Ac757CA1da80999E21Cf8955C6Ea5C6D80,
-            amountIn: 1e18,
-            amountOutMinimum: 1,
-            sqrtPriceLimitX96: 0
+        // IUniswapV3Router.ExactInputSingleParams memory swapParams = IUniswapV3Router
+        //     .ExactInputSingleParams({
+        //     tokenIn: address(weth),
+        //     tokenOut: 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea,
+        //     fee: 100,
+        //     recipient: deployerPublicKey,
+        //     amountIn: 1e18,
+        //     amountOutMinimum: 1,
+        //     sqrtPriceLimitX96: 0
+        // });
+        MockERC20(0xf817257fed379853cDe0fa4F97AB987181B1E5Ea).approve(0x4c4eABd5Fb1D1A7234A48692551eAECFF8194CA7, 1e33);
+        address tokenIn = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
+        address tokenOut = 0xb2f82D0f38dc453D596Ad40A37799446Cc89274A;
+        uint24 fees = 100;
+        bytes memory b = abi.encodePacked(weth, fees, tokenOut); 
+        console2.logBytes(b);
+        // 0xf817257fed379853cde0fa4f97ab987181b1e5ea000064760afe86e5de5fa0ee542fc7b7b713e1c5425701000064b2f82d0f38dc453d596ad40a37799446cc89274a
+        // 0xf817257fed379853cde0fa4f97ab987181b1e5ea000064760afe86e5de5fa0ee542fc7b7b713e1c5425701000064b2f82d0f38dc453d596ad40a37799446cc89274a
+        IUniswapV3Router.ExactInputParams memory swapParams = IUniswapV3Router
+            .ExactInputParams({
+            path: vm.parseBytes("0x760afe86e5de5fa0ee542fc7b7b713e1c5425701000064b2f82d0f38dc453d596ad40a37799446cc89274a"),
+            recipient: 0x8435316b1408D0fF946a46A44BC3188202a37532,
+            deadline: 1749449131,
+            amountIn: 1e4,
+            amountOutMinimum: 0
         });
         {
             // MultipoolCreationParams memory params = MultipoolCreationParams({
@@ -172,13 +188,13 @@ contract Deploy is Script {
             //     protocolFeeReceiver: deployerPublicKey
             // });
             // weth.deposit{value: 1e18}();
-            // weth.approve(
-            //     address(uniRouter), 1e18
-            // ); // approve to router
-            // weth.transfer(address(mp), 1e14);
-            // uniRouter.exactInputSingle{
-            //     value: 1e14
-            // }(swapParams);
+            weth.approve(
+                address(uniRouter), 1e18
+            ); // approve to router
+            // weth.transfer(address(mp), 1e18);
+            uniRouter.exactInput{
+                value: 1e18
+            }(swapParams);
             // f.createMultipool(params);
         }
 
@@ -208,8 +224,8 @@ contract Deploy is Script {
         // );
         // (uint input, uint output, ,,,,,,,,,,,,,,,,,) = Multipool(mp).estimateSwap(op, mp,
         // tokensAddresses[1], 10e18, false);
-        IERC20(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A).transfer(mp, 1e16);
-        Multipool(mp).swap{value: 1e16}(op, 0xb2f82D0f38dc453D596Ad40A37799446Cc89274A, address(mp), 1e16, true, deployerPublicKey, deployerPublicKey, true);
+        // IERC20(0xb2f82D0f38dc453D596Ad40A37799446Cc89274A).transfer(mp, 1e16);
+        // Multipool(mp).swap{value: 1e16}(op, 0xb2f82D0f38dc453D596Ad40A37799446Cc89274A, address(mp), 1e16, true, deployerPublicKey, deployerPublicKey, true);
 
         // //
         // WETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
@@ -309,6 +325,19 @@ interface IUniswapV3Router {
     function exactOutputSingle(ExactOutputSingleParams calldata params)
         external
         returns (uint256 amountIn);
+
+    struct ExactInputParams {
+        bytes path;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+    }
+
+    /// @notice Swaps `amountIn` of one token for as much as possible of another along the specified path
+    /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactInputParams` in calldata
+    /// @return amountOut The amount of the received token
+    function exactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut);
 }
 
 interface IUniswapV3Factory {

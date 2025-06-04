@@ -15,6 +15,7 @@ import {
     unpackMpFees1,
     unpackMpFees2,
     unpackMpAsset,
+    shrinkTo16,
     packMpAsset
 } from "../lib/MpContext.sol";
 import {FeedType, PriceMath} from "../lib/Price.sol";
@@ -205,7 +206,6 @@ contract Multipool is
     {
         if (assetAddress != address(this)) {
             uint balance = IERC20(assetAddress).balanceOf(address(this));
-            console2.log(requiredAmount);
             if (balance < requiredAmount) revert InsufficientBalance(assetAddress);
             uint left = balance - requiredAmount;
             if (refundAddress != address(0) && left > 0) {
@@ -312,19 +312,19 @@ contract Multipool is
 
         if (assetInAddress == address(this)) {
             assets[assetOutAddress] =
-                packMpAsset(true, quantityOut, targetShareOut, collectedCashbacksOut);
+                packMpAsset(true, quantityOut, collectedCashbacksOut, targetShareOut);
             emit AssetChange(assetOutAddress, uint128(quantityOut), uint112(collectedCashbacksOut));
             emit AssetChange(assetInAddress, uint128(_totalSupply - amountOut), 0);
         } else if (assetOutAddress == address(this)) {
             assets[assetInAddress] =
-                packMpAsset(true, quantityIn, targetShareIn, collectedCashbacksIn);
+                packMpAsset(true, quantityIn, collectedCashbacksIn, targetShareIn);
             emit AssetChange(assetInAddress, uint128(quantityIn), uint112(collectedCashbacksIn));
             emit AssetChange(assetOutAddress, uint128(_totalSupply + amountOut), 0);
         } else {
             assets[assetOutAddress] =
-                packMpAsset(true, quantityOut, targetShareOut, collectedCashbacksOut);
+                packMpAsset(true, quantityOut, collectedCashbacksOut, targetShareOut);
             assets[assetInAddress] =
-                packMpAsset(true, quantityIn, targetShareIn, collectedCashbacksIn);
+                packMpAsset(true, quantityIn, collectedCashbacksIn, targetShareIn);
             emit AssetChange(assetInAddress, uint128(quantityIn), uint112(collectedCashbacksIn));
             emit AssetChange(assetOutAddress, uint128(quantityOut), uint112(collectedCashbacksOut));
         }
@@ -355,7 +355,7 @@ contract Multipool is
         collectedManagerFee += managerEarnedFee;
 
         mpFees2 =
-            packMpFees2(collectedLpFee, collectedManagerFee, totalTargetShares, deviationLimit);
+            packMpFees2(collectedLpFee, collectedManagerFee, totalTargetShares, shrinkTo16(deviationLimit));
 
         emit Swap(
             msg.sender,
@@ -420,7 +420,7 @@ contract Multipool is
                     usedAssets.push(assetAddress);
                     isUsed = true;
                 }
-                assets[assetAddress] = packMpAsset(isUsed, q, assetTargetShare, c);
+                assets[assetAddress] = packMpAsset(isUsed, q, c, assetTargetShare);
                 emit TargetShareChange(assetAddress, uint16(targetShare), totalTargetShares);
                 unchecked {
                     ++a;
@@ -526,35 +526,36 @@ contract Multipool is
 
         _totalSupply = totalSupply();
         uint sharePrice = getSharePrice(oraclePrice, _totalSupply);
+        uint _quantityIn;
+        uint _quantityOut;
 
-        if (assetOutAddress != address(this)) {
-            (, quantityOut, collectedCashbacksOut, targetShareOut) =
-                unpackMpAsset(assets[assetOutAddress]);
-            priceOut = prices[assetOutAddress].getPrice();
-            priceIn = sharePrice;
-            quantityIn = _totalSupply;
-        } else if (assetInAddress != address(this)) {
-            (, quantityIn, collectedCashbacksIn, targetShareIn) =
+        if (assetOutAddress == address(this)) {
+            (, _quantityIn, collectedCashbacksIn, targetShareIn) =
                 unpackMpAsset(assets[assetInAddress]);
             priceIn = prices[assetInAddress].getPrice();
             priceOut = sharePrice;
-            quantityOut = _totalSupply;
-        } else {
-            (, quantityOut, collectedCashbacksOut, targetShareOut) =
+            _quantityOut = _totalSupply;
+        } else if (assetInAddress == address(this)) {
+            (, _quantityOut, collectedCashbacksOut, targetShareOut) =
                 unpackMpAsset(assets[assetOutAddress]);
             priceOut = prices[assetOutAddress].getPrice();
-            (, quantityIn, collectedCashbacksIn, targetShareIn) =
+            priceIn = sharePrice;
+            _quantityIn = _totalSupply;
+        } else {
+            (, _quantityIn, collectedCashbacksIn, targetShareIn) =
                 unpackMpAsset(assets[assetInAddress]);
             priceIn = prices[assetInAddress].getPrice();
+            (, _quantityOut, collectedCashbacksOut, targetShareOut) =
+                unpackMpAsset(assets[assetOutAddress]);
+            priceOut = prices[assetOutAddress].getPrice();
         }
-
         (
             address _oracleAddress,
-            uint deviationIncreaseFee,
-            uint feeToCashbackRatio,
-            uint baseFee,
-            uint lpFee,
-            uint managerFee
+            uint _deviationIncreaseFee,
+            uint _feeToCashbackRatio,
+            uint _baseFee,
+            uint _lpFee,
+            uint _managerFee
         ) = unpackMpFees1(mpFees1);
 
         (
@@ -578,16 +579,16 @@ contract Multipool is
         ) = MpMath.calculateSwap(
             _totalSupply,
             _totalTargetShares,
-            deviationIncreaseFee,
-            deviationLimit,
-            feeToCashbackRatio,
-            baseFee,
-            lpFee,
-            managerFee,
-            quantityIn,
+            _deviationIncreaseFee,
+            _deviationLimit,
+            _feeToCashbackRatio,
+            _baseFee,
+            _lpFee,
+            _managerFee,
+            _quantityIn,
             collectedCashbacksIn,
             targetShareIn,
-            quantityOut,
+            _quantityOut,
             collectedCashbacksOut,
             targetShareOut,
             assetOutAddress == address(this),

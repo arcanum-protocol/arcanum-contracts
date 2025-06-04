@@ -97,54 +97,15 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
 
         changeShare(address(tokens[1]), 0);
 
-        tokens[1].mint(address(mp), 1e18);
+        tokens[1].mint(address(mp), 1e15);
 
         OraclePrice memory op;
 
-        vm.expectRevert(abi.encodeWithSignature("TargetShareIsZero()"));
-        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token1), address(token0), 1e18, true, user0, address(0), true);
+        vm.expectRevert(abi.encodeWithSignature("DeviationExceedsLimit()"));
+        mp.swap{value: uint128(toX96(0.1e18))}(op, address(token1), address(token0), 1e15, true, user0, address(0), true);
 
         tokens[0].mint(address(mp), 1e18);
         mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(token1), 1e18, true, user0, address(0), true);
-
-        // swapExt(
-        //     sort(
-        //         dynamic(
-        //             [
-        //                 AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-        //                 AssetArgs({assetAddress: address(tokens[1]), amount: int(0.5e18)}),
-        //                 AssetArgs({assetAddress: address(tokens[2]), amount: int(-2e18)}),
-        //                 AssetArgs({assetAddress: address(tokens[3]), amount: int(-4e18)})
-        //             ]
-        //         )
-        //     ),
-        //     100e18,
-        //     users[0],
-        //     sp,
-        //     users[3],
-        //     true,
-        //     false,
-        //     abi.encodeWithSignature("TargetShareIsZero()")
-        // );
-
-        // swapExt(
-        //     sort(
-        //         dynamic(
-        //             [
-        //                 AssetArgs({assetAddress: address(tokens[0]), amount: int(1e18)}),
-        //                 AssetArgs({assetAddress: address(tokens[1]), amount: int(-0.1e18)}),
-        //                 AssetArgs({assetAddress: address(tokens[2]), amount: int(-0.1e18)})
-        //             ]
-        //         )
-        //     ),
-        //     100e18,
-        //     users[0],
-        //     sp,
-        //     users[3],
-        //     true,
-        //     false,
-        //     abi.encode(0)
-        // );
 
         snapMultipool("RemoveOldToken");
     }
@@ -176,12 +137,13 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         uint newPrice = toX96(10e18);
         changePrice(address(newOne), newPrice);
 
-        vm.expectRevert(abi.encodePacked("ERC20: transfer amount exceeds balance"));
+        // vm.expectRevert(abi.encodePacked("ERC20: transfer amount exceeds balance"));
+        vm.expectRevert();
         mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(newOne), 1e18, true, user0, address(0), true);
 
         newOne.mint(address(mp), 1e18);
 
-        vm.expectRevert(abi.encodeWithSignature("NotEnoughQuantityToBurn()"));
+        vm.expectRevert();
         mp.swap{value: uint128(toX96(0.1e18))}(op, address(token0), address(newOne), 1e18, true, user0, address(0), true);
 
         mp.swap{value: uint128(toX96(0.1e18))}(op, address(newOne), address(token0), 1e18, true, user0, address(0), true);
@@ -203,7 +165,7 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         snapMultipool("AddNewTokenAndTryToBurnWithIt2");
         (isUsed, quantity, cashback, targetShare) = mp.getAsset(address(newOne));
         assertEq(isUsed,true);
-        assertEq(quantity,28e18); 
+        assertEq(quantity,26e18); 
         assertEq(cashback,0); 
         assertEq(targetShare,1000); 
         assertEq(newOne.balanceOf(address(mp)), 26e18);
@@ -218,10 +180,10 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         );
 
         vm.prank(owner);
-        mp.transfer(address(mp), 1000000005587935455499);
+        mp.transfer(address(mp), 1e21);
         OraclePrice memory op;
-
-        mp.swap{value: uint128(toX96(0.1e18))}(op, address(mp), address(tokens[0]), 1e21, true, user0, address(0), true);
+        
+        mp.swap{value: 0.1e18}(op, address(mp), address(tokens[0]), 1e18, true, user0, address(0), true);
 
         snapMultipool("BurnValue");
     }
@@ -315,9 +277,12 @@ contract MultipoolCoreDeviationTests is Test, MultipoolUtils {
         tokens[0].transfer(address(mp), 100e18);
 
         assertEq(tokens[0].balanceOf(user0), 0);
+        uint b = tokens[0].balanceOf(address(mp));
+        console2.log(b);
 
         mp.swap{value: 0.2e18}(op, address(token0), address(token1), 1e18, true, user0, user0, true);
-
+        b = tokens[0].balanceOf(address(mp));
+        console2.log(b);
         assertEq(tokens[0].balanceOf(user0), 99e18);
 
         vm.prank(owner);

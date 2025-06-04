@@ -1,7 +1,8 @@
 [profile.default]
 optimizer = true
 via_ir = true
-optimizer_runs = 500
+# optimizer_runs = 500
+optimizer_runs = 100
 gas_reports = ["Multipool", "MultipoolRouter", "Trader", "ContextMath", "CashbackVault"]
 fs_permissions = [{ access = "read-write", path = "./test/snapshots/"}]
 remappings = [

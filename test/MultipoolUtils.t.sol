@@ -6,6 +6,7 @@ import {MockERC20} from "../src/mocks/erc20.sol";
 import {Multipool} from "../src/multipool/Multipool.sol";
 import {MultipoolRouter} from "../src/multipool/MultipoolRouter.sol";
 import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import {expandFrom16,expandFrom19,expandFrom20, unpackMpFees2, unpackMpFees1} from "../src/lib/MpContext.sol";
 import {FeedType} from "../src/lib/Price.sol";
 import {setBytes} from "../src/lib/Binary.sol";
 import {OraclePrice} from "../src/types/OraclePrice.sol";
@@ -168,10 +169,20 @@ contract MultipoolUtils is Test {
         public
     {
         vm.startPrank(owner);
-        mp.setFeeParams(0, toX16RatioTick(1e5), 0, 0, 0, 0, address(0), address(0), address(0));
-        updatePrice(
-            address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
+        mp.setFeeParams(
+            0, 
+            uint16(uint(6e5)), 
+            0, 
+            0, 
+            0, 
+            0, 
+            address(0), 
+            address(0), 
+            address(0)
         );
+        // updatePrice(
+        //     address(mp), address(mp), abi.encodePacked(FeedType.FixedValue, uint128(toX96(0.1e18)))
+        // );
         // mp.updateStrategyManager(owner);
 
         address[] memory p = new address[](0);
@@ -182,34 +193,33 @@ contract MultipoolUtils is Test {
         OraclePrice memory oraclePrice;
 
         for (uint i = 0; i < assets.length; i++) {
-            uint val = (quoteValues[i] << 96) / prices[i];
+            // uint val = (quoteValues[i] << 96) / prices[i];
             updatePrice(
                 address(mp),
                 address(tokens[i]),
                 abi.encodePacked(FeedType.FixedValue, uint128(prices[i]))
             );
-            tokens[i].mint(address(mp), val);
+            tokens[i].mint(address(mp), quoteValues[i]);
             tokens[i].mint(address(owner), 4000e18);
             mp.swap{value: 1e14}(
-                oraclePrice, address(tokens[i]), address(mp), val, true, owner, owner, true
+                oraclePrice, address(tokens[i]), address(mp), quoteValues[i], true, owner, owner, true
             );
         }
 
         // insert adapter for token0 here
-        address priceAdapter10 = address(new AbstractFixedValueOracle(prices[0]));
-        updatePrice(
-            address(mp),
-            address(tokens[0]),
-            abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212))
-        );
-
+        // address priceAdapter10 = address(new AbstractFixedValueOracle(prices[0]));
+        // updatePrice(
+        //     address(mp),
+        //     address(tokens[0]),
+        //     abi.encodePacked(FeedType.Adapter, priceAdapter10, uint64(10000123212))
+        // );
         mp.setFeeParams(
-            toX16RatioTick(0.0003e5),
-            toX16RatioTick(0.5e5),
-            toX16RatioTick(0.01e5),
-            toX16RatioTick(0.01e5),
-            toX16RatioTick(0.01e5),
-            toX16RatioTick(0.01e5),
+            uint24(uint(0.0003e6)),
+            uint16(uint(0.5e5)),
+            uint24(uint(0.01e6)),
+            uint24(uint(0.01e6)),
+            uint24(uint(0.01e6)),
+            uint24(uint(0.01e6)),
             owner,
             owner,
             owner
@@ -313,37 +323,60 @@ contract MultipoolUtils is Test {
         }
 
         for (uint i; i < tokens.length; ++i) {
-            // MpAsset memory a = mp.getAsset(address(tokens[i]));
-            // vm.serializeString("tk", "collectedCashbacks", jsonString(a.collectedCashbacks));
-            // vm.serializeString("tk", "targetShare", jsonString(a.targetShare));
-            // string memory token = vm.serializeString("tk", "quantity", jsonString(a.quantity));
-            // tokenJson = vm.serializeString("token", string.concat("token", vm.toString(i)),
-            // token);
+            (bool isUsed, uint quantity, uint collectedCashbacks, uint targetShare) = mp.getAsset(address(tokens[i]));
+            vm.serializeString("tk", "collectedCashbacks", jsonString(collectedCashbacks));
+            vm.serializeString("tk", "targetShare", jsonString(targetShare));
+            string memory token = vm.serializeString("tk", "quantity", jsonString(quantity));
+            tokenJson = vm.serializeString("token", string.concat("token", vm.toString(i)), token);
         }
 
         vm.serializeString("multipool", "totalSupply", jsonString(mp.totalSupply()));
 
         OraclePrice memory fp;
-        // MpContext memory ctx = mp.getContext(fp);
-        // mpJson = vm.serializeString(
-        //     "multipool", "deviationIncreaseFee", jsonString(ctx.deviationIncreaseFee)
-        // );
-        // mpJson = vm.serializeString("multipool", "deviationLimit",
-        // jsonString(ctx.deviationLimit));
-        // mpJson =
-        //     vm.serializeString("multipool", "cashbackFeeShare",
-        // jsonString(ctx.feeToCashbackRatio));
-        // mpJson = vm.serializeString("multipool", "baseFee", jsonString(ctx.baseFee));
-        // mpJson = vm.serializeString(
-        //     "multipool", "managementFeeRecepientAddress", vm.toString(ctx.managementFeeRecepient)
-        // );
-        // mpJson = vm.serializeString("multipool", "managementFee",
-        // jsonString(ctx.managementBaseFee));
-        // mpJson = vm.serializeString("multipool", "oracleAddress",
-        // vm.toString(ctx.oracleAddress));
-        // mpJson =
-        //     vm.serializeString("multipool", "totalTargetShares",
-        // jsonString(ctx.totalTargetShares));
+        (
+            bytes32 mpFees1,
+            bytes32 mpFees2,
+            address manageFeeReceiver,
+            address lpFeeReceiver,
+            uint totalSupply
+        ) = mp.getConfig();
+        (
+            address oracleAddress,
+            uint deviationIncreaseFee,
+            uint feeToCashbackRatio,
+            uint baseFee,
+            uint lpFee,
+            uint managementFee
+        ) = unpackMpFees1(mpFees1);
+        (
+            uint collectedLpFee,
+            uint collectedManagementFee,
+            uint totalTargetShares,
+            uint deviationLimit
+        ) = unpackMpFees2(mpFees2);
+        mpJson = vm.serializeString(
+            "multipool", "deviationIncreaseFee", jsonString(deviationIncreaseFee)
+        );
+        mpJson = vm.serializeString("multipool", "deviationLimit",
+        jsonString(deviationLimit));
+        mpJson =
+            vm.serializeString("multipool", "cashbackFeeShare",
+        jsonString(feeToCashbackRatio));
+        mpJson = vm.serializeString("multipool", "baseFee", jsonString(baseFee));
+        mpJson = vm.serializeString(
+            "multipool", "managementFeeRecepientAddress", vm.toString(manageFeeReceiver)
+        );
+        mpJson = vm.serializeString("multipool", "oracleAddress",
+        vm.toString(oracleAddress));
+        mpJson =
+            vm.serializeString("multipool", "totalTargetShares",
+        jsonString(totalTargetShares));
+        mpJson =
+            vm.serializeString("multipool", "collectedManagementFee",
+        jsonString(collectedManagementFee));
+        mpJson =
+            vm.serializeString("multipool", "collectedLpFee",
+        jsonString(collectedLpFee));
 
         string memory snapJson;
         vm.serializeString("snap", "users", usersJson);

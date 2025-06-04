@@ -59,9 +59,9 @@ contract HappyPathTests is Test, MultipoolUtils {
         assertEq(newAssets, newExpectedAssets);
 
         uint pricePart = mp.getSharePricePart(5, 0);
-        assertEq(pricePart, 7922816248659422145398922125);
+        assertEq(pricePart, 79228162514264337593543950336);
         pricePart = mp.getSharePricePart(1, 0);
-        assertEq(pricePart, 1980704062164855536349730531);
+        assertEq(pricePart, 20781157380790645926175462383);
         pricePart = mp.getSharePricePart(2, 2);
         assertEq(pricePart, 2971056093247283304524595796);
     }

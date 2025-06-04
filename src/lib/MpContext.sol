@@ -30,8 +30,8 @@ function unpackMpAsset(bytes32 b)
 function packMpAsset(
     bool isUsed,
     uint quantity,
-    uint targetShare,
-    uint collectedCashbacks
+    uint collectedCashbacks,
+    uint targetShare
 )
     pure
     returns (bytes32 b)
@@ -60,6 +60,12 @@ function expandFrom16(uint val) pure returns (uint res) {
     }
 }
 
+function shrinkTo16(uint val) pure returns (uint res) {
+    unchecked {
+        res = val * 1e5 / (5 << 32);
+    }
+}
+
 function unpackMpFees1(bytes32 b)
     pure
     returns (
@@ -78,9 +84,9 @@ function unpackMpFees1(bytes32 b)
     //uint19 internal lpFee;
     //uint19 internal managementFee;
     oracleAddress = address(uint160(getBits(b, 0, 160)));
-    deviationIncreaseFee = getBits(b, 160, 19);
+    deviationIncreaseFee = expandFrom19(getBits(b, 160, 19));
     feeToCashbackRatio = expandFrom19(getBits(b, 179, 19));
-    baseFee = getBits(b, 198, 20);
+    baseFee = expandFrom20(getBits(b, 198, 20));
     lpFee = expandFrom19(getBits(b, 218, 19));
     managementFee = expandFrom19(getBits(b, 237, 19));
 }
@@ -116,7 +122,7 @@ function unpackMpFees2(bytes32 b)
     _collectedLpFee = getBits(b, 0, 112);
     _collectedManagementFee = getBits(b, 112, 112);
     _totalTargetShares = getBits(b, 224, 16);
-    _deviationLimit = getBits(b, 240, 16);
+    _deviationLimit = expandFrom16(getBits(b, 240, 16));
 }
 
 function packMpFees2(
@@ -235,26 +241,22 @@ library MpMath {
 
         if (isExactInput) {
             quoteDelta = mul96(swapAmount, priceIn);
-            // quoteDelta = swapAmount.mul96(priceIn);
             amountIn = swapAmount;
             amountOut = div96(quoteDelta, priceOut);
-            // amountOut = quoteDelta.div96(priceOut);
         } else {
             quoteDelta = mul96(swapAmount, priceOut);
             amountIn = div96(quoteDelta, priceIn);
             amountOut = swapAmount;
         }
-        
-        newQuantityIn = quantityIn + amountIn;
+        if (!isBurn) {
+            newQuantityIn = quantityIn + amountIn;
+        } else {
+            newQuantityIn = amountIn;
+        }
         if (!isMint) {
             newQuantityOut = quantityOut - amountOut;
         }
-        // uint totalEarnedFees = mul32(quoteDelta, baseFee);
         uint totalEarnedFees = mul32(quoteDelta, baseFee);
-        // uint totalEarnedFees = quoteDelta * baseFee;
-        console2.log(totalEarnedFees);
-        console2.log(quoteDelta);
-        console2.log(baseFee);
 
         uint tvl = totalSupply * sharePrice;
         if (tvl == 0 || (deviationIncreaseFee == 0 && deviationLimit == 0)) {
@@ -265,7 +267,7 @@ library MpMath {
 
         uint dOldIn;
         uint dNewIn;
-        if (isMint) {
+        if (!isBurn) {
             targetShareIn = div32(uint(targetShareIn), totalTargetShares);
             dOldIn = deviation(quantityIn, priceIn, tvl, targetShareIn);
             dNewIn = deviation(newQuantityIn, priceIn, tvl, targetShareIn);
@@ -273,7 +275,7 @@ library MpMath {
 
         uint dOldOut;
         uint dNewOut;
-        if (isBurn) {
+        if (!isMint) {
             targetShareOut = div32(uint(targetShareOut), totalTargetShares);
             dOldOut = deviation(quantityOut, priceOut, tvl, targetShareOut);
             dNewOut = deviation(newQuantityOut, priceOut, tvl, targetShareOut);
@@ -286,14 +288,13 @@ library MpMath {
 
             uint fullDeviationFee = mul32(deviationIncreaseFee, quoteDelta);
             uint collectedCashback = mul32(fullDeviationFee, feeToCashbackRatio);
-
             unchecked {
                 totalEarnedFees += (fullDeviationFee - collectedCashback) * 2;
             }
             newCollectedCashbacksIn = collectedCashbacksIn + collectedCashback;
             newCollectedCashbacksOut = collectedCashbacksOut + collectedCashback;
         } else {
-            if (!isMint) {
+            if (!isBurn) {
                 if (dNewIn > dOldIn) {
                     if (deviationLimit < dNewIn) revert IMultipoolErrors.DeviationExceedsLimit();
 
@@ -310,13 +311,12 @@ library MpMath {
                     newCollectedCashbacksIn = collectedCashbacksIn - cb;
                 }
             }
-            if (!isBurn) {
+            if (!isMint) {
                 if (dNewOut > dOldOut) {
                     if (deviationLimit < dNewOut) revert IMultipoolErrors.DeviationExceedsLimit();
 
                     uint fullDeviationFee = mul32(deviationIncreaseFee, quoteDelta);
                     uint collectedCashback = mul32(fullDeviationFee, feeToCashbackRatio);
-
                     unchecked {
                         totalEarnedFees += (fullDeviationFee - collectedCashback);
                     }

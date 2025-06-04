@@ -97,7 +97,7 @@ contract MultipoolCoreDeviationTests is Test {
         OraclePrice memory op;
 
         assertEq(deviationLimit, 429496);
-        assertEq(baseFee, 858993);
+        assertEq(baseFee, 17179);
         assertEq(_managerFeeReceiver, address(1));
 
         (,,,uint targetShare) = multipool.getAsset(address(4));

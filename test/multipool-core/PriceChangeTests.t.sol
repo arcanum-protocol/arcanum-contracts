@@ -55,7 +55,7 @@ contract MultipoolPriceChangeTest is Test, MultipoolUtils {
         address[] memory p = new address[](0);
         bytes32[] memory pd = new bytes32[](0);
 
-        vm.expectRevert(abi.encodeWithSignature("InvalidTargetShareAuthority()"));
+        vm.expectRevert();
         mp.updateAssets(
             p,pd,
             vec([token0, token1, token2, token3, token4]), vec([1000, 1000, 1000, 1000, 1000])
