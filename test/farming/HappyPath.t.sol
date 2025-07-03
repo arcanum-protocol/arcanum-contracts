@@ -1,349 +1,320 @@
-// // SPDX-License-Identifier: GPL-3.0
-// pragma solidity ^0.8.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.0;
 
-// import "forge-std/Test.sol";
-// import "openzeppelin/token/ERC20/ERC20.sol";
-// import "openzeppelin/access/Ownable.sol";
-// import {UserInfo, PoolInfo, FarmingMath} from "../../src/lib/Farm.sol";
-// import {Farm} from "../../src/farm/Farm.sol";
-// import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-// import {MockERC20} from "../../src/mocks/erc20.sol";
+import "forge-std/Test.sol";
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "openzeppelin/access/Ownable.sol";
+import {UserInfo, PoolInfo, FarmingMath} from "../../src/lib/Farm.sol";
+import {Farm} from "../../src/farm/Farm.sol";
+import {ERC1967Proxy} from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import {MockERC20} from "../../src/mocks/erc20.sol";
 
-// contract FarmingTests is Test {
-//     receive() external payable {}
+contract MockMp is MockERC20 {
 
-//     Farm farm;
-//     MockERC20 protocolToken;
-//     MockERC20 mp;
+    uint availableRewards;
+    constructor(string memory name, string memory symbol, uint _totalSupply) MockERC20(name, symbol, _totalSupply) {}
 
-//     function setUp() public {
-//         protocolToken = new MockERC20("protocolToken", "protocolToken", 0);
-//         mp = new MockERC20("MP", "MP", 0);
+    
+    function updateAvailableRewards(uint newRewards) external {
+        availableRewards = newRewards;
+    }
 
-//         Farm impl = new Farm();
-//         ERC1967Proxy proxy = new ERC1967Proxy(
-//             address(impl), abi.encodeWithSignature("initialize(address,address,address,uint)", 
-//             address(this), address(mp), address(protocolToken), 1e8)
-//         );
-//         farm = Farm(address(proxy));
-//     }
+    function lpFeesBalance() external view returns (uint fee) {
+        fee = availableRewards;
+    }
 
-//     function test_FarmingHappyPath2() public {
+    function claimLpFees(address to) external returns (uint fee) {
+        fee = availableRewards;
+        payable(to).transfer(fee);
+        availableRewards = 0;
+    }
+}
 
-//         mp.mint(address(this), 100e18);
-//         mp.approve(address(farm), 100e18);
+contract FarmingTests is Test {
+    Farm farm;
+    MockERC20 protocolToken;
+    MockMp mockMp;
+    address bobby;
+    address bobbysFriend;
 
-//         farm.updateDistribution(1e18);
+    receive() external payable {}
 
-//         asset.mint(address(this), 1e18);
-//         asset.approve(address(farm), 1e18);
+    function setUp() public {
+        (bobby,) = makeAddrAndKey("Bobby");
+        (bobbysFriend,) = makeAddrAndKey("bobbysFriend");
 
-//         farm.deposit(0, 1e18, false);
+        protocolToken = new MockERC20("protocolToken", "protocolToken", 0);
+        mockMp = new MockMp("MP", "MP", 0);
 
-//         skip(50);
+        Farm impl = new Farm();
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(impl), abi.encodeWithSignature("initialize(address,address)", 
+            address(this), address(protocolToken))
+        );
+        farm = Farm(payable(address(proxy)));
 
-//         (uint rewards, uint rewards2) = farm.availableRewards(0, address(this));
-//         assertEq(50e18, rewards);
-//         assertEq(0, rewards2);
-//     }
+        protocolToken.mint(address(this), 100e18);
+        mockMp.mint(address(this), 100e18);
+    }
 
-//     function test_FarmingWaitWithNoDistribution() public {
-//         farm.addPool(address(asset), address(reward), address(0));
+    function updateRewards(uint amount) internal {
+        vm.deal(address(mockMp), amount);
+        mockMp.updateAvailableRewards(amount);
+    }
 
-//         reward.mint(address(this), 100e18);
-//         reward.approve(address(farm), 100e18);
+    function test_FarmingHappyPath() public {
+        vm.expectRevert("ERC20: insufficient allowance");
+        farm.updateDistribution(address(mockMp), 100e18, 1590);
 
-//         farm.updateDistribution(0, 100e18, 1e18);
+        protocolToken.approve(address(farm), 10e18);
 
-//         skip(10000);
+        farm.updateDistribution(address(mockMp), 10e18, 1590);
 
-//         asset.mint(address(this), 1e18);
-//         asset.approve(address(farm), 1e18);
+        vm.expectRevert("ERC20: insufficient allowance");
+        farm.deposit(address(mockMp), 1e18);
 
-//         farm.deposit(0, 1e18, false);
+        updateRewards(1e18);
 
-//         skip(50);
+        assertEq(mockMp.balanceOf(address(this)), 100e18);
 
-//         (uint rewards, uint rewards2) = farm.availableRewards(0, address(this));
-//         assertEq(50e18, rewards);
-//         assertEq(0, rewards2);
-//     }
+        mockMp.approve(address(farm), 1e18);
+        farm.deposit(address(mockMp), 1e18);
 
-//     function test_FarmingDepositAndWaitDistribution() public {
-//         address alice = makeAddr("alice");
-//         address bob = makeAddr("bob");
+        assertEq(mockMp.balanceOf(address(this)), 99e18);
 
-//         farm.addPool(address(asset), address(reward), address(0));
+        uint bn = vm.getBlockNumber();
 
-//         asset.mint(alice, 100e18);
-//         vm.prank(alice);
-//         asset.approve(address(farm), 1000e18);
+        vm.roll(bn + 1000);
+        uint balanceBefore = address(this).balance;
 
-//         asset.mint(bob, 100e18);
-//         vm.prank(bob);
-//         asset.approve(address(farm), 1000e18);
+        assertEq(protocolToken.balanceOf(address(this)), 90e18);
 
-//         skip(10000);
+        farm.deposit(address(mockMp), 0);
 
-//         reward.mint(address(this), 100e18);
-//         reward.approve(address(farm), 100e18);
+        // TODO previous rewards are not distributed, because you farm only from the moment of deposit
+        assertEq(address(this).balance, balanceBefore);
+        assertEq(protocolToken.balanceOf(address(this)), 90e18 + 1590 * 1000);
 
-//         farm.updateDistribution(0, 100e18, 1e18);
+        updateRewards(1e18);
 
-//         vm.prank(alice);
-//         farm.deposit(0, 10e18, false);
+        vm.roll(bn + 1000 + 1);
 
-//         vm.prank(alice);
-//         vm.expectRevert();
-//         farm.deposit(0, 100e18, false);
+        farm.deposit(address(mockMp), 0);
 
-//         skip(50);
+        assertEq(address(this).balance, balanceBefore + 1e18);
+        assertEq(protocolToken.balanceOf(address(this)), 90e18 + 1590 * 1001);
 
-//         (uint rewards, uint rewards2) = farm.availableRewards(0, alice);
-//         assertEq(50e18, rewards);
-//         assertEq(0, rewards2);
+        assertEq(address(bobby).balance, 0);
+        assertEq(protocolToken.balanceOf(bobby), 0);
 
-//         assertEq(0e18, reward.balanceOf(alice));
-//         vm.prank(alice);
-//         farm.withdraw(0, 0, false);
-//         assertEq(50e18, reward.balanceOf(alice));
+        vm.prank(bobby);
+        farm.deposit(address(mockMp), 0);
+        
+        // no dep no rewards
+        assertEq(address(bobby).balance, 0);
+        assertEq(protocolToken.balanceOf(bobby), 0);
 
-//         vm.prank(bob);
-//         farm.deposit(0, 100e18, false);
+        vm.roll(bn + 1000 + 1 + 1000);
 
-//         skip(150);
+        // underflow
+        vm.expectRevert();
+        farm.withdraw(address(mockMp), 1e18 + 1);
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(4.54545454545454545e18, rewards);
-//         assertEq(0, rewards2);
+        farm.withdraw(address(mockMp), 1e18);
+        assertEq(mockMp.balanceOf(address(this)), 100e18);
+        assertEq(protocolToken.balanceOf(address(this)), 90e18 + 1590 * 2001);
+    }
 
-//         (rewards, rewards2) = farm.availableRewards(0, bob);
-//         assertEq(50e18 - 4.545454545454545454e18 - 46, rewards);
-//         assertEq(0, rewards2);
 
-//         vm.prank(alice);
-//         farm.withdraw(0, 10e18, false);
-//         assertEq(100e18, asset.balanceOf(alice));
-//         assertEq(50e18 + 4.54545454545454545e18, reward.balanceOf(alice));
+    function test_FarmingWaitWithNoDistribution() public {
+        uint bn = vm.getBlockNumber();
 
-//         vm.prank(alice);
-//         farm.withdraw(0, 0, false);
-//         assertEq(100e18, asset.balanceOf(alice));
-//         assertEq(50e18 + 4.54545454545454545e18, reward.balanceOf(alice));
+        mockMp.approve(address(farm), 1e18);
+        
+        vm.expectRevert("Address: call to non-contract"); // call transferFrom to zero address
+        farm.deposit(address(mockMp), 1e18);
 
-//         vm.prank(bob);
-//         vm.expectRevert();
-//         farm.withdraw(0, 10000e18, false);
-//         assertEq(0e18, asset.balanceOf(bob));
+        farm.updateDistribution(address(mockMp), 0, 0);
 
-//         assertEq(0e18, reward.balanceOf(bob));
-//         vm.prank(bob);
-//         farm.withdraw(0, 100e18, false);
-//         assertEq(100e18, asset.balanceOf(bob));
-//         assertEq(50e18 - 4.545454545454545454e18 - 46, reward.balanceOf(bob));
-//     }
+        uint balanceBefore = address(this).balance;
 
-//     function test_UpdateDistributionWithInsufficientBalance() public {
-//         farm.addPool(address(asset), address(reward), address(0));
+        farm.deposit(address(mockMp), 1e18);
 
-//         reward.mint(address(this), 10e18);
-//         reward.approve(address(farm), 100e18);
+        vm.roll(bn + 1000);
 
-//         vm.expectRevert();
-//         farm.updateDistribution(0, 100e18, 1e18);
+        farm.deposit(address(mockMp), 0);
 
-//         vm.expectRevert();
-//         farm.updateDistribution(0, -100e18, 1e18);
-//     }
+        assertEq(address(this).balance, balanceBefore);
+        assertEq(mockMp.balanceOf(address(this)), 99e18);
+        assertEq(protocolToken.balanceOf(address(this)), 100e18);
 
-//     function test_CheckMultipleDistrubutionUpdatesWork() public {
-//         farm.addPool(address(asset), address(reward), address(0));
+        updateRewards(1e3);
 
-//         reward.mint(address(this), 10e18);
-//         reward.approve(address(farm), 10e18);
+        vm.roll(bn + 1000);
 
-//         farm.updateDistribution(0, 5e18, 0.5e18);
+        farm.deposit(address(mockMp), 0);
 
-//         skip(4);
+        assertEq(address(this).balance, balanceBefore + 1e3);
+        assertEq(mockMp.balanceOf(address(this)), 99e18);
+        assertEq(protocolToken.balanceOf(address(this)), 100e18);
 
-//         farm.updateDistribution(0, 5e18, 0.5e18);
 
-//         skip(6);
+        protocolToken.approve(address(farm), 1e18);
+        farm.updateDistribution(address(mockMp), 1e18, 10);
 
-//         skip(10);
+        vm.roll(bn + 1000 + 1000);
 
-//         address alice = makeAddr("alice");
-//         asset.mint(alice, 100e18);
-//         vm.prank(alice);
-//         asset.approve(address(farm), 10e18);
+        farm.deposit(address(mockMp), 0);
 
-//         vm.prank(alice);
-//         farm.deposit(0, 10e18, false);
+        assertEq(address(this).balance, balanceBefore + 1e3);
+        assertEq(mockMp.balanceOf(address(this)), 99e18);
+        assertEq(protocolToken.balanceOf(address(this)), 99e18 + 1000 * 10);
 
-//         (uint rewards, uint rewards2) = farm.availableRewards(0, alice);
-//         assertEq(0e18, rewards);
-//         assertEq(0e18, rewards2);
+    }
 
-//         skip(10);
+    function test_UpdateDistributionWithInsufficientBalance() public {
+        vm.expectRevert("ERC20: insufficient allowance"); 
+        farm.updateDistribution(address(mockMp), 1e18, 10);
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(5e18, rewards);
-//         assertEq(0e18, rewards2);
+        vm.expectRevert();  // underflow
+        farm.updateDistribution(address(mockMp), -1e18, 10);
 
-//         skip(10);
+    }
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(10e18, rewards);
-//         assertEq(0e18, rewards2);
+    function test_CheckMultipleDistrubutionUpdatesWork() public {
+        protocolToken.approve(address(farm), 10e18);
+        farm.updateDistribution(address(mockMp), 10e18, 10);
 
-//         skip(10000000000000000);
+        mockMp.approve(address(farm), 1e18);
+        farm.deposit(address(mockMp), 1e18);
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(10e18, rewards);
-//         assertEq(0e18, rewards2);
-//     }
+        uint bn = vm.getBlockNumber();
 
-//     function test_FarmRewardCompoundingWithTwoTokensFail() public {
-//         farm.addPool(address(asset), address(reward), address(points));
-//         address alice = makeAddr("alice");
+        vm.roll(bn + 1000);
 
-//         reward.mint(address(this), 20e18);
-//         reward.approve(address(farm), 20e18);
+        farm.updateDistribution(address(mockMp), 0, 13);
 
-//         points.mint(address(this), 100e18);
-//         points.approve(address(farm), 100e18);
+        vm.roll(bn + 1000 + 1510);
 
-//         farm.updateDistribution(0, 20e18, 1e18);
-//         farm.updateDistribution2(0, 100e18, 0.5e18);
+        farm.deposit(address(mockMp), 0);
 
-//         asset.mint(alice, 100e18);
-//         vm.prank(alice);
-//         asset.approve(address(farm), 10e18);
+        assertEq(protocolToken.balanceOf(address(this)), 90e18 + 1000 * 10 + 1510 * 13);
+    }
 
-//         vm.prank(alice);
-//         farm.deposit(0, 10e18, false);
+    function test_MultipleDepositorsWithSameDeps() public {
+        uint bn = vm.getBlockNumber();
 
-//         skip(10);
+        protocolToken.approve(address(farm), 10e18);
+        farm.updateDistribution(address(mockMp), 10e18, 899);
 
-//         vm.prank(alice);
-//         vm.expectRevert(Farm.CantCompound.selector);
-//         farm.withdraw(0, 10e18, true);
+        vm.roll(bn + 150);
 
-//         vm.prank(alice);
-//         vm.expectRevert(Farm.CantCompound.selector);
-//         farm.deposit(0, 0e18, true);
-//     }
+        updateRewards(1e6);
 
-//     function test_FarmRewardCompoundingWithTwoTokens() public {
-//         farm.addPool(address(asset), address(asset), address(points));
-//         address alice = makeAddr("alice");
-//         address bob = makeAddr("bob");
+        mockMp.mint(bobby, 10e18);
+        vm.prank(bobby);
+        mockMp.approve(address(farm), 10e18);
+        vm.prank(bobby);
+        farm.deposit(address(mockMp), 10e18);
 
-//         asset.mint(address(this), 20e18);
-//         asset.approve(address(farm), 20e18);
+        vm.roll(bn + 150 + 150);
 
-//         points.mint(address(this), 100e18);
-//         points.approve(address(farm), 100e18);
+        updateRewards(1e6);
 
-//         farm.updateDistribution(0, 20e18, 1e18);
-//         farm.updateDistribution2(0, 100e18, 0.5e18);
+        mockMp.mint(bobbysFriend, 10e18);
+        vm.prank(bobbysFriend);
+        mockMp.approve(address(farm), 10e18);
+        vm.prank(bobbysFriend);
+        farm.deposit(address(mockMp), 10e18);
 
-//         skip(100);
+        vm.roll(bn + 150 + 150 + 150);
 
-//         asset.mint(alice, 100e18);
-//         vm.prank(alice);
-//         asset.approve(address(farm), 10e18);
+        updateRewards(1e6);
 
-//         vm.prank(alice);
-//         farm.deposit(0, 10e18, false);
+        mockMp.approve(address(farm), 10e18);
+        farm.deposit(address(mockMp), 10e18);
 
-//         asset.mint(bob, 100e18);
-//         vm.prank(bob);
-//         asset.approve(address(farm), 10e18);
+        vm.roll(bn + 150 + 150 + 150 + 150);
+        updateRewards(1e6);
+        
+        vm.prank(bobbysFriend);
+        farm.deposit(address(mockMp), 0);
+        vm.prank(bobby);
+        farm.deposit(address(mockMp), 0);
 
-//         vm.prank(bob);
-//         farm.deposit(0, 10e18, false);
+        uint balanceBefore = address(this).balance;
+        farm.deposit(address(mockMp), 0);
 
-//         skip(10);
+        // total 3e6
+        // sum = 2 999 999
+        assertEq(address(this).balance, balanceBefore); // third 1e6 / 3
+        assertEq(address(bobby).balance, 1e6); // first 1e6 + 1e6/2 + 1e6/3
+        assertEq(address(bobbysFriend).balance, 666666); // second 1e6 + 1e6/2
 
-//         (uint rewards, uint rewards2) = farm.availableRewards(0, alice);
-//         assertEq(5e18, rewards);
-//         assertEq(2.5e18, rewards2);
+        // totalDistributed = 899 * 450 = 404550
+        // ~404 532
+        assertEq(protocolToken.balanceOf(address(this)), 90e18 + 30645);
+        assertEq(protocolToken.balanceOf(bobby), 275460);
+        assertEq(protocolToken.balanceOf(bobbysFriend), 98427);
+    }
 
-//         (rewards, rewards2) = farm.availableRewards(0, bob);
-//         assertEq(5e18, rewards);
-//         assertEq(2.5e18, rewards2);
+    
 
-//         vm.prank(alice);
-//         farm.withdraw(0, 0, true);
+    function test_MultipleDepositorsWithDifferentDeps() public {
+        uint bn = vm.getBlockNumber();
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(0e18, rewards);
-//         assertEq(0e18, rewards2);
+        protocolToken.approve(address(farm), 10e18);
+        farm.updateDistribution(address(mockMp), 10e18, 899);
 
-//         (rewards, rewards2) = farm.availableRewards(0, bob);
-//         assertEq(5e18, rewards);
-//         assertEq(2.5e18, rewards2);
+        vm.roll(bn + 150);
 
-//         skip(20);
+        updateRewards(1e6);
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(6e18, rewards);
-//         assertEq(6e18, rewards2);
+        mockMp.mint(bobby, 10e18);
+        vm.prank(bobby);
+        mockMp.approve(address(farm), 10e18);
+        vm.prank(bobby);
+        farm.deposit(address(mockMp), 10e18);
 
-//         (rewards, rewards2) = farm.availableRewards(0, bob);
-//         assertEq(4e18 + 5e18, rewards);
-//         assertEq(4e18 + 2.5e18, rewards2);
+        vm.roll(bn + 150 + 150);
 
-//         vm.prank(alice);
-//         farm.withdraw(0, 15e18, false);
+        updateRewards(1e6);
 
-//         assertEq(100e18 + 11e18, asset.balanceOf(alice));
-//         assertEq(6e18 + 2.5e18, points.balanceOf(alice));
+        mockMp.mint(bobbysFriend, 7e18);
+        vm.prank(bobbysFriend);
+        mockMp.approve(address(farm), 7e18);
+        vm.prank(bobbysFriend);
+        farm.deposit(address(mockMp), 7e18);
 
-//         vm.prank(bob);
-//         farm.withdraw(0, 10e18, false);
+        vm.roll(bn + 150 + 150 + 150);
 
-//         assertEq(100e18 + 9e18, asset.balanceOf(bob));
-//         assertEq(4e18 + 2.5e18, points.balanceOf(bob));
+        updateRewards(1e6);
 
-//         skip(20);
+        mockMp.approve(address(farm), 5e18);
+        farm.deposit(address(mockMp), 5e18);
 
-//         (rewards, rewards2) = farm.availableRewards(0, alice);
-//         assertEq(0e18, rewards);
-//         assertEq(0e18, rewards2);
+        vm.roll(bn + 150 + 150 + 150 + 150);
+        updateRewards(1e6);
+        
+        vm.prank(bobbysFriend);
+        farm.deposit(address(mockMp), 0);
+        vm.prank(bobby);
+        farm.deposit(address(mockMp), 0);
 
-//         (rewards, rewards2) = farm.availableRewards(0, bob);
-//         assertEq(0e18, rewards);
-//         assertEq(0e18, rewards2);
-//     }
+        uint balanceBefore = address(this).balance;
+        farm.deposit(address(mockMp), 0);
 
-//     function test_CompoundingOnDeposit() public {
-//         farm.addPool(address(asset), address(asset), address(points));
-//         address alice = makeAddr("alice");
+        // total 3e6
+        // sum = 2 999 999
+        assertEq(address(this).balance, balanceBefore + 681818);
+        assertEq(address(bobby).balance, 1363636); // first 1e6 + 1e6/2 + 1e6/3
+        assertEq(address(bobbysFriend).balance, 954545);
 
-//         asset.mint(address(this), 20e18);
-//         asset.approve(address(farm), 20e18);
+        // totalDistributed = 899 * 450 = 404550
+        // ~404 532
+        assertEq(protocolToken.balanceOf(address(this)), 90e18 + 30645);
+        assertEq(protocolToken.balanceOf(bobby), 275460);
+        assertEq(protocolToken.balanceOf(bobbysFriend), 98427);
+    }
 
-//         points.mint(address(this), 100e18);
-//         points.approve(address(farm), 100e18);
-
-//         farm.updateDistribution(0, 20e18, 1e18);
-//         farm.updateDistribution2(0, 100e18, 0.5e18);
-
-//         asset.mint(alice, 100e18);
-//         vm.prank(alice);
-//         asset.approve(address(farm), 20e18);
-
-//         vm.prank(alice);
-//         farm.deposit(0, 10e18, false);
-
-//         skip(10);
-
-//         vm.prank(alice);
-//         farm.deposit(0, 10e18, true);
-
-//         vm.prank(alice);
-//         farm.withdraw(0, 20e18, true);
-//     }
-// }
+}

@@ -2,17 +2,16 @@
 pragma solidity ^0.8.0;
 
 struct UserInfo {
-    uint claimed;
+    uint rd;
     uint quantity;
     uint protocolRD;
     uint lastUpdateBlock;
 }
 
 struct PoolInfo {
-    uint256 totalRewards;
+    uint256 arps;
     uint256 totalQuantity;
     address multipoolAddress;
-    uint collectedAmount;
     uint protocolTokenRPB;
     uint protocolTokenAvailableRewards;
     uint protocolTokenArps;
@@ -26,7 +25,7 @@ using {
 } for PoolInfo global;
 
 library FarmingMath {
-    function updatePool(PoolInfo memory pool, uint currentBlockNumber) internal pure {
+    function updatePool(PoolInfo memory pool, uint currentBlockNumber, uint rewardDiff) internal pure {
         uint rewards = pool.protocolTokenRPB * (currentBlockNumber - pool.lastUpdateBlock);
         if (rewards > pool.protocolTokenAvailableRewards) {
             rewards = pool.protocolTokenAvailableRewards;
@@ -40,6 +39,10 @@ library FarmingMath {
         } else {
             pool.protocolTokenArps = 0;
         }
+
+        if (rewardDiff > 0 && pool.totalQuantity > 0) {
+            pool.arps += (rewardDiff * 1e12) / pool.totalQuantity;
+        }
     }
 
     function updateRewards(
@@ -52,8 +55,13 @@ library FarmingMath {
         pure
         returns (uint rewards, uint protocolRewards)
     {
-        updatePool(pool, currentBlockNumber);
-        rewards = (user.quantity * pool.totalRewards + pendingAmount / pool.totalQuantity) - user.claimed;
+        updatePool(pool, currentBlockNumber, pendingAmount);
+        if (user.quantity > 0) {
+            rewards = user.quantity * pool.arps / 1e12 - user.rd;
+        } else {
+            rewards = 0;
+        }
+        user.rd = (user.quantity * pool.arps) / 1e12;
         uint amount = user.quantity * pool.protocolTokenArps / 1e18 - user.protocolRD;
         protocolRewards += amount;
 
@@ -97,12 +105,13 @@ library FarmingMath {
         PoolInfo memory pool,
         uint currentBlockNumber,
         int rewardsDelta,
-        uint newRpb
+        uint newRpb,
+        uint pendingAmount
     )
         internal
         pure
     {
-        updatePool(pool, currentBlockNumber);
+        updatePool(pool, currentBlockNumber, pendingAmount);
         if (rewardsDelta >= 0) {
             pool.protocolTokenAvailableRewards += uint(rewardsDelta);
         } else {

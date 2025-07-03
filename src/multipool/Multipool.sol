@@ -468,6 +468,12 @@ contract Multipool is
         );
     }
 
+    function lpFeesBalance() external view returns (uint fee) {
+        bytes32 fees = mpFees2;
+        (uint collectedLpFee, , ,) = unpackMpFees2(fees);
+        fee = collectedLpFee;
+    }
+
     function claimLpFees(address to) external returns (uint fee) {
         bytes32 fees = mpFees2;
         (uint collectedLpFee, uint collectedManagerFee, uint totalTargetShares, uint deviationLimit)
