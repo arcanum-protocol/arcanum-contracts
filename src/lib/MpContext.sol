@@ -44,19 +44,19 @@ function packMpAsset(
 
 function expandFrom20(uint val) pure returns (uint res) {
     unchecked {
-        res = val * (1 << 32) / 1e6;
+        res = val * (1 << 96) / 1e6;
     }
 }
 
 function expandFrom19(uint val) pure returns (uint res) {
     unchecked {
-        res = val * (2 << 32) / 1e6;
+        res = val * (2 << 96) / 1e6;
     }
 }
 
 function expandFrom16(uint val) pure returns (uint res) {
     unchecked {
-        res = val * (5 << 32) / 1e5;
+        res = val * (5 << 96) / 1e5;
     }
 }
 

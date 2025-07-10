@@ -1,0 +1,3 @@
+[submodule "lib/redstone"]
+	path = lib/redstone
+	url = https://github.com/redstone-finance/redstone-oracles-monorepo
